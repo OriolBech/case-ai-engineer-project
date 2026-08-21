@@ -1,0 +1,65 @@
+id,hueco_cubierto,descripcion,col_material,col_medida,cant,expectativa
+S01,A1 nombre VARILLA ROSCADA (alias EN),"THREADED ROD M12 X 1000, DIN 975, A4-70",A4-70,M12x1000,20,1 linea VARILLA ROSCADA / DIN 975 se conserva (fuera de tabla) / G3 / long 1000 sin unidad -> P-4
+S02,A2 nombre VARILLA ROSCADA (ES),"Varilla roscada M16 x 1000, 8.8, zincada",8.8,M16x1000,15,1 linea VARILLA ROSCADA / G5 / CINCADO / sin norma -> P-5 REVISION
+S03,B1 G1 via 304,"HEX BOLT DIN 933 M10x30, 304",304,M10x30,120,G1: 304 equivale a A2
+S04,B2 G1 via 18-8,"Tornillo DIN 931 M12x60, 18-8",18-8,M12x60,90,G1: 18-8 equivale a A2
+S05,B3 G1 via A2-70,"Tornillo DIN 933 M8x25, A2-70",A2-70,M8x25,200,G1: A2-70 equivale a A2
+S06,B4 G2 (valor unico),"SCREW DIN 912 M6x20, A2-80",A2-80,M6x20,300,G2 aislado: NO equivale a A2
+S07,B5 G3 via 316,"BOLT DIN 931 M20x100, 316",316,M20x100,60,G3: 316 equivale a A4-70
+S08,B6 G3 via A4,"Tornillo DIN 933 M10x40, A4",A4,M10x40,80,G3
+S09,B7 G5 via GRADE 5 + imperial,"HEX BOLT DIN 931 1/2"" X 2"", GRADE 5",GRADE 5,"1/2""x2""",50,G5: GRADE 5 equivale a 8.8 / imperial con longitud en pulgadas explicita
+S10,B8 G6 via 10.9,"Tornillo DIN 912 M12x50, 10.9, geomet",10.9,M12x50,40,G6 / GEOMET
+S11,B9 G6 via GRADE 8,"BOLT DIN 933 M16x50, GRADE 8",GRADE 8,M16x50,70,G6: GRADE 8 equivale a 10.9
+S12,B10 G6 via GRADO 8 (ES),"Tornillo DIN 931 M14x70, GRADO 8, pavonado",GRADO 8,M14x70,35,G6 en espanol / PAVONADO. Nota: GRADO 5/8 estan en la tabla de grupos pero NO en la lista de valores de §5
+S13,B11 G8 en tuerca (correcto),"NUT DIN 934 M20, 8",8,M20,250,G8 valido: '8' solo aplica a tuercas
+S14,B12 G9 en tuerca (correcto),"Tuerca DIN 934 M16, 10",10,M16,180,G9 valido en tuerca
+S15,B13 G13 en arandela,"WASHER DIN 125 M12, 200HV",200HV,M12,400,G13 / arandela sin longitud = correcto
+S16,B14 G10 + DIN 9021,"Arandela DIN 9021 M10, 100HV, cincada",100HV,M10,350,G10 / DIN 9021 -> ISO 7093 / CINCADO
+S17,B15 G11 + DIN 440,"WASHER DIN 440 M16, 140HV",140HV,M16,200,G11 / DIN 440 -> ISO 7094
+S18,B16 G14 + DIN 125 A,"Arandela DIN 125 A M8, 300HV",300HV,M8,500,G14 / variante 'DIN 125 A' -> ISO 7089
+S19,B17 G12 + norma ya en ISO,"Arandela ISO 7093 M10, 160HV",160HV,M10,300,G12 / la norma llega YA normalizada: se acepta tal cual (§8 lista ISO como formato esperable)
+S20,C1 calidad 8 en TORNILLO,"BOLT DIN 931 M16x60, 8",8,M16x60,100,INCOHERENCIA: '8' solo aplica a tuercas -> REVISION_MANUAL / QUALITY_TYPE_INCOHERENCE
+S21,C2 calidad 10 en TORNILLO,"Tornillo DIN 933 M12x40, 10, zincado",10,M12x40,150,INCOHERENCIA analoga -> REVISION_MANUAL
+S22,C3 HV en TORNILLO (no decidido),"Tornillo DIN 933 M10x30, 200HV",200HV,M10x30,60,AMBIGUEDAD NUEVA: las reglas no restringen HV a arandelas. Por la letra seria RESUELTA. Ver P-8
+S23,D1 GALV. CALIENTE via HDG,"BOLT DIN 933 M16x60, 8.8, HDG",8.8,M16x60,80,GALVANIZADO EN CALIENTE
+S24,D2 GALV. CALIENTE forma larga ES,"Tornillo DIN 931 M20x80, 8.8, galvanizado en caliente",8.8,M20x80,45,GALVANIZADO EN CALIENTE
+S25,D3 GALV. CALIENTE alias EN,"HEX BOLT DIN 931 M12x50, 8.8, HOT DIP GALVANIZED",8.8,M12x50,90,GALVANIZADO EN CALIENTE
+S26,D4 DACROMET,"Tornillo DIN 912 M8x30, 12.9, dacromet",12.9,M8x30,200,DACROMET
+S27,D5 PAVONADO via BL + DIN 7991,"SCREW DIN 7991 M10x40, 10.9, BL",10.9,M10x40,120,"PAVONADO via alias 'BL' (alias corto, riesgo de falso negativo) / DIN 7991 -> ISO 10642"
+S28,D6 PAVONADO via NEGRO,"Tornillo DIN 933 M10x30, 8.8, negro",8.8,M10x30,250,PAVONADO
+S29,D7 FOSFATADO ES,"Tornillo DIN 933 M10x35, 8.8, fosfatado",8.8,M10x35,180,FOSFATADO
+S30,D8 FOSFATADO alias EN,"BOLT DIN 931 M16x70, 8.8, PHOSPHATED",8.8,M16x70,70,FOSFATADO
+S31,D9 BICROMATADO via YZP,"Tornillo DIN 933 M12x45, 8.8, YZP",8.8,M12x45,300,BICROMATADO
+S32,D10 BICROMATADO forma larga,"HEX BOLT DIN 933 M10x40, 8.8, YELLOW ZINC PLATED",8.8,M10x40,220,BICROMATADO
+S33,D11 CINCADO via ZP,"Tornillo DIN 931 M12x60, 8.8, ZP",8.8,M12x60,160,CINCADO via alias ZP
+S34,D12 CINCADO forma canonica,"Tornillo DIN 933 M8x30, 8.8, cincado",8.8,M8x30,400,CINCADO
+S35,E1 P-1 con HDG,"BOLT DIN 931 M16x70 with NUT DIN 934 and 2 WASHER DIN 125, 8.8, HDG",8.8,M16x70,100,3 lineas. P-1 decide si HDG alcanza a tuerca y arandelas. Cantidades 100/100/200
+S36,F1 ASME,"HEX BOLT ASME B18.2.1 1/2"" X 3"", GRADE 5, HDG",GRADE 5,"1/2""x3""",40,formato ASME nunca visto / G5 via GRADE 5 / GALVANIZADO EN CALIENTE
+S37,F2 MSS SP,"STUD BOLT 7/8"" X 120 LG, MSS SP-97, GR B7",MSS SP-97 GR B7,"7/8""x120",30,formato MSS SP nunca visto. Realismo metalurgico irrelevante: se prueba el parser
+S38,F3 DIN EN,"Tornillo DIN EN 14399-4 M20x90, 10.9, HDG",10.9,M20x90,55,formato 'DIN EN' / se conserva (no esta en la tabla)
+S39,F4 ISO directa + G8,"NUT ISO 4032 M16, 8",8,M16,300,norma ya en ISO / G8 en tuerca = correcto
+S40,F5 DIN 6923 -> EN 1661,"Tuerca DIN 6923 M10, 8",8,M10,280,UNICA equivalencia de la tabla que va a EN y no a ISO
+S41,G1 DIN 84,"Tornillo DIN 84 M5x20, A2-70",A2-70,M5x20,500,DIN 84 -> ISO 1207 / G1
+S42,G2 DIN 7981 C-H (sufijo),"SCREW DIN 7981 C-H 4.8x25, A2",A2,4.8x25,600,DIN 7981 C-H -> ISO 7049. El sufijo 'C-H' es trampa de parseo. Medida no metrica ni imperial: 4.8
+S43,G3 DIN 7982 C-H,"Tornillo DIN 7982 C-H 4.2x19, A2, cincado",A2,4.2x19,450,DIN 7982 C-H -> ISO 7050
+S44,G4 DIN 965,"Tornillo DIN 965 M6x30, 8.8",8.8,M6x30,320,DIN 965 -> ISO 7046
+S45,G5 DIN 980 + G9,"Tuerca DIN 980 M12, 10",10,M12,240,DIN 980 -> ISO 7042 / G9
+S46,G6 DIN 985 + G8 correcto,"Tuerca DIN 985 M10, 8, zincada",8,M10,380,DIN 985 -> ISO 10511 / G8 correcto (la fila 13 del MTO real usa 8.8 = incoherente)
+S47,G7 DIN 936,"Tuerca DIN 936 M16, 8",8,M16,150,DIN 936 -> ISO 4035
+S48,G8 DIN 603,"Tornillo DIN 603 M10x50, 8.8",8.8,M10x50,140,DIN 603 -> ISO 8677
+S49,G9 DIN 913 + calidad fuera de catalogo,"Esparrago DIN 913 M8x20, 45H",45H,M8x20,200,DIN 913 -> ISO 4026 / calidad '45H' marcada como calidad pero fuera de lista -> se extrae tal cual
+S50,G10 DIN 7985,"Tornillo DIN 7985 M5x16, A2, cincado",A2,M5x16,700,DIN 7985 -> ISO 7045
+S51,H1 unidades mezcladas,"BOLT M20 x 3"", 8.8",8.8,"M20x3""",50,medida metrica + longitud imperial -> UNIT_MISMATCH -> REVISION
+S52,H2 longitud con mm explicito,"Tornillo DIN 933 M10 x 40 mm, 8.8",8.8,M10x40,300,'mm' escrito. En el MTO real la longitud NUNCA trae unidad
+S53,H3 imperial con longitud en pulgadas,"STUD BOLT 7/8"" X 6"" LG, ASTM A193 GR B7",ASTM A193 GR B7,"7/8""x6""",25,longitud imperial explicita (las filas 1/5/12 del MTO no traen unidad)
+S54,H4 SIN medida,"NUT DIN 934, A4-80",A4-80,,200,obligatorio ausente -> REVISION / MEASURE_MISSING. Ninguna fila del MTO real carece de medida
+S55,H5 TORNILLO sin longitud,"Tornillo DIN 933 M12, 8.8",8.8,M12,100,longitud obligatoria en tornillo -> REVISION / LENGTH_MISSING
+S56,I1 NO es tornillería,"BRIDA SLIP-ON 6"" 150# ASTM A105",ASTM A105,"6""",12,AMBIGUEDAD NUEVA (P-9): no debe salir 1 linea RESUELTA con 7 atributos inventados
+S57,I2 NO es tornilleria,"Junta espirometalica 6"" 150#, grafito",grafito,"6""",24,idem P-9
+S58,I3 descripcion vacia,,,,50,no debe romper. Descartar y contar en el informe
+S59,I4 cantidad ausente,"BOLT DIN 931 M16x60, 8.8",8.8,M16x60,,"atributos resolubles, cantidad nula -> QUANTITY_NOT_STATED"
+S60,J1 frances,"Vis a tete hexagonale DIN 933 M10 x 40, 8.8, zingue",8.8,M10x40,200,FR -> TORNILLO / CINCADO
+S61,J2 portugues,"Parafuso sextavado DIN 931 M12 x 50, 8.8, zincado",8.8,M12x50,180,PT -> TORNILLO / CINCADO
+S62,K1 set 1:2:4,"STUD BOLT 1"" X 200 LG, ASTM A193 GR B7 W/ 2 NUT ASTM A194 GR 2H AND 4 WASHER ASTM F436",ASTM A193 GR B7/A194 GR 2H,"1""x200",20,"3 lineas, cantidades 20/40/80"
+S63,K2 set con 3 grupos de calidad distintos,"Conjunto: tornillo DIN 931 M20x100 8.8, tuerca DIN 934 10, 2 arandelas DIN 125 200HV, zincado",8.8/10/200HV,M20x100,30,El caso mas duro: G5 + G9 + G13 en el mismo set. NADA se extrapola salvo medida. Acabado -> P-1
+S64,K3 set con secundario desnudo,BOLT DIN 931 M16x80 with NUT,8.8,M16x80,120,"tuerca sin norma ni calidad propias: medida extrapolada, resto ausente -> REVISION"
