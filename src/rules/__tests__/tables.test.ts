@@ -176,3 +176,17 @@ describe('material (P-3)', () => {
     assert.match(deriveMaterialFromQuality('A4-70')!.rule, /^P-3:/);
   });
 });
+
+describe('material · A2/A4 son calidades, no materiales', () => {
+  test('findMaterials no convierte una calidad inox en material', async () => {
+    const { findMaterials } = await import('../material.ts');
+    assert.equal(findMaterials('Tornillo DIN 933 M12 x 50, A2').length, 0);
+    assert.equal(findMaterials('BOLT DIN931 M20x90, A4-70').length, 0);
+  });
+
+  test('sí lo detecta cuando el metal está escrito con sus palabras', async () => {
+    const { findMaterials } = await import('../material.ts');
+    assert.equal(findMaterials('Arandela plana DIN 125 M10, acero, zincada')[0]?.value, 'AC');
+    assert.equal(findMaterials('WASHER, stainless steel')[0]?.value, 'INOX');
+  });
+});

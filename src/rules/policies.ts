@@ -21,6 +21,16 @@ export interface Policies {
   missingStandard: 'review' | 'resolve';
   /** P-6. Nut with quality 8.8 (G5) vs nut class 8 (G8). NEVER convert between groups. */
   qualityCoherence: 'review' | 'ignore';
+  /**
+   * P-8. The rules restrict `8`/`10` to nuts but say nothing about the HV hardness groups.
+   * Default resolves them: inventing a restriction the client did not write is what §1 forbids.
+   */
+  hvScope: 'anywhere' | 'washer_only';
+  /**
+   * P-9. A row that is not a fastener (a flange, a gasket). The worst failure mode in the case is
+   * emitting seven plausible attributes for one of these as RESUELTA, so the default surfaces it.
+   */
+  outOfFamily: 'review' | 'silent_skip';
 }
 
 /**
@@ -35,4 +45,6 @@ export const DEFAULT_POLICIES: Policies = {
   unitlessLength: 'plausibility_range',
   missingStandard: 'review',
   qualityCoherence: 'review',
+  hvScope: 'anywhere',
+  outOfFamily: 'review',
 };
