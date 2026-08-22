@@ -43,6 +43,12 @@ export type Provenance =
   | 'exact_catalog'
   /** Alias recognised in one of the client's tables. */
   | 'table_normalized'
+  /**
+   * Appeared literally, but there is no closed catalogue to check it against: a measure (`M20`),
+   * a standard with no equivalence (`DIN 975`), a material written in words (`acero`). As solid as
+   * a catalogue hit — the difference is that nothing corroborates it.
+   */
+  | 'extracted'
   /** Flagged as a quality but outside the list (ASTM grades: GR B7, GR 2H). */
   | 'extracted_uncatalogued'
   /** Measure inherited within a set — the ONLY extrapolation the rules allow (§2). */
@@ -52,7 +58,9 @@ export type Provenance =
   /** Multiplicity or length unit assumed — policies P-2, P-4. */
   | 'inferred'
   /** Not present in the MTO. Nothing a model can fix: goes back to engineering. */
-  | 'absent';
+  | 'absent'
+  /** The attribute does not apply: length on a nut or a washer (§7). Not a gap. */
+  | 'not_applicable';
 
 /** Byte offsets into MtoRow.sourceText. Every non-null value must have one. */
 export interface Span {
@@ -138,6 +146,12 @@ export type ReasonCode =
   | 'LENGTH_MISSING'
   | 'NAME_MISSING'
   | 'QUANTITY_NOT_STATED'
+  /** Policy P-9: the row is not a fastener at all. Never force it into one of the five names. */
+  | 'OUT_OF_FAMILY'
+  /** The row carries no description. Distinct from OUT_OF_FAMILY: nothing was read, not misread. */
+  | 'EMPTY_DESCRIPTION'
+  /** The model call failed for this row. A processing failure, never a statement about the row. */
+  | 'PROCESSING_FAILED'
   // Incoherence -> a human decides.
   | 'QUALITY_TYPE_INCOHERENCE'
   | 'UNIT_MISMATCH'
