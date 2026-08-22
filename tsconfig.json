@@ -14,20 +14,29 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
     "verbatimModuleSyntax": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "types": [
       "node"
-    ]
+    ],
+    "allowJs": true,
+    "resolveJsonModule": true
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
     "app/**/*.ts",
-    "app/**/*.tsx"
+    "app/**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

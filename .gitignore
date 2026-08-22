@@ -6,3 +6,6 @@ out/
 data/output/
 *.log
 .DS_Store
+
+# artefactos de build
+*.tsbuildinfo

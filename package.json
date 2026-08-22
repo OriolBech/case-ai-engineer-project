@@ -7,13 +7,35 @@
     "node": ">=24"
   },
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "test": "node --test 'src/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "rules:audit": "node src/rules/audit.ts",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm test",
+    "smoke": "node scripts/smoke-llm.ts",
+    "cost": "node scripts/cost.ts",
+    "run": "node scripts/run.ts",
+    "eval": "node scripts/eval.ts",
+    "providers:check": "node scripts/providers-check.ts",
+    "critic:off": "CRITIC=off node scripts/eval.ts",
+    "sweep": "node scripts/sweep-models.ts",
+    "variants": "node scripts/check-variants.ts"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.4",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "next": "^16.3.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }
