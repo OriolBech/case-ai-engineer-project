@@ -56,6 +56,16 @@ console.log(`  crítico (${criticRouting})   ${out.critic.rowsRun}/${out.critic.
 if (out.critic.missingElements.length) {
   for (const m of out.critic.missingElements) console.log(`    fila ${m.row}: faltarían ${m.items.join(', ')}`);
 }
+if (out.gaps.length) {
+  console.log(`\n  HUECOS DE POLÍTICA — ${out.gaps.length} en ${new Set(out.gaps.map((g) => g.rowRef)).size} filas`);
+  console.log('  (no van a la cola del comprador: son decisiones que el proyecto debe)');
+  for (const b of out.policyBacklog) {
+    console.log(`    ${b.kind}  ${b.attribute ?? '-'}=${JSON.stringify(b.value)}  filas ${b.rows.join(',')}`);
+    console.log(`      ${b.detail}`);
+  }
+} else {
+  console.log('\n  huecos de política: ninguno');
+}
 console.log('  coste por nivel:');
 for (const [t, v] of Object.entries(llm.byTier)) {
   if (!v.calls) continue;

@@ -162,3 +162,24 @@ describe('normalize · el nombre lo decide la tabla, no el modelo', () => {
     assert.match(n.name.rule!, /^name:model:/);
   });
 });
+
+describe('validate · una fila nunca desaparece', () => {
+  test('0 elementos con descripción produce una línea con motivo, no vacío', async () => {
+    const { validateRow } = await import('../validate.ts');
+    const a = analysis(0);
+    const lines = validateRow(a, [], row);
+    assert.equal(lines.length, 1, 'la fila tiene que salir en la salida');
+    assert.equal(lines[0].status, 'REVISION_MANUAL');
+    assert.equal(lines[0].reasons[0].code, 'NO_ELEMENTS_EXTRACTED');
+  });
+});
+
+describe('spans · evidencia con comillas escapadas', () => {
+  test('7/8" con la comilla escapada se localiza igual', async () => {
+    const { locate } = await import('../spans.ts');
+    const src = 'STUD BOLT 7/8" X 6" LG, ASTM A193 GR B7';
+    const r = locate(src, 'STUD BOLT 7/8\\" X 6\\" LG');
+    assert.equal(r.hallucinated, false, 'no es una alucinación: es escapado JSON');
+    assert.ok(r.span);
+  });
+});

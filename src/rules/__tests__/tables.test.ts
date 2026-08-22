@@ -190,3 +190,23 @@ describe('material · A2/A4 son calidades, no materiales', () => {
     assert.equal(findMaterials('WASHER, stainless steel')[0]?.value, 'INOX');
   });
 });
+
+describe('standards · el sufijo no se come conjunciones', () => {
+  test('"DIN 934 y" (conjunción española) no es "DIN 934 Y"', () => {
+    assert.equal(normalizeStandard('DIN 934 y')?.normalized, 'ISO 4032');
+    assert.equal(normalizeStandard('DIN 125 y')?.normalized, 'ISO 7089');
+  });
+
+  test('los dos sufijos reales de la tabla siguen funcionando', () => {
+    assert.equal(normalizeStandard('DIN 125 A')?.normalized, 'ISO 7089');
+    assert.equal(normalizeStandard('DIN 7981 C-H')?.normalized, 'ISO 7049');
+  });
+
+  test('en la fila 9 completa, las tres normas salen limpias', () => {
+    const text = 'Conjunto esparrago M20 x 200 DIN 975 con 2 tuercas DIN 934 y 2 arandelas DIN 125, 8.8, zincado';
+    assert.deepEqual(
+      findStandards(text).map((s) => s.result.normalized),
+      ['DIN 975', 'ISO 4032', 'ISO 7089'],
+    );
+  });
+});

@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "attribute": "material",
+  "policy": "P-3",
+  "note": "Derivación del material a partir de la calidad. Datos, no código: cambiar una entrada no es un despliegue, y cada una lleva quién la decidió, cuándo y con qué argumento. Una calidad que no encaje con ninguna entrada NO se resuelve con material vacío: produce un hueco de política con la entrada candidata. Ver docs/12-system-behind-the-rules.md",
+  "entries": [
+    {
+      "id": "inox-a2",
+      "when": { "qualityGroup": "G1" },
+      "material": "INOX",
+      "rationale": "G1 (A2, A2-70, 18-8, 304) es la familia austenítica A2. Inoxidable por definición de la designación.",
+      "decidedBy": "Oriol Bech",
+      "decidedAt": "2026-08-22",
+      "source": "reglas_tornilleria.md §5 + designación ISO 3506"
+    },
+    {
+      "id": "inox-a2-80",
+      "when": { "qualityGroup": "G2" },
+      "material": "INOX",
+      "rationale": "G2 (A2-80) es A2 con resistencia superior. Misma familia de material.",
+      "decidedBy": "Oriol Bech",
+      "decidedAt": "2026-08-22",
+      "source": "reglas_tornilleria.md §5"
+    },
+    {
+      "id": "inox-a4",
+      "when": { "qualityGroup": "G3" },
+      "material": "INOX",
+      "rationale": "G3 (A4, A4-70, 316) es la familia A4 con molibdeno. Inoxidable.",
+      "decidedBy": "Oriol Bech",
+      "decidedAt": "2026-08-22",
+      "source": "reglas_tornilleria.md §5 + designación ISO 3506"
+    },
+    {
+      "id": "inox-a4-80",
+      "when": { "qualityGroup": "G4" },
+      "material": "INOX",
+      "rationale": "G4 (A4-80) es A4 con resistencia superior. Misma familia.",
+      "decidedBy": "Oriol Bech",
+      "decidedAt": "2026-08-22",
+      "source": "reglas_tornilleria.md §5"
+    },
+    {
+      "id": "ac-clase-8-8",
+      "when": { "qualityGroup": "G5" },
+      "material": "AC",
+      "rationale": "G5 (8.8, GRADE 5) es una clase de resistencia ISO 898-1, que sólo se define para acero al carbono y aleado. No existe en inoxidable.",
+      "decidedBy": "Oriol Bech",
+      "decidedAt": "2026-08-22",
+      "source": "reglas_tornilleria.md §5 + ISO 898-1"
+    },
+    {
+      "id": "ac-clase-10-9",
+      "when": { "qualityGroup": "G6" },
+      "material": "AC",
+      "rationale": "G6 (10.9, GRADE 8) es clase de resistencia ISO 898-1.",
+      "decidedBy": "Oriol Bech",
+      "decidedAt": "2026-08-22",
+      "source": "reglas_tornilleria.md §5 + ISO 898-1"
+    },
+    {
+      "id": "ac-clase-12-9",
+      "when": { "qualityGroup": "G7" },
+      "material": "AC",
+      "rationale": "G7 (12.9) es clase de resistencia ISO 898-1.",
+      "decidedBy": "Oriol Bech",
+      "decidedAt": "2026-08-22",
+      "source": "reglas_tornilleria.md §5 + ISO 898-1"
+    },
+    {
+      "id": "ac-tuerca-8",
+      "when": { "qualityGroup": "G8" },
+      "material": "AC",
+      "rationale": "G8 (8) es clase de tuerca ISO 898-2, fabricada para acoplarse a tornillos 8.8. Acero.",
+      "decidedBy": "Oriol Bech",
+      "decidedAt": "2026-08-22",
+      "source": "reglas_tornilleria.md §5 + ISO 898-2"
+    },
+    {
+      "id": "ac-tuerca-10",
+      "when": { "qualityGroup": "G9" },
+      "material": "AC",
+      "rationale": "G9 (10) es clase de tuerca ISO 898-2 para tornillos 10.9. Acero.",
+      "decidedBy": "Oriol Bech",
+      "decidedAt": "2026-08-22",
+      "source": "reglas_tornilleria.md §5 + ISO 898-2"
+    },
+    {
+      "id": "ac-astm-b7",
+      "when": { "qualityPattern": "^(GR\\.?\\s*)?B7M?$" },
+      "material": "AC",
+      "rationale": "ASTM A193 grado B7 es acero aleado cromo-molibdeno templado y revenido. No inoxidable.",
+      "decidedBy": "Oriol Bech",
+      "decidedAt": "2026-08-22",
+      "source": "ASTM A193"
+    },
+    {
+      "id": "ac-astm-2h",
+      "when": { "qualityPattern": "^(GR\\.?\\s*)?2HM?$" },
+      "material": "AC",
+      "rationale": "ASTM A194 grado 2H es tuerca de acero al carbono templado. No inoxidable.",
+      "decidedBy": "Oriol Bech",
+      "decidedAt": "2026-08-22",
+      "source": "ASTM A194"
+    },
+    {
+      "id": "ac-astm-b16",
+      "when": { "qualityPattern": "^(GR\\.?\\s*)?B16$" },
+      "material": "AC",
+      "rationale": "ASTM A193 grado B16 es acero aleado para alta temperatura. No inoxidable.",
+      "decidedBy": "Oriol Bech",
+      "decidedAt": "2026-08-22",
+      "source": "ASTM A193"
+    }
+  ],
+  "deliberatelyUncovered": [
+    {
+      "match": "G10..G14 (100HV..300HV)",
+      "why": "Las durezas HV describen el tratamiento superficial de una arandela, no su metal base. Una arandela 200HV puede ser acero o inoxidable. Derivar aquí sería inventar."
+    }
+  ]
+}

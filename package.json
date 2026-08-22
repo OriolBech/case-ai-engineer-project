@@ -21,7 +21,9 @@
     "providers:check": "node scripts/providers-check.ts",
     "critic:off": "CRITIC=off node scripts/eval.ts",
     "sweep": "node scripts/sweep-models.ts",
-    "variants": "node scripts/check-variants.ts"
+    "variants": "node scripts/check-variants.ts",
+    "gaps": "node scripts/gaps.ts",
+    "inspect": "node scripts/inspect-rows.ts"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

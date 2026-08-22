@@ -1,69 +1,80 @@
-# SPEC-009 · Evaluation harness
+# SPEC-003 · Attribute extractor
 
 | | |
 |---|---|
-| **Files** | `src/eval/` |
-| **LLM** | No |
-| **Status** | 🚧 |
+| **File** | `src/pipeline/analyze.ts` (unified with SPEC-002) |
+| **Stage** | 3 |
+| **LLM** | **Yes** — strict structured output |
+| **Status** | ✅ implemented · 210/210 cells correct with `gpt-5.5` |
 
 ## Purpose
 
-Produce, with a single command, all the numbers the 2-pager and the session require. It has
-existed since day 2 because from then on every change is measured instead of guessed at.
+For each element, extract the seven attributes **exactly as they appear in the MTO**, with the
+textual evidence, and an explicit `null` when they don't appear.
+
+## Why an LLM
+
+The attributes come in free order, with uncatalogued abbreviations, in two languages, and
+sometimes split between the description and the `MATERIAL` column. What the LLM **doesn't** do is
+normalize: that's SPEC-004 and it's deterministic.
 
 ## Contract
 
-```bash
-pnpm run eval                      # gold set, console summary
-pnpm run eval -- --report          # full report to eval/reports/<date>.md
-pnpm run eval -- --set=synthetic   # robustness set
-pnpm run eval -- --ablate=extract  # deterministic baseline (SPEC-003 · src/pipeline/baseline.ts)
-pnpm run eval -- --ablate=critic   # critic turned off
-pnpm run eval -- --save            # persists to history (SPEC-010)
-pnpm run suggestions:kpi           # suggestions' own KPI (SPEC-013); 0/0 with no buyer
-```
+**Input**: `SetElement` + `MtoRow` (full row context).
+**Output**: `RawAttributes` — 7 fields, each `{ value: string | null, span, sourceColumn }`.
 
-## What it measures
+**Invariants**
+- **`null` is a first-class answer.** The written rule is *"an attribute the MTO doesn't write is
+  not filled in with the most likely value"*. The prompt must reward `null`.
+- Every non-null value has a span that literally exists in the row's text. If it doesn't exist,
+  it's discarded and counted as a hallucination.
+- Nothing is normalized here: `zincado` comes out as `zincado`, not as `CINCADO`.
+- Nothing is extrapolated here: size extrapolation is SPEC-005.
 
-Exact definitions in `docs/02-kpi.md`.
+## Behavior by attribute
 
-1. `silent_error_rate` — primary.
-2. `useful_autonomy` — secondary. Denominator: lines **in the family** (see 8).
-3. `split_fidelity` — reported separately, never averaged in.
-4. `queue_noise`. Same denominator as 2.
-5. **Per-attribute breakdown** of the four above. Required by the brief: *"aggregates hide where
-   the system fails."*
-6. `€/row` and the extrapolation to `4,000 rows × 25 revisions`.
-7. `latency/1,000 lines`.
-8. `out_of_scope` — P-9, reported separately and never averaged in. Lines the gold declares to
-   belong to another family are excluded from the denominators of 2 and 4: counting them would
-   make the metric move depending on how many flanges the MTO brings. The exclusion is decided by
-   **the gold, never the system**, and the two kinds of disagreement are named separately
-   (`missed`, `falsePositives`) because they don't cost the same.
+| Attribute | What gets extracted | Note |
+|---|---|---|
+| **Name** | The detected term (`STUD BOLT`, `Tuerca autoblocante`) | Normalization to the catalog of 5 is SPEC-004 |
+| **Material** | Only if an actual material appears (`acero`, `STEEL`) | The `MATERIAL` column **almost never** carries it. See P-3 |
+| **Quality** | Only if the value is **marked as a quality grade** | Written rule: *"if it's unknown whether a value is marked as a quality grade, it isn't extracted"*. ASTM grades (`GR B7`, `GR 2H`) are extracted as-is |
+| **Size** | Value + unit (`7/8"`, `M20`) | Imperial and metric aren't mixed |
+| **Length** | Value + unit if present (`130` with no unit → `value: "130", unit: null`) | The unit decision is SPEC-005 via P-4 |
+| **Standard** | `DIN…`, `DIN EN…`, `ISO…`, `ASME…`, `ASTM…`, `MSS SP…` | The standard is extracted per **element**, not per row |
+| **Finish** | The detected term (`zinc plated`, `zincado`, `geomet`) | Scope within the set is SPEC-005 via P-1 |
 
-## Gold set format
+## Edge cases
 
-`data/gold/gold.jsonl` — one expected output line per record, with:
-- the 7 expected attributes,
-- **the quantity**, which is the eighth gradable cell,
-- `certainty: "certain" | "policy_dependent"` **per cell**,
-- the expected reason if it goes to review.
-
-`policy_dependent` cells are excluded from the main metrics and reported as a sensitivity
-analysis. A KPI that mixes both isn't defensible in front of a client.
-
-**About the quantity.** It isn't one of the seven catalog attributes and isn't included in their
-breakdown, but it does count toward the silent error rate: it's the only field where getting it
-wrong **multiplies** the order. The gold has labeled it from day one (21 certain cells, 9 policy
-cells) and the harness **wasn't comparing it**: the cell loop only iterated over the seven
-attributes. A line asking for 10,000 bolts where the MTO asks for 100 came out perfect. Fixed; the
-certain-cell denominator goes from 190/210 to **211/240**, and every measurement before that fix was
-blind to quantity.
+| Case | Behavior |
+|---|---|
+| Row 1: the nut carries `ASTM A194, GR 2H` in the description | Assigned to the nut, not to the stud bolt |
+| Row 3: `con tuerca y arandela` (with nut and washer) with no standard or quality of its own | Both elements with `standard: null`, `quality: null` |
+| `MATERIAL` column = `ASTM A193 GR B7/A194 GR 2H` | Two standards+grades for two different elements; used as context, not as a row-level value |
+| Row 14: `acero` (steel) | It's the only real material in the given MTO. It's extracted |
+| `8.8` on a nut (rows 11, 13) | Extracted as-is. The inconsistency is caught by SPEC-005 |
 
 ## Acceptance criteria
 
-- [ ] The report includes the literal list of failed lines, with expected vs. obtained and the
-      trace. It's what the brief asks to be shown: *"the rows that fell through."*
-- [x] `--ablate=extract` and `--ablate=critic` are implemented. split/normalize remain pending.
-- [ ] Reproducible: two consecutive runs give the same report except for latency.
-- [ ] Runs in < 2 min on the gold set (otherwise it won't get used).
+- [x] 0 span hallucinations across the 15 rows + the 64 synthetic ones.
+- [x] In row 3, the nut and washer come out with quality `null` (not `A2`).
+- [x] In row 1, the nut's quality is `GR 2H`, not `GR B7`.
+- [x] `acero` (steel) in row 14 is extracted as material, and `A2`/`A4` are **not**: they are
+      quality grades (§5).
+- [x] In row 1 the nut's size is extracted (`HEX. NUT 7/8"` writes it), and in row 5 it is
+      extrapolated (`2 NUT ASTM A194`, no size given). The distinction is respected.
+
+## Two prompt errors that cost a round trip
+
+1. **`A2`/`A4` as material.** The prompt gave `A4` as an example of material. They are quality
+   grades (G1/G3) and §5 lists them as such. The same error was in the materials table.
+2. **Standard placed in the quality field.** `gpt-5.4-mini` returned `ASTM F436` as the washer's
+   quality in rows 1 and 5 — where the gold says there is no quality and the line goes to review.
+   The span verifier **doesn't catch this**, because `ASTM F436` really is in the text: the
+   failure is one of attribution, not invention. It's the gap that justifies the critic (SPEC-006).
+
+## What happens to the KPI if it's removed
+
+Replaced by a regex baseline, it resolves the rows with regular formatting (10, 11, 13, 14, 15)
+and fails on free-form prose. This is the ablation that quantifies the LLM's real value for this
+problem — the number that answers the criterion "you know when an agent isn't needed." Measured:
+_pending_.

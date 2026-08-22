@@ -81,13 +81,28 @@ const PATTERNS: { family: StandardFamily; re: RegExp; canon: (m: RegExpMatchArra
   { family: 'EN', re: /\bEN\s*([0-9]+)\b/, canon: (m) => `EN ${m[1]}` },
 ];
 
-/** Normalizes a designation the extractor already isolated. */
+/**
+ * Normalizes a designation the extractor already isolated.
+ *
+ * The optional trailing letter exists for the two suffixed entries in §8's table, `DIN 125 A` and
+ * `DIN 7981 C-H`. Accepting ANY letter was wrong: in `2 tuercas DIN 934 y 2 arandelas` the Spanish
+ * conjunction became part of the designation, yielding `DIN 934 Y`. Found by the policy-gap detector
+ * on its first run — the standard stopped matching anything a line carried.
+ *
+ * Rather than blacklist conjunctions language by language, the TABLE arbitrates: a suffix is only
+ * kept when the suffixed designation actually exists in it.
+ */
 export function normalizeStandard(raw: string): StandardResult | null {
   const folded = fold(raw);
   for (const { family, re, canon } of PATTERNS) {
     const m = folded.match(re);
     if (!m) continue;
-    const canonical = canon(m);
+    let canonical = canon(m);
+    if (!DIN_EQUIVALENCES.has(canonical) && m[2]) {
+      // Drop an unrecognised suffix and try the bare designation.
+      const bare = canon([m[0], m[1]] as unknown as RegExpMatchArray);
+      if (DIN_EQUIVALENCES.has(bare) || bare !== canonical) canonical = bare;
+    }
     // Longest key first so 'DIN 125 A' wins over 'DIN 125'.
     const key = DIN_EQUIVALENCES.has(canonical) ? canonical : null;
     if (key) {

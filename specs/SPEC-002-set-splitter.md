@@ -2,16 +2,40 @@
 
 | | |
 |---|---|
-| **File** | `src/pipeline/split.ts` |
+| **File** | `src/pipeline/analyze.ts` (unified with SPEC-003) |
 | **Stage** | 2 |
-| **LLM** | **Yes** — structured output |
-| **Status** | 🚧 |
+| **LLM** | **Yes** — strict structured output |
+| **Status** | ✅ implemented · split fidelity 100% on the 15 rows and on the 64 synthetic ones |
 | **Policies** | P-2 (multiplicity) |
 
 ## Purpose
 
 Decide how many materials a row describes and isolate the text fragment that corresponds to each
 one. **This is the stage the case statement calls "the rule that costs the most".**
+
+## Unified with SPEC-003, and why
+
+The implementation merges this stage with attribute extraction into **a single call per row**.
+Deciding that a row contains three materials, and deciding that `ASTM A194, GR 2H` belongs to the
+nut and not the stud, is the same act of reading. Kept separate, the extractor would still have to
+reread the whole row anyway to place the attributes, so the calls would cost ~3× (one per element
+instead of one per row) for the same judgment, and it would add a failure mode: a bad
+decomposition that the second stage can't review.
+
+What's preserved from having two specs is the ablation: the deterministic tables in `src/rules`
+serve as "split without a model," and the critic (SPEC-006) reviews the decomposition afterward.
+
+## Model routing
+
+The risk that needs the strong model is **attribution** —placing an attribute on the wrong
+element— and that risk only exists when the row describes more than one material. `routeRow()`
+counts distinct catalog names using the deterministic tables: **deciding which model to call
+costs no calls at all**. On the given MTO it classifies 9 rows as multi-element and 6 as simple,
+which is exactly the structure of the gold set.
+
+Its only failure mode —a set written with a single recognizable name— is covered by escalation: if
+the cheap model returns more than one element on a row that the router judged simple, it is
+retried with the strong one.
 
 ## Why an LLM
 
@@ -55,10 +79,13 @@ not in the given MTO, and there a table doesn't generalize.
 
 ## Acceptance criteria
 
-- [ ] The 15 rows produce the number of elements in the gold set (`split_fidelity = 100%`).
-- [ ] Row 12 produces exactly 1 element.
-- [ ] No returned element has a span that doesn't exist in the original text.
-- [ ] Rerunning the same row 3 times gives the same number of elements (stability test).
+- [x] The 15 rows produce the 30 lines of the gold set (`split_fidelity = 100%`).
+- [x] Row 12 produces exactly 1 element (a set is not completed by convention).
+- [x] No returned element has a span that doesn't exist in the original text: **0 hallucinations**
+      across 15 + 64 rows. Spans are located by searching for the literal evidence, never by
+      asking the model for offsets.
+- [x] The 64 synthetic rows give 71 lines, including 2 out-of-family and 1 without a description.
+- [ ] Stability test with 3 repetitions per row. Pending.
 
 ## What happens to the KPI if it's removed
 

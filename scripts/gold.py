@@ -13,7 +13,11 @@ DV  = lambda v: A(v,"derived","P")          # material desde calidad (P-3)
 IF  = lambda v: A(v,"inferred","P")         # multiplicidad no escrita (P-2) / longitud imperial sin unidad (P-4)
 MD  = lambda v: A(v,"extracted")            # longitud en designacion metrica ISO (M20x90): la unidad
                                             # la fija la designacion, no es una politica
-XPP = lambda v: A(v,"extrapolated","P")     # acabado en set (P-1)
+# P-1 RESUELTA POR EL CLIENTE (2026-08-22): "solo la medida se extrapola".
+# El acabado escrito una vez para un set NO alcanza a los secundarios. Y tampoco se afirma
+# ausente: presente-sin-atribuir no es ausente. La celda queda vacía y la linea va a revision
+# con motivo FINISH_SCOPE_UNSTATED. Deja de ser dependiente de politica: ahora es CIERTA.
+XPP = lambda v: A(None,"absent")            # acabado de fila, alcance no dicho (P-1, cerrada)
 NA  = A("N/A","not_applicable")             # tuerca/arandela: longitud no obligatoria (§7)
 
 def L(i,row,role,name,mat,cal,med,lon,nor,aca,cant,status,reasons,note=""):
@@ -41,16 +45,16 @@ L(7,3,"secondary",EX("TUERCA"),AB,AB,XP("M12"),NA,AB,AB,IF(80),V,["QUALITY_MISSI
 L(8,3,"secondary",EX("ARANDELA"),AB,AB,XP("M12"),NA,AB,AB,IF(80),V,["QUALITY_MISSING","STANDARD_MISSING"]),
 # ---- Fila 4: acabado a nivel de fila (P-1) ---------------------------------
 L(9,4,"principal",EX("TORNILLO"),DV("AC"),TB("8.8"),EX("M16"),MD("60 mm"),TB("ISO 4017"),TB("CINCADO"),A(100,"extracted"),R,[]),
-L(10,4,"secondary",EX("TUERCA"),AB,AB,XP("M16"),NA,TB("ISO 4032"),XPP("CINCADO"),IF(100),V,["QUALITY_MISSING"],
+L(10,4,"secondary",EX("TUERCA"),AB,AB,XP("M16"),NA,TB("ISO 4032"),XPP("CINCADO"),IF(100),V,["QUALITY_MISSING","FINISH_SCOPE_UNSTATED"],
   "robusto a la politica: si el 8.8 se extrapolara a la tuerca seria INCOHERENCIA (P-6) y tambien iria a revision"),
-L(11,4,"secondary",EX("ARANDELA"),AB,AB,XP("M16"),NA,TB("ISO 7089"),XPP("CINCADO"),IF(100),V,["QUALITY_MISSING"]),
+L(11,4,"secondary",EX("ARANDELA"),AB,AB,XP("M16"),NA,TB("ISO 7089"),XPP("CINCADO"),IF(100),V,["QUALITY_MISSING","FINISH_SCOPE_UNSTATED"]),
 # ---- Fila 5: multiplicidades distintas por elemento ------------------------
 L(12,5,"principal",EX("ESPARRAGO"),DV("AC"),UC("GR B7"),EX('1"'),IF("150 mm"),EX("ASTM A193"),AB,A(24,"extracted"),R,[]),
 L(13,5,"secondary",EX("TUERCA"),DV("AC"),UC("GR 2H"),XP('1"'),NA,EX("ASTM A194"),AB,A(48,"extracted"),R,[],"'W/ 2 NUT' -> 24x2"),
 L(14,5,"secondary",EX("ARANDELA"),AB,AB,XP('1"'),NA,EX("ASTM F436"),AB,A(24,"extracted"),V,["QUALITY_MISSING"],"'1 WASHER' -> 24x1"),
 # ---- Fila 6 ----------------------------------------------------------------
 L(15,6,"principal",EX("TORNILLO"),DV("AC"),TB("8.8"),EX("M16"),MD("80 mm"),TB("ISO 4014"),TB("CINCADO"),A(60,"extracted"),R,[]),
-L(16,6,"secondary",EX("TUERCA"),AB,AB,XP("M16"),NA,TB("ISO 4032"),XPP("CINCADO"),IF(60),V,["QUALITY_MISSING"]),
+L(16,6,"secondary",EX("TUERCA"),AB,AB,XP("M16"),NA,TB("ISO 4032"),XPP("CINCADO"),IF(60),V,["QUALITY_MISSING","FINISH_SCOPE_UNSTATED"]),
 # ---- Fila 7: LA fila clave. Cada elemento con su calidad -------------------
 L(17,7,"principal",EX("TORNILLO"),DV("INOX"),TB("A4-70"),EX("M12"),MD("60 mm"),TB("ISO 4014"),AB,A(50,"extracted"),R,[]),
 L(18,7,"secondary",EX("TUERCA"),DV("INOX"),TB("A4-80"),EX("M12"),NA,TB("ISO 4032"),AB,IF(50),R,[],
@@ -58,13 +62,13 @@ L(18,7,"secondary",EX("TUERCA"),DV("INOX"),TB("A4-80"),EX("M12"),NA,TB("ISO 4032
 # ---- Fila 8: sin norma en ningun elemento ----------------------------------
 L(19,8,"principal",EX("TORNILLO"),DV("AC"),TB("8.8"),EX("M16"),MD("70 mm"),AB,TB("CINCADO"),A(75,"extracted"),V,["STANDARD_MISSING"],
   "unica linea que va a revision SOLO por falta de norma (P-5)"),
-L(20,8,"secondary",EX("TUERCA"),AB,AB,XP("M16"),NA,AB,XPP("CINCADO"),IF(75),V,["QUALITY_MISSING","STANDARD_MISSING"]),
-L(21,8,"secondary",EX("ARANDELA"),AB,AB,XP("M16"),NA,AB,XPP("CINCADO"),IF(75),V,["QUALITY_MISSING","STANDARD_MISSING"]),
+L(20,8,"secondary",EX("TUERCA"),AB,AB,XP("M16"),NA,AB,XPP("CINCADO"),IF(75),V,["QUALITY_MISSING","STANDARD_MISSING","FINISH_SCOPE_UNSTATED"]),
+L(21,8,"secondary",EX("ARANDELA"),AB,AB,XP("M16"),NA,AB,XPP("CINCADO"),IF(75),V,["QUALITY_MISSING","STANDARD_MISSING","FINISH_SCOPE_UNSTATED"]),
 # ---- Fila 9: DIN fuera de la tabla de equivalencias ------------------------
 L(22,9,"principal",EX("ESPARRAGO"),DV("AC"),TB("8.8"),EX("M20"),MD("200 mm"),EX("DIN 975"),TB("CINCADO"),A(30,"extracted"),R,[],
   "DIN 975 no esta en la tabla de 25: se conserva tal cual (§8)"),
-L(23,9,"secondary",EX("TUERCA"),AB,AB,XP("M20"),NA,TB("ISO 4032"),XPP("CINCADO"),A(60,"extracted"),V,["QUALITY_MISSING"]),
-L(24,9,"secondary",EX("ARANDELA"),AB,AB,XP("M20"),NA,TB("ISO 7089"),XPP("CINCADO"),A(60,"extracted"),V,["QUALITY_MISSING"]),
+L(23,9,"secondary",EX("TUERCA"),AB,AB,XP("M20"),NA,TB("ISO 4032"),XPP("CINCADO"),A(60,"extracted"),V,["QUALITY_MISSING","FINISH_SCOPE_UNSTATED"]),
+L(24,9,"secondary",EX("ARANDELA"),AB,AB,XP("M20"),NA,TB("ISO 7089"),XPP("CINCADO"),A(60,"extracted"),V,["QUALITY_MISSING","FINISH_SCOPE_UNSTATED"]),
 # ---- Filas 10-15: elemento unico ------------------------------------------
 L(25,10,"principal",EX("TORNILLO"),DV("AC"),TB("8.8"),EX("M10"),MD("40 mm"),TB("ISO 4017"),TB("CINCADO"),A(500,"extracted"),R,[]),
 L(26,11,"principal",EX("TUERCA"),DV("INOX"),TB("A4-80"),EX("M16"),NA,TB("ISO 4032"),AB,A(200,"extracted"),R,[]),

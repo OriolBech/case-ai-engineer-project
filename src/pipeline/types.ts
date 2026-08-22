@@ -152,6 +152,23 @@ export type ReasonCode =
   | 'EMPTY_DESCRIPTION'
   /** The model call failed for this row. A processing failure, never a statement about the row. */
   | 'PROCESSING_FAILED'
+  /**
+   * Policy P-1. The row states a finish but does not say which elements it applies to.
+   *
+   * Deliberately NOT the same as an absent finish, which §9 declares valid and resolvable. The
+   * value is present in the row and unattributed, so both available inferences are wrong: reaching
+   * it across the set contradicts "only the measure extrapolates", and calling it absent asserts a
+   * bare nut next to a zinc-plated bolt — which the no-mixing rule makes a different material.
+   */
+  | 'FINISH_SCOPE_UNSTATED'
+  /**
+   * The extractor returned no elements for a row that has a description and is not out of family.
+   *
+   * Before this existed the row produced no output line at all and vanished: no material, no
+   * reason, nothing to review. A row that disappears is worse than a row extracted wrongly, because
+   * nobody knows to look for it.
+   */
+  | 'NO_ELEMENTS_EXTRACTED'
   // Incoherence -> a human decides.
   | 'QUALITY_TYPE_INCOHERENCE'
   | 'UNIT_MISMATCH'

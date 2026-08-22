@@ -3,10 +3,11 @@
   "resuelta": 15,
   "revision": 15,
   "attr_cells": 210,
-  "policy_cells": 27,
+  "policy_cells": 20,
   "reasons": {
     "QUALITY_MISSING": 13,
     "STANDARD_MISSING": 5,
+    "FINISH_SCOPE_UNSTATED": 7,
     "QUALITY_TYPE_INCOHERENCE": 1
   }
 }

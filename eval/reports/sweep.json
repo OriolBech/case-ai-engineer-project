@@ -1,0 +1,178 @@
+[
+  {
+    "spec": "openai:gpt-5.5:5.00:30.00:0.50",
+    "model": "gpt-5.5",
+    "ok": true,
+    "silentPct": 0,
+    "silentCount": 0,
+    "autonomy": 50,
+    "split": 100,
+    "noise": 0,
+    "hallucinations": 0,
+    "eurPerRow": 0,
+    "secPerRow": 0,
+    "perAttr": {
+      "name": 100,
+      "material": 100,
+      "quality": 100,
+      "measure": 100,
+      "length": 100,
+      "standard": 100,
+      "finish": 100
+    }
+  },
+  {
+    "spec": "openrouter:moonshotai/kimi-k3:3.000:15.000",
+    "model": "moonshotai/kimi-k3",
+    "ok": true,
+    "silentPct": 0,
+    "silentCount": 0,
+    "autonomy": 50,
+    "split": 100,
+    "noise": 0,
+    "hallucinations": 0,
+    "eurPerRow": 0,
+    "secPerRow": 0,
+    "perAttr": {
+      "name": 100,
+      "material": 100,
+      "quality": 100,
+      "measure": 100,
+      "length": 100,
+      "standard": 100,
+      "finish": 100
+    }
+  },
+  {
+    "spec": "openrouter:openai/gpt-oss-120b:0.03:0.17",
+    "model": "openai/gpt-oss-120b",
+    "ok": true,
+    "silentPct": 0,
+    "silentCount": 0,
+    "autonomy": 50,
+    "split": 100,
+    "noise": 0,
+    "hallucinations": 0,
+    "eurPerRow": 0,
+    "secPerRow": 0,
+    "perAttr": {
+      "name": 100,
+      "material": 100,
+      "quality": 100,
+      "measure": 100,
+      "length": 100,
+      "standard": 100,
+      "finish": 100
+    }
+  },
+  {
+    "spec": "openrouter:qwen/qwen3-235b-a22b-2507:0.090:0.550",
+    "model": "qwen/qwen3-235b-a22b-2507",
+    "ok": true,
+    "silentPct": 0,
+    "silentCount": 0,
+    "autonomy": 50,
+    "split": 100,
+    "noise": 0,
+    "hallucinations": 0,
+    "eurPerRow": 0,
+    "secPerRow": 0,
+    "perAttr": {
+      "name": 100,
+      "material": 92.3076923076923,
+      "quality": 96.66666666666667,
+      "measure": 100,
+      "length": 100,
+      "standard": 100,
+      "finish": 100
+    }
+  },
+  {
+    "spec": "openrouter:deepseek/deepseek-v3.2:0.269:0.400",
+    "model": "deepseek/deepseek-v3.2",
+    "ok": true,
+    "silentPct": 0,
+    "silentCount": 0,
+    "autonomy": 46.666666666666664,
+    "split": 100,
+    "noise": 6.25,
+    "hallucinations": 0,
+    "eurPerRow": 0.00008584159602705712,
+    "secPerRow": 1.4768000000000001,
+    "perAttr": {
+      "name": 100,
+      "material": 100,
+      "quality": 100,
+      "measure": 100,
+      "length": 100,
+      "standard": 100,
+      "finish": 100
+    }
+  },
+  {
+    "spec": "openrouter:z-ai/glm-5.2:0.966:3.036",
+    "model": "z-ai/glm-5.2",
+    "ok": true,
+    "silentPct": 14.285714285714286,
+    "silentCount": 2,
+    "autonomy": 40,
+    "split": 86.66666666666667,
+    "noise": 0,
+    "hallucinations": 0,
+    "eurPerRow": 0.002162929531637983,
+    "secPerRow": 35.00866666666666,
+    "perAttr": {
+      "name": 100,
+      "material": 100,
+      "quality": 91.66666666666667,
+      "measure": 100,
+      "length": 100,
+      "standard": 100,
+      "finish": 100
+    }
+  },
+  {
+    "spec": "openrouter:deepseek/deepseek-v4-pro-0813:1.188:3.564",
+    "model": "deepseek/deepseek-v4-pro-0813",
+    "ok": true,
+    "silentPct": 0,
+    "silentCount": 0,
+    "autonomy": 26.666666666666668,
+    "split": 66.66666666666667,
+    "noise": 12.5,
+    "hallucinations": 0,
+    "eurPerRow": 0.0012185773439506809,
+    "secPerRow": 5.977266666666667,
+    "perAttr": {
+      "name": 87.5,
+      "material": 100,
+      "quality": 87.5,
+      "measure": 87.5,
+      "length": 85.71428571428571,
+      "standard": 87.5,
+      "finish": 84.61538461538461
+    }
+  },
+  {
+    "spec": "openrouter:qwen/qwen3.8-max:2.000:6.000",
+    "model": "qwen/qwen3.8-max",
+    "ok": true,
+    "silentPct": 0,
+    "silentCount": 0,
+    "autonomy": 3.3333333333333335,
+    "split": 46.666666666666664,
+    "noise": 62.5,
+    "hallucinations": 0,
+    "eurPerRow": 0.0039775551559779665,
+    "secPerRow": 15.261,
+    "perAttr": {
+      "name": 44.44444444444444,
+      "material": 50,
+      "quality": 55.55555555555556,
+      "measure": 44.44444444444444,
+      "length": 42.857142857142854,
+      "standard": 44.44444444444444,
+      "finish": 66.66666666666667
+    }
+  }
+]

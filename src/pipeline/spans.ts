@@ -26,7 +26,7 @@ export interface Located {
  */
 export function locate(source: string, evidence: string | null, from = 0): Located {
   if (evidence === null) return { span: null, hallucinated: false };
-  const needle = evidence.trim();
+  const needle = unescapeJsonish(evidence.trim());
   if (needle === '') return { span: null, hallucinated: false };
 
   const exact = source.indexOf(needle, from);
@@ -48,6 +48,20 @@ export function locate(source: string, evidence: string | null, from = 0): Locat
   if (loose) return { span: loose, hallucinated: false };
 
   return { span: null, hallucinated: true };
+}
+
+/**
+ * Undoes literal backslash escaping in the model's evidence.
+ *
+ * Fastener sizes carry an inch mark — `7/8"` — and a provider returned the evidence with the quote
+ * still backslash-escaped, so the string never matched the source, the element was written off as a
+ * hallucination, and the row produced NO LINES AT ALL. A silently vanished row is a material nobody
+ * buys, which is the one outcome this pipeline must never produce.
+ */
+function unescapeJsonish(s: string): string {
+  if (!s.includes('\\')) return s;
+  return s.replace(/\\(["'\\nrt])/g, (_, c: string) =>
+    c === 'n' ? '\n' : c === 'r' ? '\r' : c === 't' ? '\t' : c);
 }
 
 function findIgnoringWhitespace(source: string, needle: string): Span | null {

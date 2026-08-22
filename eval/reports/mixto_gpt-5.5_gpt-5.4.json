@@ -1,0 +1,2414 @@
+{
+  "report": {
+    "model": "mixto gpt-5.5/gpt-5.4",
+    "rows": 15,
+    "goldLines": 30,
+    "systemLines": 30,
+    "splitFidelity": {
+      "ok": 15,
+      "total": 15,
+      "pct": 100,
+      "failures": []
+    },
+    "silentErrorRate": {
+      "bad": 0,
+      "resolved": 15,
+      "pct": 0,
+      "lines": []
+    },
+    "usefulAutonomy": {
+      "ok": 15,
+      "total": 30,
+      "pct": 50
+    },
+    "queueNoise": {
+      "noisy": 0,
+      "review": 15,
+      "pct": 0,
+      "lines": []
+    },
+    "statusAgreement": {
+      "ok": 30,
+      "total": 30,
+      "pct": 100
+    },
+    "perAttribute": {
+      "name": {
+        "okC": 30,
+        "totalC": 30,
+        "pctC": 100,
+        "okP": 0,
+        "totalP": 0
+      },
+      "material": {
+        "okC": 13,
+        "totalC": 13,
+        "pctC": 100,
+        "okP": 17,
+        "totalP": 17
+      },
+      "quality": {
+        "okC": 30,
+        "totalC": 30,
+        "pctC": 100,
+        "okP": 0,
+        "totalP": 0
+      },
+      "measure": {
+        "okC": 30,
+        "totalC": 30,
+        "pctC": 100,
+        "okP": 0,
+        "totalP": 0
+      },
+      "length": {
+        "okC": 27,
+        "totalC": 27,
+        "pctC": 100,
+        "okP": 3,
+        "totalP": 3
+      },
+      "standard": {
+        "okC": 30,
+        "totalC": 30,
+        "pctC": 100,
+        "okP": 0,
+        "totalP": 0
+      },
+      "finish": {
+        "okC": 23,
+        "totalC": 23,
+        "pctC": 100,
+        "okP": 7,
+        "totalP": 7
+      }
+    },
+    "reasonAgreement": {
+      "exact": 30,
+      "total": 30,
+      "pct": 100
+    },
+    "lines": [
+      {
+        "rowRef": "1",
+        "goldId": "L001",
+        "systemId": "1.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "1.1",
+            "rowRef": "1",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "ESPARRAGO",
+            "got": "ESPARRAGO",
+            "ok": true
+          },
+          {
+            "lineId": "1.1",
+            "rowRef": "1",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "1.1",
+            "rowRef": "1",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "GR B7",
+            "got": "GR B7",
+            "ok": true
+          },
+          {
+            "lineId": "1.1",
+            "rowRef": "1",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "7/8\"",
+            "got": "7/8\"",
+            "ok": true
+          },
+          {
+            "lineId": "1.1",
+            "rowRef": "1",
+            "attribute": "length",
+            "certainty": "P",
+            "expected": "130 mm",
+            "got": "130 mm",
+            "ok": true
+          },
+          {
+            "lineId": "1.1",
+            "rowRef": "1",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ASTM A193",
+            "got": "ASTM A193",
+            "ok": true
+          },
+          {
+            "lineId": "1.1",
+            "rowRef": "1",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "1",
+        "goldId": "L002",
+        "systemId": "1.2",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "1.2",
+            "rowRef": "1",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TUERCA",
+            "got": "TUERCA",
+            "ok": true
+          },
+          {
+            "lineId": "1.2",
+            "rowRef": "1",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "1.2",
+            "rowRef": "1",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "GR 2H",
+            "got": "GR 2H",
+            "ok": true
+          },
+          {
+            "lineId": "1.2",
+            "rowRef": "1",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "7/8\"",
+            "got": "7/8\"",
+            "ok": true
+          },
+          {
+            "lineId": "1.2",
+            "rowRef": "1",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "1.2",
+            "rowRef": "1",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ASTM A194",
+            "got": "ASTM A194",
+            "ok": true
+          },
+          {
+            "lineId": "1.2",
+            "rowRef": "1",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "1",
+        "goldId": "L003",
+        "systemId": "1.3",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "1.3",
+            "rowRef": "1",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "ARANDELA",
+            "got": "ARANDELA",
+            "ok": true
+          },
+          {
+            "lineId": "1.3",
+            "rowRef": "1",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "1.3",
+            "rowRef": "1",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "1.3",
+            "rowRef": "1",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "7/8\"",
+            "got": "7/8\"",
+            "ok": true
+          },
+          {
+            "lineId": "1.3",
+            "rowRef": "1",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "1.3",
+            "rowRef": "1",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ASTM F436",
+            "got": "ASTM F436",
+            "ok": true
+          },
+          {
+            "lineId": "1.3",
+            "rowRef": "1",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "2",
+        "goldId": "L004",
+        "systemId": "2.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "2.1",
+            "rowRef": "2",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TORNILLO",
+            "got": "TORNILLO",
+            "ok": true
+          },
+          {
+            "lineId": "2.1",
+            "rowRef": "2",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "INOX",
+            "got": "INOX",
+            "ok": true
+          },
+          {
+            "lineId": "2.1",
+            "rowRef": "2",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "A4-70",
+            "got": "A4-70",
+            "ok": true
+          },
+          {
+            "lineId": "2.1",
+            "rowRef": "2",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M20",
+            "got": "M20",
+            "ok": true
+          },
+          {
+            "lineId": "2.1",
+            "rowRef": "2",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "90 mm",
+            "got": "90 mm",
+            "ok": true
+          },
+          {
+            "lineId": "2.1",
+            "rowRef": "2",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4014",
+            "got": "ISO 4014",
+            "ok": true
+          },
+          {
+            "lineId": "2.1",
+            "rowRef": "2",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "2",
+        "goldId": "L005",
+        "systemId": "2.2",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "2.2",
+            "rowRef": "2",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TUERCA",
+            "got": "TUERCA",
+            "ok": true
+          },
+          {
+            "lineId": "2.2",
+            "rowRef": "2",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "2.2",
+            "rowRef": "2",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "2.2",
+            "rowRef": "2",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M20",
+            "got": "M20",
+            "ok": true
+          },
+          {
+            "lineId": "2.2",
+            "rowRef": "2",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "2.2",
+            "rowRef": "2",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4032",
+            "got": "ISO 4032",
+            "ok": true
+          },
+          {
+            "lineId": "2.2",
+            "rowRef": "2",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "3",
+        "goldId": "L006",
+        "systemId": "3.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "3.1",
+            "rowRef": "3",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TORNILLO",
+            "got": "TORNILLO",
+            "ok": true
+          },
+          {
+            "lineId": "3.1",
+            "rowRef": "3",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "INOX",
+            "got": "INOX",
+            "ok": true
+          },
+          {
+            "lineId": "3.1",
+            "rowRef": "3",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "A2",
+            "got": "A2",
+            "ok": true
+          },
+          {
+            "lineId": "3.1",
+            "rowRef": "3",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M12",
+            "got": "M12",
+            "ok": true
+          },
+          {
+            "lineId": "3.1",
+            "rowRef": "3",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "50 mm",
+            "got": "50 mm",
+            "ok": true
+          },
+          {
+            "lineId": "3.1",
+            "rowRef": "3",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4017",
+            "got": "ISO 4017",
+            "ok": true
+          },
+          {
+            "lineId": "3.1",
+            "rowRef": "3",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "3",
+        "goldId": "L007",
+        "systemId": "3.2",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "3.2",
+            "rowRef": "3",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TUERCA",
+            "got": "TUERCA",
+            "ok": true
+          },
+          {
+            "lineId": "3.2",
+            "rowRef": "3",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "3.2",
+            "rowRef": "3",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "3.2",
+            "rowRef": "3",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M12",
+            "got": "M12",
+            "ok": true
+          },
+          {
+            "lineId": "3.2",
+            "rowRef": "3",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "3.2",
+            "rowRef": "3",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "3.2",
+            "rowRef": "3",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "3",
+        "goldId": "L008",
+        "systemId": "3.3",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "3.3",
+            "rowRef": "3",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "ARANDELA",
+            "got": "ARANDELA",
+            "ok": true
+          },
+          {
+            "lineId": "3.3",
+            "rowRef": "3",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "3.3",
+            "rowRef": "3",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "3.3",
+            "rowRef": "3",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M12",
+            "got": "M12",
+            "ok": true
+          },
+          {
+            "lineId": "3.3",
+            "rowRef": "3",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "3.3",
+            "rowRef": "3",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "3.3",
+            "rowRef": "3",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "4",
+        "goldId": "L009",
+        "systemId": "4.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "4.1",
+            "rowRef": "4",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TORNILLO",
+            "got": "TORNILLO",
+            "ok": true
+          },
+          {
+            "lineId": "4.1",
+            "rowRef": "4",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "4.1",
+            "rowRef": "4",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "8.8",
+            "got": "8.8",
+            "ok": true
+          },
+          {
+            "lineId": "4.1",
+            "rowRef": "4",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M16",
+            "got": "M16",
+            "ok": true
+          },
+          {
+            "lineId": "4.1",
+            "rowRef": "4",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "60 mm",
+            "got": "60 mm",
+            "ok": true
+          },
+          {
+            "lineId": "4.1",
+            "rowRef": "4",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4017",
+            "got": "ISO 4017",
+            "ok": true
+          },
+          {
+            "lineId": "4.1",
+            "rowRef": "4",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "4",
+        "goldId": "L010",
+        "systemId": "4.2",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "4.2",
+            "rowRef": "4",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TUERCA",
+            "got": "TUERCA",
+            "ok": true
+          },
+          {
+            "lineId": "4.2",
+            "rowRef": "4",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "4.2",
+            "rowRef": "4",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "4.2",
+            "rowRef": "4",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M16",
+            "got": "M16",
+            "ok": true
+          },
+          {
+            "lineId": "4.2",
+            "rowRef": "4",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "4.2",
+            "rowRef": "4",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4032",
+            "got": "ISO 4032",
+            "ok": true
+          },
+          {
+            "lineId": "4.2",
+            "rowRef": "4",
+            "attribute": "finish",
+            "certainty": "P",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "4",
+        "goldId": "L011",
+        "systemId": "4.3",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "4.3",
+            "rowRef": "4",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "ARANDELA",
+            "got": "ARANDELA",
+            "ok": true
+          },
+          {
+            "lineId": "4.3",
+            "rowRef": "4",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "4.3",
+            "rowRef": "4",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "4.3",
+            "rowRef": "4",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M16",
+            "got": "M16",
+            "ok": true
+          },
+          {
+            "lineId": "4.3",
+            "rowRef": "4",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "4.3",
+            "rowRef": "4",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 7089",
+            "got": "ISO 7089",
+            "ok": true
+          },
+          {
+            "lineId": "4.3",
+            "rowRef": "4",
+            "attribute": "finish",
+            "certainty": "P",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "5",
+        "goldId": "L012",
+        "systemId": "5.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "5.1",
+            "rowRef": "5",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "ESPARRAGO",
+            "got": "ESPARRAGO",
+            "ok": true
+          },
+          {
+            "lineId": "5.1",
+            "rowRef": "5",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "5.1",
+            "rowRef": "5",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "GR B7",
+            "got": "GR B7",
+            "ok": true
+          },
+          {
+            "lineId": "5.1",
+            "rowRef": "5",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "1\"",
+            "got": "1\"",
+            "ok": true
+          },
+          {
+            "lineId": "5.1",
+            "rowRef": "5",
+            "attribute": "length",
+            "certainty": "P",
+            "expected": "150 mm",
+            "got": "150 mm",
+            "ok": true
+          },
+          {
+            "lineId": "5.1",
+            "rowRef": "5",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ASTM A193",
+            "got": "ASTM A193",
+            "ok": true
+          },
+          {
+            "lineId": "5.1",
+            "rowRef": "5",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "5",
+        "goldId": "L013",
+        "systemId": "5.2",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "5.2",
+            "rowRef": "5",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TUERCA",
+            "got": "TUERCA",
+            "ok": true
+          },
+          {
+            "lineId": "5.2",
+            "rowRef": "5",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "5.2",
+            "rowRef": "5",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "GR 2H",
+            "got": "GR 2H",
+            "ok": true
+          },
+          {
+            "lineId": "5.2",
+            "rowRef": "5",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "1\"",
+            "got": "1\"",
+            "ok": true
+          },
+          {
+            "lineId": "5.2",
+            "rowRef": "5",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "5.2",
+            "rowRef": "5",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ASTM A194",
+            "got": "ASTM A194",
+            "ok": true
+          },
+          {
+            "lineId": "5.2",
+            "rowRef": "5",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "5",
+        "goldId": "L014",
+        "systemId": "5.3",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "5.3",
+            "rowRef": "5",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "ARANDELA",
+            "got": "ARANDELA",
+            "ok": true
+          },
+          {
+            "lineId": "5.3",
+            "rowRef": "5",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "5.3",
+            "rowRef": "5",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "5.3",
+            "rowRef": "5",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "1\"",
+            "got": "1\"",
+            "ok": true
+          },
+          {
+            "lineId": "5.3",
+            "rowRef": "5",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "5.3",
+            "rowRef": "5",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ASTM F436",
+            "got": "ASTM F436",
+            "ok": true
+          },
+          {
+            "lineId": "5.3",
+            "rowRef": "5",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "6",
+        "goldId": "L015",
+        "systemId": "6.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "6.1",
+            "rowRef": "6",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TORNILLO",
+            "got": "TORNILLO",
+            "ok": true
+          },
+          {
+            "lineId": "6.1",
+            "rowRef": "6",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "6.1",
+            "rowRef": "6",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "8.8",
+            "got": "8.8",
+            "ok": true
+          },
+          {
+            "lineId": "6.1",
+            "rowRef": "6",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M16",
+            "got": "M16",
+            "ok": true
+          },
+          {
+            "lineId": "6.1",
+            "rowRef": "6",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "80 mm",
+            "got": "80 mm",
+            "ok": true
+          },
+          {
+            "lineId": "6.1",
+            "rowRef": "6",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4014",
+            "got": "ISO 4014",
+            "ok": true
+          },
+          {
+            "lineId": "6.1",
+            "rowRef": "6",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "6",
+        "goldId": "L016",
+        "systemId": "6.2",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "6.2",
+            "rowRef": "6",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TUERCA",
+            "got": "TUERCA",
+            "ok": true
+          },
+          {
+            "lineId": "6.2",
+            "rowRef": "6",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "6.2",
+            "rowRef": "6",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "6.2",
+            "rowRef": "6",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M16",
+            "got": "M16",
+            "ok": true
+          },
+          {
+            "lineId": "6.2",
+            "rowRef": "6",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "6.2",
+            "rowRef": "6",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4032",
+            "got": "ISO 4032",
+            "ok": true
+          },
+          {
+            "lineId": "6.2",
+            "rowRef": "6",
+            "attribute": "finish",
+            "certainty": "P",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "7",
+        "goldId": "L017",
+        "systemId": "7.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "7.1",
+            "rowRef": "7",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TORNILLO",
+            "got": "TORNILLO",
+            "ok": true
+          },
+          {
+            "lineId": "7.1",
+            "rowRef": "7",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "INOX",
+            "got": "INOX",
+            "ok": true
+          },
+          {
+            "lineId": "7.1",
+            "rowRef": "7",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "A4-70",
+            "got": "A4-70",
+            "ok": true
+          },
+          {
+            "lineId": "7.1",
+            "rowRef": "7",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M12",
+            "got": "M12",
+            "ok": true
+          },
+          {
+            "lineId": "7.1",
+            "rowRef": "7",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "60 mm",
+            "got": "60 mm",
+            "ok": true
+          },
+          {
+            "lineId": "7.1",
+            "rowRef": "7",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4014",
+            "got": "ISO 4014",
+            "ok": true
+          },
+          {
+            "lineId": "7.1",
+            "rowRef": "7",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "7",
+        "goldId": "L018",
+        "systemId": "7.2",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "7.2",
+            "rowRef": "7",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TUERCA",
+            "got": "TUERCA",
+            "ok": true
+          },
+          {
+            "lineId": "7.2",
+            "rowRef": "7",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "INOX",
+            "got": "INOX",
+            "ok": true
+          },
+          {
+            "lineId": "7.2",
+            "rowRef": "7",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "A4-80",
+            "got": "A4-80",
+            "ok": true
+          },
+          {
+            "lineId": "7.2",
+            "rowRef": "7",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M12",
+            "got": "M12",
+            "ok": true
+          },
+          {
+            "lineId": "7.2",
+            "rowRef": "7",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "7.2",
+            "rowRef": "7",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4032",
+            "got": "ISO 4032",
+            "ok": true
+          },
+          {
+            "lineId": "7.2",
+            "rowRef": "7",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "8",
+        "goldId": "L019",
+        "systemId": "8.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "8.1",
+            "rowRef": "8",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TORNILLO",
+            "got": "TORNILLO",
+            "ok": true
+          },
+          {
+            "lineId": "8.1",
+            "rowRef": "8",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "8.1",
+            "rowRef": "8",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "8.8",
+            "got": "8.8",
+            "ok": true
+          },
+          {
+            "lineId": "8.1",
+            "rowRef": "8",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M16",
+            "got": "M16",
+            "ok": true
+          },
+          {
+            "lineId": "8.1",
+            "rowRef": "8",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "70 mm",
+            "got": "70 mm",
+            "ok": true
+          },
+          {
+            "lineId": "8.1",
+            "rowRef": "8",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "8.1",
+            "rowRef": "8",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "8",
+        "goldId": "L020",
+        "systemId": "8.2",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "8.2",
+            "rowRef": "8",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TUERCA",
+            "got": "TUERCA",
+            "ok": true
+          },
+          {
+            "lineId": "8.2",
+            "rowRef": "8",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "8.2",
+            "rowRef": "8",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "8.2",
+            "rowRef": "8",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M16",
+            "got": "M16",
+            "ok": true
+          },
+          {
+            "lineId": "8.2",
+            "rowRef": "8",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "8.2",
+            "rowRef": "8",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "8.2",
+            "rowRef": "8",
+            "attribute": "finish",
+            "certainty": "P",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "8",
+        "goldId": "L021",
+        "systemId": "8.3",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "8.3",
+            "rowRef": "8",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "ARANDELA",
+            "got": "ARANDELA",
+            "ok": true
+          },
+          {
+            "lineId": "8.3",
+            "rowRef": "8",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "8.3",
+            "rowRef": "8",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "8.3",
+            "rowRef": "8",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M16",
+            "got": "M16",
+            "ok": true
+          },
+          {
+            "lineId": "8.3",
+            "rowRef": "8",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "8.3",
+            "rowRef": "8",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "8.3",
+            "rowRef": "8",
+            "attribute": "finish",
+            "certainty": "P",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "9",
+        "goldId": "L022",
+        "systemId": "9.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "9.1",
+            "rowRef": "9",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "ESPARRAGO",
+            "got": "ESPARRAGO",
+            "ok": true
+          },
+          {
+            "lineId": "9.1",
+            "rowRef": "9",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "9.1",
+            "rowRef": "9",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "8.8",
+            "got": "8.8",
+            "ok": true
+          },
+          {
+            "lineId": "9.1",
+            "rowRef": "9",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M20",
+            "got": "M20",
+            "ok": true
+          },
+          {
+            "lineId": "9.1",
+            "rowRef": "9",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "200 mm",
+            "got": "200 mm",
+            "ok": true
+          },
+          {
+            "lineId": "9.1",
+            "rowRef": "9",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "DIN 975",
+            "got": "DIN 975",
+            "ok": true
+          },
+          {
+            "lineId": "9.1",
+            "rowRef": "9",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "9",
+        "goldId": "L023",
+        "systemId": "9.2",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "9.2",
+            "rowRef": "9",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TUERCA",
+            "got": "TUERCA",
+            "ok": true
+          },
+          {
+            "lineId": "9.2",
+            "rowRef": "9",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "9.2",
+            "rowRef": "9",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "9.2",
+            "rowRef": "9",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M20",
+            "got": "M20",
+            "ok": true
+          },
+          {
+            "lineId": "9.2",
+            "rowRef": "9",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "9.2",
+            "rowRef": "9",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4032",
+            "got": "ISO 4032",
+            "ok": true
+          },
+          {
+            "lineId": "9.2",
+            "rowRef": "9",
+            "attribute": "finish",
+            "certainty": "P",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "9",
+        "goldId": "L024",
+        "systemId": "9.3",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "9.3",
+            "rowRef": "9",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "ARANDELA",
+            "got": "ARANDELA",
+            "ok": true
+          },
+          {
+            "lineId": "9.3",
+            "rowRef": "9",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "9.3",
+            "rowRef": "9",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "9.3",
+            "rowRef": "9",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M20",
+            "got": "M20",
+            "ok": true
+          },
+          {
+            "lineId": "9.3",
+            "rowRef": "9",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "9.3",
+            "rowRef": "9",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 7089",
+            "got": "ISO 7089",
+            "ok": true
+          },
+          {
+            "lineId": "9.3",
+            "rowRef": "9",
+            "attribute": "finish",
+            "certainty": "P",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "10",
+        "goldId": "L025",
+        "systemId": "10.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "10.1",
+            "rowRef": "10",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TORNILLO",
+            "got": "TORNILLO",
+            "ok": true
+          },
+          {
+            "lineId": "10.1",
+            "rowRef": "10",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "10.1",
+            "rowRef": "10",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "8.8",
+            "got": "8.8",
+            "ok": true
+          },
+          {
+            "lineId": "10.1",
+            "rowRef": "10",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M10",
+            "got": "M10",
+            "ok": true
+          },
+          {
+            "lineId": "10.1",
+            "rowRef": "10",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "40 mm",
+            "got": "40 mm",
+            "ok": true
+          },
+          {
+            "lineId": "10.1",
+            "rowRef": "10",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4017",
+            "got": "ISO 4017",
+            "ok": true
+          },
+          {
+            "lineId": "10.1",
+            "rowRef": "10",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "11",
+        "goldId": "L026",
+        "systemId": "11.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "11.1",
+            "rowRef": "11",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TUERCA",
+            "got": "TUERCA",
+            "ok": true
+          },
+          {
+            "lineId": "11.1",
+            "rowRef": "11",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "INOX",
+            "got": "INOX",
+            "ok": true
+          },
+          {
+            "lineId": "11.1",
+            "rowRef": "11",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "A4-80",
+            "got": "A4-80",
+            "ok": true
+          },
+          {
+            "lineId": "11.1",
+            "rowRef": "11",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M16",
+            "got": "M16",
+            "ok": true
+          },
+          {
+            "lineId": "11.1",
+            "rowRef": "11",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "11.1",
+            "rowRef": "11",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4032",
+            "got": "ISO 4032",
+            "ok": true
+          },
+          {
+            "lineId": "11.1",
+            "rowRef": "11",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "12",
+        "goldId": "L027",
+        "systemId": "12.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "12.1",
+            "rowRef": "12",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "ESPARRAGO",
+            "got": "ESPARRAGO",
+            "ok": true
+          },
+          {
+            "lineId": "12.1",
+            "rowRef": "12",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "12.1",
+            "rowRef": "12",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "GR B7",
+            "got": "GR B7",
+            "ok": true
+          },
+          {
+            "lineId": "12.1",
+            "rowRef": "12",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "3/4\"",
+            "got": "3/4\"",
+            "ok": true
+          },
+          {
+            "lineId": "12.1",
+            "rowRef": "12",
+            "attribute": "length",
+            "certainty": "P",
+            "expected": "110 mm",
+            "got": "110 mm",
+            "ok": true
+          },
+          {
+            "lineId": "12.1",
+            "rowRef": "12",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ASTM A193",
+            "got": "ASTM A193",
+            "ok": true
+          },
+          {
+            "lineId": "12.1",
+            "rowRef": "12",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "13",
+        "goldId": "L028",
+        "systemId": "13.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "13.1",
+            "rowRef": "13",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TUERCA",
+            "got": "TUERCA",
+            "ok": true
+          },
+          {
+            "lineId": "13.1",
+            "rowRef": "13",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "13.1",
+            "rowRef": "13",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "8.8",
+            "got": "8.8",
+            "ok": true
+          },
+          {
+            "lineId": "13.1",
+            "rowRef": "13",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M12",
+            "got": "M12",
+            "ok": true
+          },
+          {
+            "lineId": "13.1",
+            "rowRef": "13",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "13.1",
+            "rowRef": "13",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 10511",
+            "got": "ISO 10511",
+            "ok": true
+          },
+          {
+            "lineId": "13.1",
+            "rowRef": "13",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "14",
+        "goldId": "L029",
+        "systemId": "14.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "REVISION_MANUAL",
+        "systemStatus": "REVISION_MANUAL",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "14.1",
+            "rowRef": "14",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "ARANDELA",
+            "got": "ARANDELA",
+            "ok": true
+          },
+          {
+            "lineId": "14.1",
+            "rowRef": "14",
+            "attribute": "material",
+            "certainty": "C",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "14.1",
+            "rowRef": "14",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": null,
+            "got": null,
+            "ok": true
+          },
+          {
+            "lineId": "14.1",
+            "rowRef": "14",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M10",
+            "got": "M10",
+            "ok": true
+          },
+          {
+            "lineId": "14.1",
+            "rowRef": "14",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "N/A",
+            "got": "N/A",
+            "ok": true
+          },
+          {
+            "lineId": "14.1",
+            "rowRef": "14",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 7089",
+            "got": "ISO 7089",
+            "ok": true
+          },
+          {
+            "lineId": "14.1",
+            "rowRef": "14",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": "CINCADO",
+            "got": "CINCADO",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      },
+      {
+        "rowRef": "15",
+        "goldId": "L030",
+        "systemId": "15.1",
+        "aligned": true,
+        "statusOk": true,
+        "goldStatus": "RESUELTA",
+        "systemStatus": "RESUELTA",
+        "allCertainOk": true,
+        "cells": [
+          {
+            "lineId": "15.1",
+            "rowRef": "15",
+            "attribute": "name",
+            "certainty": "C",
+            "expected": "TORNILLO",
+            "got": "TORNILLO",
+            "ok": true
+          },
+          {
+            "lineId": "15.1",
+            "rowRef": "15",
+            "attribute": "material",
+            "certainty": "P",
+            "expected": "AC",
+            "got": "AC",
+            "ok": true
+          },
+          {
+            "lineId": "15.1",
+            "rowRef": "15",
+            "attribute": "quality",
+            "certainty": "C",
+            "expected": "12.9",
+            "got": "12.9",
+            "ok": true
+          },
+          {
+            "lineId": "15.1",
+            "rowRef": "15",
+            "attribute": "measure",
+            "certainty": "C",
+            "expected": "M10",
+            "got": "M10",
+            "ok": true
+          },
+          {
+            "lineId": "15.1",
+            "rowRef": "15",
+            "attribute": "length",
+            "certainty": "C",
+            "expected": "40 mm",
+            "got": "40 mm",
+            "ok": true
+          },
+          {
+            "lineId": "15.1",
+            "rowRef": "15",
+            "attribute": "standard",
+            "certainty": "C",
+            "expected": "ISO 4762",
+            "got": "ISO 4762",
+            "ok": true
+          },
+          {
+            "lineId": "15.1",
+            "rowRef": "15",
+            "attribute": "finish",
+            "certainty": "C",
+            "expected": "GEOMET",
+            "got": "GEOMET",
+            "ok": true
+          }
+        ],
+        "missingReasons": [],
+        "extraReasons": []
+      }
+    ]
+  },
+  "cost": {
+    "calls": 15,
+    "cacheHits": 0,
+    "inputTokens": 25946,
+    "outputTokens": 8239,
+    "costUsd": 0.33623000000000003,
+    "latencyMsTotal": 96528,
+    "pricesConfigured": true
+  },
+  "eurPerRow": 0.01919285326940092
+}

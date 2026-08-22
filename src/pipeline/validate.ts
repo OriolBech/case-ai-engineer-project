@@ -35,6 +35,12 @@ const MESSAGES: Record<ReasonCode, string> = {
   OUT_OF_FAMILY: 'Esta línea no es tornillería',
   EMPTY_DESCRIPTION: 'La fila no trae descripción: no hay nada que extraer',
   PROCESSING_FAILED: 'No se ha podido procesar esta fila. No es un juicio sobre el material.',
+  NO_ELEMENTS_EXTRACTED:
+    'No se ha podido identificar ningún material en esta fila, aunque tiene descripción. ' +
+    'Requiere lectura manual.',
+  FINISH_SCOPE_UNSTATED:
+    'La fila indica un acabado pero no dice si se aplica a este elemento. Un elemento con acabado y ' +
+    'el mismo sin acabado son referencias distintas, así que no se decide por el cliente.',
 };
 
 const KINDS: Record<ReasonCode, ReasonKind> = {
@@ -47,6 +53,8 @@ const KINDS: Record<ReasonCode, ReasonKind> = {
   OUT_OF_FAMILY: 'MISSING_IN_SOURCE',
   EMPTY_DESCRIPTION: 'MISSING_IN_SOURCE',
   PROCESSING_FAILED: 'LOW_CONFIDENCE',
+  FINISH_SCOPE_UNSTATED: 'MISSING_IN_SOURCE',
+  NO_ELEMENTS_EXTRACTED: 'LOW_CONFIDENCE',
   QUALITY_TYPE_INCOHERENCE: 'INCOHERENCE',
   UNIT_MISMATCH: 'INCOHERENCE',
   LENGTH_UNIT_IMPLAUSIBLE: 'INCOHERENCE',
@@ -81,7 +89,9 @@ export function validateRow(
   if (analysis.error) return [failedLine(row, analysis.error.message)];
   // No description at all: reported as its own reason, never dropped in silence.
   if (analysis.skippedLlm) return [emptyLine(row)];
-  if (!elements.length) return [];
+  // A row with a description that yielded nothing is REPORTED, never dropped. Returning [] here is
+  // how a row vanishes from the output entirely.
+  if (!elements.length) return [noElementsLine(row)];
 
   // --- §2: the ONLY extrapolation the rules allow is the measure ----------
   const withMeasure = elements.filter((e) => e.measure.normalized !== null);
@@ -89,9 +99,10 @@ export function validateRow(
     withMeasure.find((e) => e.role === 'principal') ?? withMeasure[0] ?? null;
 
   // --- P-1: scope of a finish written once for the whole row ---------------
+  // The client settled it: only the measure extrapolates. What remains is that a finish stated once
+  // for a multi-element row is present and UNATTRIBUTED, which is not the same as absent.
   const finishDonor = elements.find((e) => e.finish.normalized !== null) ?? null;
-  const rowLevelFinish =
-    finishDonor && P.finishSetScope === 'whole_set' && elements.length > 1 ? finishDonor : null;
+  const rowLevelFinish = finishDonor && elements.length > 1 ? finishDonor : null;
 
   return elements.map((el, i) =>
     buildLine(el, { row, donor, rowLevelFinish, P, elementCount: elements.length, index: i }));
@@ -202,8 +213,15 @@ function buildLine(el: NormalizedElement, ctx: Ctx): OutputLine {
   // --- finish (P-1) -------------------------------------------------------
   let finish = el.finish;
   if (!finish.normalized && rowLevelFinish && rowLevelFinish !== el) {
-    finish = { ...rowLevelFinish.finish, provenance: 'extrapolated', rule: 'P-1:finish_whole_set' };
     policies.add('P-1');
+    if (P.finishSetScope === 'whole_set') {
+      finish = { ...rowLevelFinish.finish, provenance: 'extrapolated', rule: 'P-1:finish_whole_set' };
+    } else if (P.finishSetScope === 'review') {
+      // Present in the row, not attributable to this element. Reported as such, not as absent.
+      finish = { raw: rowLevelFinish.finish.raw, normalized: null, provenance: 'absent', span: rowLevelFinish.finish.span, rule: 'P-1:scope_unstated' };
+      reasons.push(reason('FINISH_SCOPE_UNSTATED', 'finish'));
+    }
+    // 'principal_only' leaves the secondary with no finish and no reason.
   }
 
   // --- quantity (P-2). Not one of the seven attributes, and it does not block ---
@@ -267,6 +285,11 @@ function failedLine(row: MtoRow, detail: string): OutputLine {
   const base = emptyLine(row);
   const r = reason('PROCESSING_FAILED');
   return { ...base, id: `${row.itemRef}.E`, reasons: [{ ...r, message: `${r.message} (${detail.split('\n')[0]})` }] };
+}
+
+function noElementsLine(row: MtoRow): OutputLine {
+  const base = emptyLine(row);
+  return { ...base, id: `${row.itemRef}.N`, reasons: [reason('NO_ELEMENTS_EXTRACTED')] };
 }
 
 function outOfFamilyLine(row: MtoRow, analysis: Analysis): OutputLine {

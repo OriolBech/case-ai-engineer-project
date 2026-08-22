@@ -10,6 +10,7 @@ import { normalizeElement } from './normalize.ts';
 import { validateRow } from './validate.ts';
 import { scoreLine, thresholds, route, type Routing } from '../lib/confidence.ts';
 import { criticiseRow, needsCritic, type CriticRouting } from './critic.ts';
+import { detectGaps, policyBacklog, type PolicyGap, type PolicyBacklogItem } from './coverage.ts';
 import type { Llm } from '../lib/llm.ts';
 import type { Policies } from '../rules/policies.ts';
 import type { MtoRow, OutputLine, ProcessResult } from './types.ts';
@@ -31,6 +32,12 @@ export interface ProcessOutput extends ProcessResult {
   outOfFamilyRows: string[];
   tierUsage: { main: number; cheap: number; none: number; escalated: number };
   critic: { rowsRun: number; rowsEligible: number; downgraded: string[]; missingElements: { row: string; items: string[] }[] };
+  /**
+   * Cases no policy covers. A THIRD channel, deliberately not the buyer's queue: a gap is a rules
+   * problem, not a data problem, and it is owed a decision rather than a correction.
+   */
+  gaps: PolicyGap[];
+  policyBacklog: PolicyBacklogItem[];
 }
 
 export async function processMto(
@@ -90,7 +97,10 @@ export async function processMto(
     );
   }
 
-  for (const { lines: rowLines } of perRow) {
+  const gaps: PolicyGap[] = [];
+
+  for (const { row, lines: rowLines } of perRow) {
+    gaps.push(...detectGaps(row, rowLines));
     for (const line of rowLines) {
       line.confidence = scoreLine(line.attributes);
       const r = route(line, t);
@@ -131,5 +141,7 @@ export async function processMto(
       criticRunRatio: rows.length ? criticStats.rowsRun / rows.length : 0,
     },
     critic: criticStats,
+    gaps,
+    policyBacklog: policyBacklog(gaps),
   };
 }

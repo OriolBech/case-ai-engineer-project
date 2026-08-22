@@ -9,8 +9,15 @@
  */
 
 export interface Policies {
-  /** P-1. Finish written once for a whole set: how far does it reach? */
-  finishSetScope: 'whole_set' | 'principal_only' | 'review';
+  /**
+   * P-1. A finish written once for a whole set: how far does it reach?
+   *
+   * ANSWERED BY THE CLIENT (2026-08-22): "solo la medida se extrapola". So the finish does NOT
+   * reach the other elements — and, just as importantly, it is not asserted to be absent from them
+   * either. Absent and present-but-unattributed are different things: by §9's no-mixing rule,
+   * calling it absent changes the reference that gets bought.
+   */
+  finishSetScope: 'review' | 'whole_set' | 'principal_only';
   /** P-2. Multiplicity not written ('with NUT'): infer it or send to review? */
   implicitMultiplicity: 'infer_one' | 'review';
   /** P-3. Material almost never written; derive AC/INOX from quality? */
@@ -39,7 +46,7 @@ export interface Policies {
  * but keep the flag, so the alternative stays demonstrable.
  */
 export const DEFAULT_POLICIES: Policies = {
-  finishSetScope: 'whole_set',
+  finishSetScope: 'review',
   implicitMultiplicity: 'infer_one',
   materialDerivation: 'from_quality',
   unitlessLength: 'plausibility_range',
