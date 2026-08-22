@@ -1,3 +1,5 @@
+import type { Span } from './types.ts';
+
 /**
  * Prompts for the analyze agent. Written in Spanish on purpose: the client's rules, the catalogue
  * values and half the MTO are Spanish, and translating the domain into English would introduce
@@ -29,6 +31,19 @@ Reglas duras:
   No hay subtipos: un tornillo Allen y un tornillo hexagonal son los dos TORNILLO; una tuerca
   autoblocante es TUERCA. Si un término no encaja en ninguno de los cinco, deja normalizedName a
   null y pon el término en detectedName.
+
+Cómo se separan los elementos: el separador no importa. Puede ser un conector ("with", "con",
+"W/2", "c/w", "AND", "y"), una coma, un punto y coma, un "+", un salto de línea, o una enumeración
+introducida por una palabra de conjunto ("Conjunto:", "Set:", "Kit:"). Lo que abre un elemento
+nuevo es que el fragmento nombre uno de los cinco tipos; el signo que lo precede es irrelevante.
+
+Un fragmento que no nombra ninguno de los cinco tipos nunca abre un elemento nuevo: en
+"DIN 931 M20x100, 8.8, zincado" no hay tres elementos, hay uno.
+
+Y cuando la fila TERMINA con un grupo de atributos suelto (", 8.8, zincado"), ese grupo es de la
+FILA, no del último elemento que se mencionó: pertenece al elemento PRINCIPAL. Que aparezca detrás
+de la tuerca no lo convierte en la calidad de la tuerca. Es la misma regla que la de la columna
+MATERIAL, más abajo.
 
 ## 2. Extraes lo que aparece, nunca lo más probable
 
@@ -71,6 +86,12 @@ Extrae la multiplicidad de cada elemento SÓLO si está escrita: "W/2 HEX. NUT" 
 espárrago, "2 arandelas" son 2 arandelas. Si la fila dice sólo "with NUT" o "con tuerca", la
 multiplicidad no está escrita: pon multiplicity 1 y multiplicityStated en false. No la inventes.
 
+Cuando multiplicityStated es true, copia en multiplicityEvidence el fragmento LITERAL de la
+DESCRIPCIÓN del que sale el número ("W/2 HEX. NUT", "2 arandelas"). NUNCA lo tomes de la columna de
+cantidad de la fila: esa columna cuenta cuántos CONJUNTOS se piden, no cuántas piezas lleva cada
+conjunto. Un 100 en la columna de cantidad no es una multiplicidad de 100. Se verifica
+automáticamente, y una multiplicidad que no se pueda justificar en la descripción se descarta.
+
 ## 4. Evidencia literal
 
 Cada valor que devuelves va acompañado de "evidence": el fragmento de texto LITERAL Y EXACTO de la
@@ -82,10 +103,48 @@ justifique, el valor es null. La evidencia se verifica automáticamente contra l
 Si la fila describe algo que no es tornillería (una brida, una junta, un tubo, una válvula), pon
 outOfFamily en true y devuelve elements vacío. No fuerces una brida a ser un TORNILLO.`;
 
-export function analyzeUser(sourceText: string, itemRef: string): string {
-  return `Fila ${itemRef} del MTO. El texto es la concatenación de las celdas con " | " entre ellas:
+/**
+ * Renders the row CELL BY CELL, with the header of each one.
+ *
+ * The first version handed over the `" | "` concatenation and said so, without ever naming the
+ * columns. That works while every attribute lives inside the description, and it fails the moment a
+ * study writes them anywhere else: in `v05-descripcion-partida` the quality moves to its own
+ * `OBSERVACIONES` cell and the model returned quality, material and finish as null on three rows —
+ * not a verification problem, it simply never extracted a value sitting in a bare cell. The value was
+ * right there, twice in one row.
+ *
+ * The headers were never secret: `MtoRow.cellOffsets` has had them since ingest. Same boundary as the
+ * rest of the pipeline, from the other side — here the deterministic stage was WITHHOLDING what it
+ * knew and leaving the model to guess which cells were data.
+ *
+ * Spans are unaffected: they still point into `sourceText`, and a cell's value is a verbatim
+ * substring of it. Hence the closing instruction — the evidence must be the cell's text, never the
+ * header's name, which would not locate.
+ */
+export function analyzeUser(sourceText: string, itemRef: string, cells?: Record<string, Span>): string {
+  const named = cells && Object.keys(cells).length
+    ? Object.entries(cells)
+        .map(([header, span]) => `  ${header}: ${sourceText.slice(span.start, span.end)}`)
+        .join('\n')
+    : null;
+
+  if (!named) {
+    return `Fila ${itemRef} del MTO. El texto es la concatenación de las celdas con " | " entre ellas:
 
 ${sourceText}`;
+  }
+
+  return `Fila ${itemRef} del MTO, celda por celda con su cabecera:
+
+${named}
+
+La cabecera es una PISTA, no el atributo: mira el valor. Y un atributo puede estar en CUALQUIER
+celda, no sólo en la descripción — hay estudios que sacan la calidad o el acabado a una columna
+aparte (OBSERVACIONES, NOTAS, GRADO). Si el valor está en una celda, está escrito en la fila.
+
+Un valor en una celda suelta pertenece al elemento PRINCIPAL, igual que el de la columna MATERIAL.
+
+La evidencia que devuelvas tiene que ser el TEXTO de la celda, nunca el nombre de la cabecera.`;
 }
 
 /** JSON Schema for strict structured output. Every property is required; optionals are nullable. */
@@ -113,7 +172,7 @@ export const ANALYZE_SCHEMA = {
         additionalProperties: false,
         required: [
           'detectedName', 'normalizedName', 'role', 'evidence',
-          'multiplicity', 'multiplicityStated', 'attributes',
+          'multiplicity', 'multiplicityStated', 'multiplicityEvidence', 'attributes',
         ],
         properties: {
           detectedName: { type: 'string' },
@@ -125,6 +184,10 @@ export const ANALYZE_SCHEMA = {
           evidence: { type: 'string' },
           multiplicity: { type: 'integer', minimum: 1 },
           multiplicityStated: { type: 'boolean' },
+          multiplicityEvidence: {
+            type: ['string', 'null'],
+            description: 'Fragmento literal de la DESCRIPCIÓN, nunca de la columna de cantidad',
+          },
           attributes: {
             type: 'object',
             additionalProperties: false,

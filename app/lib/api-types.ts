@@ -3,6 +3,7 @@
  * and the pipeline never drift into two descriptions of the same line.
  */
 import type { OutputLine } from '../../src/pipeline/types.ts';
+import type { PolicyBacklogItem } from '../../src/pipeline/coverage.ts';
 
 export interface ProcessRow {
   itemRef: string;
@@ -11,12 +12,38 @@ export interface ProcessRow {
   rowNumber: number;
 }
 
+/**
+ * Everything the pipeline knows about a run WITHOUT a labelled answer sheet.
+ *
+ * This is the whole point of the shape: on the blind set of the session there is no gold, so the
+ * three KPIs that need one — silent error, useful autonomy, split fidelity — cannot be computed. What
+ * CAN be computed is where the risk sits and what the system does not know, and every field here is
+ * one of those. `docs/02-kpi.md` §4 for the provenance ordering.
+ */
+export interface RunDiagnostics {
+  /** Rows whose model call failed. Must be visible: a row lost in a demo is the worst outcome. */
+  failedRows: { rowRef: string; kind: string; message: string }[];
+  /** Evidence the model gave that is not in the row. The value was discarded and counted. */
+  hallucinations: { row: string; element: string; attribute: string; evidence: string }[];
+  /** Multiplicities the model claimed and the row does not justify. Demoted to 1, never applied. */
+  rejectedMultiplicity: { row: string; element: string; claimed: number; reason: string }[];
+  /** Rows the model says are not fasteners at all (policy P-9). Their own queue, never forced. */
+  outOfFamilyRows: string[];
+  /** Cases no policy covers: a decision the project owes, NOT the buyer's queue. */
+  policyBacklog: PolicyBacklogItem[];
+  gapRows: string[];
+  /** Which tier produced each analysis, and what the critic did. */
+  tierUsage: { main: number; cheap: number; none: number; escalated: number };
+  critic: { rowsRun: number; rowsEligible: number; downgraded: number };
+}
+
 export interface ProcessSummary {
   fileName: string;
   rowsIngested: number;
   rowsSkipped: number;
   lines: OutputLine[];
   rows: ProcessRow[];
+  diagnostics: RunDiagnostics;
   metrics: {
     latencyMs: number;
     costEur: number;

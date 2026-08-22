@@ -137,3 +137,115 @@ export function downloadCsv(fileName: string, csv: string): void {
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+// ---------------------------------------------------------------------------
+// KPIs sin verdad de referencia
+// ---------------------------------------------------------------------------
+//
+// Sobre un MTO sin etiquetar no se puede calcular el error silencioso, la autonomía útil ni el split
+// fidelity: las tres comparan contra respuestas conocidas. Lo que sí se puede calcular es DÓNDE ESTÁ
+// EL RIESGO, y eso es lo que hay aquí.
+//
+// La idea que lo sostiene: una línea resuelta es tan fuerte como su dato más débil. El umbral del
+// proyecto está expresado exactamente así (`THRESHOLD_MIN_PROVENANCE`, ver docs/02-kpi.md §4), así que
+// el reparto de las líneas resueltas por su procedencia más débil es el indicador adelantado del
+// error silencioso: si aparece, aparece en la cola de abajo.
+
+/** De fuerte a débil. Mismo orden que PROVENANCE_SCORE en src/lib/confidence.ts. */
+export const PROVENANCE_ORDER: readonly Provenance[] = [
+  'exact_catalog', 'table_normalized', 'extracted', 'extracted_uncatalogued',
+  'extrapolated', 'derived', 'inferred', 'absent',
+];
+
+const RANK = new Map(PROVENANCE_ORDER.map((p, i) => [p, i]));
+
+/**
+ * La procedencia más débil de una línea, ignorando `not_applicable`.
+ *
+ * `not_applicable` se excluye porque no es una debilidad: la longitud de una tuerca no aplica por §7,
+ * y contarla como el eslabón débil pondría todas las tuercas y arandelas al final de la lista.
+ */
+export function weakestProvenance(line: OutputLine): Provenance {
+  let worst: Provenance = 'exact_catalog';
+  for (const k of ATTRIBUTE_KEYS) {
+    const p = line.attributes[k].provenance;
+    if (p === 'not_applicable') continue;
+    if ((RANK.get(p) ?? 0) > (RANK.get(worst) ?? 0)) worst = p;
+  }
+  return worst;
+}
+
+export interface ProvenanceBucket {
+  provenance: Provenance;
+  lines: OutputLine[];
+}
+
+/** Líneas RESUELTAS agrupadas por su eslabón más débil, de fuerte a débil. Vacíos incluidos. */
+export function resolvedByWeakestProvenance(lines: OutputLine[]): ProvenanceBucket[] {
+  const byProv = new Map<Provenance, OutputLine[]>(PROVENANCE_ORDER.map((p) => [p, []]));
+  for (const l of lines) {
+    if (queueOf(l) !== 'resuelta') continue;
+    byProv.get(weakestProvenance(l))!.push(l);
+  }
+  return PROVENANCE_ORDER.map((provenance) => ({ provenance, lines: byProv.get(provenance)! }));
+}
+
+/**
+ * Cuántas veces cada atributo es el eslabón más débil de una línea resuelta.
+ *
+ * Es el desglose que pide el enunciado —*"los agregados esconden dónde falla el sistema"*— en la
+ * versión que se puede calcular sin etiquetas: no dice qué atributo falla, dice qué atributo es el que
+ * sostiene menos peso.
+ */
+export function weakestAttributeCounts(lines: OutputLine[]): { attribute: string; count: number; provenance: Provenance }[] {
+  const counts = new Map<string, { count: number; provenance: Provenance }>();
+  for (const l of lines) {
+    if (queueOf(l) !== 'resuelta') continue;
+    const worst = weakestProvenance(l);
+    if (worst === 'exact_catalog' || worst === 'table_normalized' || worst === 'extracted') continue;
+    for (const k of ATTRIBUTE_KEYS) {
+      if (l.attributes[k].provenance !== worst) continue;
+      const prev = counts.get(k);
+      counts.set(k, { count: (prev?.count ?? 0) + 1, provenance: worst });
+    }
+  }
+  return [...counts.entries()]
+    .map(([attribute, v]) => ({ attribute, ...v }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/** Cuántas filas produjeron 1, 2, 3… líneas. No es split fidelity —eso necesita gold— pero se ve. */
+export function splitDistribution(lines: OutputLine[]): { elements: number; rows: number }[] {
+  const perRow = new Map<string, number>();
+  for (const l of lines) perRow.set(l.rowRef, (perRow.get(l.rowRef) ?? 0) + 1);
+  const hist = new Map<number, number>();
+  for (const n of perRow.values()) hist.set(n, (hist.get(n) ?? 0) + 1);
+  return [...hist.entries()].sort((a, b) => a[0] - b[0]).map(([elements, rows]) => ({ elements, rows }));
+}
+
+/** Motivos de revisión agrupados: 300 líneas con el mismo motivo son UNA acción, no trescientas. */
+export function reasonCounts(lines: OutputLine[]): { code: string; message: string; count: number; queue: Queue }[] {
+  const byCode = new Map<string, { message: string; count: number; queue: Queue }>();
+  for (const l of lines) {
+    const q = queueOf(l);
+    if (q === 'resuelta') continue;
+    for (const r of l.reasons) {
+      const prev = byCode.get(r.code);
+      byCode.set(r.code, { message: prev?.message ?? r.message, count: (prev?.count ?? 0) + 1, queue: prev?.queue ?? q });
+    }
+  }
+  return [...byCode.entries()]
+    .map(([code, v]) => ({ code, ...v }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Extrapolación a los volúmenes del enunciado, con el denominador honesto.
+ *
+ * El coste se cobra por fila LEÍDA, no por fila de tornillería: para saber cuáles de las 20.000 son
+ * tornillería hay que leerlas. Ver docs/05-results.md §7.
+ */
+export function extrapolate(costEur: number, rowsRead: number): { perRow: number; perRevision: number; perProject: number } {
+  const perRow = rowsRead ? costEur / rowsRead : 0;
+  return { perRow, perRevision: perRow * 20_000, perProject: perRow * 20_000 * 25 };
+}

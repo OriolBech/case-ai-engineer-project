@@ -212,6 +212,7 @@ export async function ingest(fileOrBuffer: string | Buffer): Promise<IngestResul
         sourceText,
         cellOffsets,
         quantity: pickQuantity(cells, qtyCol),
+        quantityColumn: qtyCol >= 0 ? (headers[qtyCol] || `col${qtyCol + 1}`) : null,
         unit: unitCol >= 0 ? cells[unitCol] : null,
         sheet: ws.name,
         rowNumber: n,

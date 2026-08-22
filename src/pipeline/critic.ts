@@ -69,7 +69,30 @@ Reglas de tu juicio:
   es un error de atribución.
 - Ante la duda, DISCREPA. Mandar una línea a revisión no rompe nada; dar por buena una línea mal
   extraída cuesta semanas de obra.
-- No propongas correcciones. Sólo dices si cuadra o no, y por qué.`;
+- No propongas correcciones. Sólo dices si cuadra o no, y por qué.
+
+## Lo que NO es tu trabajo
+
+Cada valor se te da en la forma \`normalizado <- "literal de la fila" (procedencia)\`. La
+TRANSFORMACIÓN de un valor no la juzgas tú: la aplican después las tablas del propio cliente, y
+llevan su procedencia escrita. No es un error que el valor normalizado no se parezca al literal.
+
+- \`tabla\`: la norma o el acabado traducidos por la tabla de equivalencias del cliente
+  (DIN 931 -> ISO 4014, "zincado" -> CINCADO). Correcto por construcción.
+- \`derivado\`: el material deducido de la calidad (A4-70 -> INOX, 8.8 -> AC). Es una política
+  declarada del proyecto, no una invención del extractor.
+- \`extrapolado\`: la medida heredada dentro del set. La única extrapolación permitida.
+- \`inferido\`: multiplicidad o unidad de longitud asumidas. También política declarada.
+
+Una procedencia NO es una bendición: \`literal fuera de catálogo\` significa que el valor se copió
+del texto y NINGUNA tabla del cliente lo reconoce. Es el sitio donde hay que mirar más, no menos —
+ahí es donde acaba un valor que se ha puesto en el campo equivocado, porque ninguna tabla lo iba a
+contradecir. Vuelve al punto 2 con ese valor en la mano.
+
+Lo que SÍ juzgas es de dónde sale el valor: en qué CAMPO se ha puesto y a qué ELEMENTO se le ha
+atribuido. Una norma metida en el campo calidad sigue siendo un error aunque la norma esté en el
+texto. Una calidad puesta en la tuerca cuando el texto sólo la da para el tornillo sigue siendo un
+error aunque el valor exista. Eso es tu trabajo entero.`;
 
 export const CRITIC_SCHEMA = {
   type: 'object',
@@ -102,11 +125,45 @@ export const CRITIC_SCHEMA = {
   },
 } as Record<string, unknown>;
 
+/**
+ * Provenance, in the words the prompt uses. The critic has to be able to tell a value the tables
+ * transformed from a value the extractor moved to the wrong field, and those look identical if all
+ * it sees is the normalized output.
+ */
+const PROVENANCE_ES: Record<string, string> = {
+  exact_catalog: 'catálogo',
+  table_normalized: 'tabla',
+  extracted: 'literal',
+  extracted_uncatalogued: 'literal fuera de catálogo',
+  extrapolated: 'extrapolado',
+  derived: 'derivado',
+  inferred: 'inferido',
+  absent: 'ausente',
+  not_applicable: 'no aplica',
+};
+
+/**
+ * Renders each value as `normalized <- "raw" (provenance)`.
+ *
+ * Showing only the normalized value was the critic's biggest source of noise: it was being asked to
+ * compare the pipeline's OUTPUT against the row's RAW text with no way to know which differences
+ * were legitimate, so it reported the client's own equivalence tables as errors — `DIN931` "changed"
+ * to `ISO 4014`, `zincado` "changed" to `CINCADO`, a material `INOX` "invented" from the quality.
+ * Three of its seven disagreements were exactly that, and each one cost a good line. The
+ * transformation was never the critic's job; telling apart transformation from misattribution is,
+ * and that needs the provenance.
+ */
 function renderLines(lines: OutputLine[]): string {
   return lines
     .map((l) => {
       const attrs = ATTRIBUTE_KEYS
-        .map((k) => `${k}=${l.attributes[k].normalized ?? '(vacío)'}`)
+        .map((k) => {
+          const a = l.attributes[k];
+          if (a.normalized === null) return `${k}=(vacío)`;
+          const prov = PROVENANCE_ES[a.provenance] ?? a.provenance;
+          const raw = a.raw !== null && a.raw !== a.normalized ? ` <- "${a.raw}"` : '';
+          return `${k}=${a.normalized}${raw} (${prov})`;
+        })
         .join(' · ');
       return `  ${l.id}: ${attrs} · cantidad=${l.quantity ?? '(sin cantidad)'}`;
     })

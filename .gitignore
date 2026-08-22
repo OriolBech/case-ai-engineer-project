@@ -9,3 +9,7 @@ data/output/
 
 # artefactos de build
 *.tsbuildinfo
+
+# Vista materializada de la semilla + el log. Se reconstruye sola; el log es lo que va en git.
+data/vocabulary/*.sqlite
+data/vocabulary/*.sqlite-journal

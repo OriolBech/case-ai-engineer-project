@@ -41,10 +41,13 @@ function same(a: unknown, b: unknown): boolean {
   return norm(a) === norm(b);
 }
 
+/** Las ocho celdas graduables de una línea: los siete atributos y la cantidad. */
+export type GradedCell = keyof Attributes | 'quantity';
+
 export interface CellResult {
   lineId: string;
   rowRef: string;
-  attribute: keyof Attributes;
+  attribute: GradedCell;
   certainty: 'C' | 'P';
   expected: string | null;
   got: string | null;
@@ -140,6 +143,23 @@ export function evaluate(systemLines: OutputLine[], gold: GoldLine[], model: str
             got, ok: same(expected, got),
           });
         }
+        // La cantidad es la OCTAVA celda, y estuvo etiquetada en el gold desde el primer día sin
+        // que nadie la comparara: el bucle sólo recorría los siete atributos. Se descubrió porque
+        // el crítico señaló dos líneas de `gpt-5.4-mini` con 10.000 y 2.500 uds donde el MTO pide
+        // 100 y 50 — el modelo se había llevado la columna de cantidad al campo de multiplicidad —
+        // y el harness las daba por PERFECTAS.
+        //
+        // No es un atributo del catálogo, y por eso no entra en `perAttribute` con los otros siete.
+        // Pero es el único campo donde equivocarse multiplica el pedido, así que cuenta para el
+        // error silencioso igual que los demás. El reparto C/P del gold ya hace el trabajo de
+        // política: cantidad escrita es CIERTA, multiplicidad no escrita (P-2) es de política.
+        cells.push({
+          lineId: sl.id, rowRef, attribute: 'quantity',
+          certainty: gl.quantity.certainty,
+          expected: gl.quantity.value === null ? null : String(gl.quantity.value),
+          got: sl.quantity === null ? null : String(sl.quantity),
+          ok: same(gl.quantity.value, sl.quantity),
+        });
       }
       const goldReasons = new Set<string>(gl?.reasons ?? []);
       const sysReasons = new Set<string>((sl?.reasons ?? []).map((r) => String(r.code)));
@@ -166,7 +186,7 @@ export function evaluate(systemLines: OutputLine[], gold: GoldLine[], model: str
   const noisy = reviewSys.filter((l) => l.goldStatus === 'RESUELTA');
 
   const perAttribute: EvalReport['perAttribute'] = {};
-  for (const k of ATTRIBUTE_KEYS) {
+  for (const k of [...ATTRIBUTE_KEYS, 'quantity'] as const) {
     const cs = aligned.flatMap((l) => l.cells.filter((c) => c.attribute === k));
     const c = cs.filter((x) => x.certainty === 'C');
     const p = cs.filter((x) => x.certainty === 'P');

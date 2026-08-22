@@ -46,11 +46,31 @@ the criterion "putting a model where a table was enough."
    quality is SPEC-005 via P-3, not here.
 6. **Measure and length.** Format canonicalization only (`7/8"`, `M20`, `130 mm`). **There is no
    equivalence between inches and metric** and they are never converted.
+7. **The length embedded in the designation.** `M16x60` is a string with a diameter and a length
+   inside it, and splitting it is a regex job. `parseMeasure` returns `lengthRaw` (the `60`,
+   without a unit) and the validator uses it **as a fallback**: if the extractor placed a length,
+   its value wins, with its own span.
+
+   It exists because gold row 4 was going to review with `LENGTH_MISSING` over a length the row
+   does state: the model returned `measure: "M16x60"` and `length: null`, and the only path to the
+   60 was for the model to repeat it in a second field. Same boundary as `findNames` over the
+   model's classification, and as multiplicity (SPEC-002).
+
+   **No unit is assumed here.** `resolveLength` still applies §7 and P-4: `M16x60` resolves via
+   the ISO designation (certain) and `7/8" X 130` goes through the plausibility range check like
+   any other unitless imperial length.
+
+   **And it doesn't travel with an extrapolated measure.** §2 allows extrapolating the measure and
+   nothing else; taking the `60` from an inherited `M16x60` would mean extrapolating the length
+   while calling it a measure. It's the project's first invariant, and the shortcut that breaks it
+   is exactly the convenient one. There is a test that fails without the guard.
 
 ## Edge cases
 
 | Case | Behavior |
 |---|---|
+| `M16x60` with no `length` field (row 4) | Length comes from the designation: `60 mm`, certain |
+| `M16x60` inherited by a secondary element | It inherits the diameter; the length does **not**, and it comes out as `LENGTH_MISSING` |
 | `DIN 975` (row 9) | Not in the table of 25 → kept as `DIN 975` |
 | `DIN 125 A` | In the table → `ISO 7089` |
 | `DIN985` with no space | Format is normalized before lookup → `ISO 10511` |

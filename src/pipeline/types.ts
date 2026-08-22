@@ -90,6 +90,13 @@ export interface MtoRow {
    *  the MTO has a column called MATERIAL that holds quality or standard. */
   cellOffsets: Record<string, Span>;
   quantity: number | null;
+  /**
+   * Header of the column `quantity` came from, or null when no column identified itself as one.
+   * Needed to tell a multiplicity written in the DESCRIPTION ("2 arandelas") from the row's own
+   * quantity cell: reading the second as the first multiplies the purchase order. See
+   * `analysisFromResponse` in analyze.ts.
+   */
+  quantityColumn: string | null;
   unit: string | null;
   sheet: string;
   rowNumber: number;

@@ -10,7 +10,7 @@
  */
 
 import { type Alias, type AliasHit, a, c, findAliases, lookupAlias } from './text.ts';
-import { deriveMaterial } from './vocabulary.ts';
+import { deriveMaterial, isDerived, type NoDerivation } from './vocabulary-db.ts';
 
 export type Material = 'AC' | 'INOX';
 
@@ -25,13 +25,19 @@ export const findMaterials = (text: string): AliasHit<Material>[] => findAliases
 export const normalizeMaterial = (raw: string): AliasHit<Material> | null => lookupAlias(raw, MATERIAL_ALIASES);
 
 /**
- * Policy P-3: derive the material from the quality.
+ * Policy P-3: derive the material from the quality, against the closed table.
  *
- * Delegates to the vocabulary in data/vocabulary/material-derivation.json — see
- * src/rules/vocabulary.ts for why this stopped being code. Kept as a thin wrapper so callers do
- * not need to know where the rules live.
+ * Delegates to the SQLite vocabulary — see src/rules/vocabulary-db.ts for why the table lives in a
+ * database rather than in this file. Kept as a thin wrapper so callers do not need to know where the
+ * rules live.
+ *
+ * Returns the REASON when it does not derive, because the three reasons are different things and the
+ * validator owes each a different outcome: uncovered is a policy gap, deliberate is a valid absence,
+ * and ambiguous is a review — the table itself owes a disambiguation.
  */
-export function deriveMaterialFromQuality(rawQuality: string): { material: Material; rule: string } | null {
+export function deriveMaterialFromQuality(
+  rawQuality: string,
+): { material: Material; rule: string } | { material: null; why: NoDerivation } {
   const r = deriveMaterial(rawQuality);
-  return r ? { material: r.material, rule: r.rule } : null;
+  return isDerived(r) ? { material: r.material, rule: r.rule } : { material: null, why: r };
 }

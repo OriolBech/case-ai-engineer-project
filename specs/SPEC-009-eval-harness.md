@@ -17,7 +17,7 @@ since day 2, because from that point on every change is measured instead of gues
 npm run eval                      # gold set, console summary
 npm run eval -- --report          # full report to eval/reports/<date>.md
 npm run eval -- --set=synthetic   # robustness set
-npm run eval -- --ablate=critic   # ablation of one stage
+npm run eval -- --ablate=critic   # ablation of a stage
 npm run eval -- --sweep-threshold # KPI curve against the threshold
 ```
 
@@ -27,22 +27,31 @@ Exact definitions in `docs/02-kpi.md`.
 
 1. `silent_error_rate` — primary.
 2. `useful_autonomy` — secondary.
-3. `split_fidelity` — reported separately, never averaged in.
+3. `split_fidelity` — reported separately, never averaged.
 4. `queue_noise`.
 5. **Per-attribute breakdown** of the four above. Required by the brief: *"aggregates hide where
    the system fails."*
-6. `€/row` and the extrapolation to `4,000 rows × 25 reviews`.
+6. `€/row` and the extrapolation to `4,000 rows × 25 revisions`.
 7. `latency/1,000 lines`.
 
 ## Gold set format
 
 `data/gold/gold.jsonl` — one expected output line per record, with:
 - the 7 expected attributes,
+- **the quantity**, which is the eighth gradable cell,
 - `certainty: "certain" | "policy_dependent"` **per cell**,
 - the expected reason if it goes to review.
 
-`policy_dependent` cells are excluded from the primary metrics and reported as a sensitivity
+`policy_dependent` cells are excluded from the main metrics and reported as a sensitivity
 analysis. A KPI that mixes both isn't defensible in front of a client.
+
+**About quantity.** It isn't one of the seven catalog attributes and doesn't enter the breakdown
+with them, but it does count toward silent error: it's the only field where an error
+**multiplies** the order. The gold set has labeled it since day one (21 certain cells, 9 policy),
+and the harness **wasn't comparing it**: the cell loop only iterated over the seven attributes. A
+line with 10,000 bolts where the MTO asks for 100 came out perfect. Fixed; the denominator of
+certain cells goes from 190/210 to **211/240**, and every measurement before that fix was blind to
+quantity.
 
 ## Acceptance criteria
 

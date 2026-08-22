@@ -20,7 +20,7 @@ import { findNames } from '../rules/names.ts';
 import { findStandards } from '../rules/standards.ts';
 import { findFinishes } from '../rules/finish.ts';
 import { normalizeQuality } from '../rules/quality.ts';
-import { deriveMaterial, isDeliberatelyUncovered } from '../rules/vocabulary.ts';
+import { deriveMaterial, isDerived } from '../rules/vocabulary-db.ts';
 
 export type GapKind =
   /** The row states a value the deterministic tables recognise, and no output line carries it. */
@@ -144,8 +144,11 @@ export function detectGaps(row: MtoRow, lines: OutputLine[]): PolicyGap[] {
   for (const line of lines) {
     const q = line.attributes.quality;
     if (!q.raw || line.attributes.material.normalized !== null) continue;
-    if (isDeliberatelyUncovered(q.raw)) continue; // stated as uncoverable, with its reason
-    if (deriveMaterial(q.raw)) continue;
+    const d = deriveMaterial(q.raw);
+    // 'deliberate' está declarada no derivable con su motivo: es una ausencia válida, no un hueco.
+    // 'ambiguous' ya manda la línea a revisión en el validador, así que tampoco es una decisión
+    // pendiente del proyecto — es una desambiguación pendiente de la tabla, y se ve en la línea.
+    if (isDerived(d) || d.reason !== 'uncovered') continue;
     gaps.push({
       kind: 'UNCOVERED_DERIVATION', rowRef: row.itemRef, attribute: 'material', value: q.raw,
       detail: `Ninguna entrada del vocabulario cubre la calidad "${q.raw}", así que la línea sale sin material. ` +

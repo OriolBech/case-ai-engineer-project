@@ -162,18 +162,32 @@ describe('material (P-3)', () => {
   test('derives INOX from stainless groups, AC from property classes', () => {
     assert.equal(deriveMaterialFromQuality('A4-70')?.material, 'INOX');
     assert.equal(deriveMaterialFromQuality('304')?.material, 'INOX');
-    assert.equal(deriveMaterialFromQuality('8.8')?.material, 'AC');
-    assert.equal(deriveMaterialFromQuality('8')?.material, 'AC');
-    assert.equal(deriveMaterialFromQuality('GR B7')?.material, 'AC');
+    assert.equal(deriveMaterialFromQuality('8.8').material, 'AC');
+    assert.equal(deriveMaterialFromQuality('8').material, 'AC');
+    assert.equal(deriveMaterialFromQuality('GR B7').material, 'AC');
   });
 
   test('refuses to guess where the quality carries no material info', () => {
-    assert.equal(deriveMaterialFromQuality('200HV'), null, 'hardness says nothing about base metal');
-    assert.equal(deriveMaterialFromQuality('45H'), null, 'unknown grade');
+    // Y distingue POR QUÉ no deriva: una dureza HV está declarada no derivable con su motivo, y un
+    // grado desconocido es un hueco que el proyecto debe decidir. No es lo mismo.
+    //
+    // El valor desconocido es deliberadamente absurdo. Este test comprobaba `45H`, y se rompió el día
+    // que se DECIDIÓ la 45H y pasó a derivar a AC: estaba afirmando sobre el CONTENIDO del vocabulario
+    // vivo, que ahora es un dato que el cliente edita sin desplegar. Un test que se rompe cuando el
+    // cliente toma una decisión está mal delimitado. El contenido se prueba en
+    // vocabulary-db.test.ts, contra su propia semilla; aquí sólo el comportamiento ante lo no cubierto.
+    const hv = deriveMaterialFromQuality('200HV');
+    assert.equal(hv.material, null, 'hardness says nothing about base metal');
+    assert.equal(hv.material === null && hv.why.reason, 'deliberate');
+
+    const unknown = deriveMaterialFromQuality('NO-ES-UNA-CALIDAD-ZZ99');
+    assert.equal(unknown.material, null, 'unknown grade');
+    assert.equal(unknown.material === null && unknown.why.reason, 'uncovered');
   });
 
   test('every derivation carries the rule that produced it', () => {
-    assert.match(deriveMaterialFromQuality('A4-70')!.rule, /^P-3:/);
+    const d = deriveMaterialFromQuality('A4-70');
+    assert.match(d.material !== null ? d.rule : '', /^P-3:/);
   });
 });
 

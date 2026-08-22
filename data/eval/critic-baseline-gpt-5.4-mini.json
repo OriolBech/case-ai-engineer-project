@@ -1,0 +1,1131 @@
+{
+ "_provenance": {
+  "que": "Respuestas literales del extractor para las 15 filas de data/input/MTO_tornilleria.xlsx.",
+  "modelo": "gpt-5.4-mini",
+  "proveedor": "openai",
+  "fecha": "2026-08-22",
+  "prompt": "ANALYZE_SYSTEM v1 (antes de la regla de separadores del 2026-08-22)",
+  "porQue": [
+   "El critico (SPEC-006) solo se puede medir sobre una salida con errores CONOCIDOS.",
+   "Esta es la unica que tenemos: gpt-5.4-mini con 7 lineas mal. Y no se puede volver a generar:",
+   "la cuenta de OpenAI no tiene credito, y la unica copia vivia en data/output/.llm-cache, que",
+   "cualquier cambio de prompt invalida y cualquier arranque en frio borra.",
+   "Congelada aqui, recall y precision del critico son reproducibles a coste 0 y sin el proveedor",
+   "que produjo la entrada."
+  ],
+  "comoSeUsa": "node scripts/critic-eval.ts",
+  "limite": "Es UNA salida de UN modelo sobre 15 filas. Mide el critico contra estos 7 errores, no contra todos los errores posibles."
+ },
+ "respuestas": {
+  "1": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": "130",
+       "value": "130"
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "7/8\"",
+       "value": "7/8\""
+      },
+      "quality": {
+       "evidence": "ASTM A193, GR B7",
+       "value": "ASTM A193, GR B7"
+      },
+      "standard": {
+       "evidence": "ASTM A193",
+       "value": "ASTM A193"
+      }
+     },
+     "detectedName": "STUD BOLT",
+     "evidence": "STUD BOLT",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "ESPARRAGO",
+     "role": "principal"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "7/8\"",
+       "value": "7/8\""
+      },
+      "quality": {
+       "evidence": "ASTM A194, GR 2H",
+       "value": "ASTM A194, GR 2H"
+      },
+      "standard": {
+       "evidence": "ASTM A194",
+       "value": "ASTM A194"
+      }
+     },
+     "detectedName": "HEX. NUT",
+     "evidence": "HEX. NUT 7/8\", ASTM A194, GR 2H",
+     "multiplicity": 2,
+     "multiplicityStated": true,
+     "normalizedName": "TUERCA",
+     "role": "secondary"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "7/8\"",
+       "value": "7/8\""
+      },
+      "quality": {
+       "evidence": "ASTM F436",
+       "value": "ASTM F436"
+      },
+      "standard": {
+       "evidence": "ASTM F436",
+       "value": "ASTM F436"
+      }
+     },
+     "detectedName": "WASHER",
+     "evidence": "2 WASHER 7/8\", ASTM F436",
+     "multiplicity": 2,
+     "multiplicityStated": true,
+     "normalizedName": "ARANDELA",
+     "role": "secondary"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "2": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": "M20x90",
+       "value": "90"
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M20",
+       "value": "M20"
+      },
+      "quality": {
+       "evidence": "A4-70",
+       "value": "A4-70"
+      },
+      "standard": {
+       "evidence": "DIN931",
+       "value": "DIN931"
+      }
+     },
+     "detectedName": "BOLT",
+     "evidence": "BOLT DIN931 M20x90 with NUT DIN934 M20",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "TORNILLO",
+     "role": "principal"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M20",
+       "value": "M20"
+      },
+      "quality": {
+       "evidence": null,
+       "value": null
+      },
+      "standard": {
+       "evidence": "DIN934",
+       "value": "DIN934"
+      }
+     },
+     "detectedName": "NUT",
+     "evidence": "with NUT DIN934 M20",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "TUERCA",
+     "role": "secondary"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "3": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M12x50",
+       "value": "M12x50"
+      },
+      "quality": {
+       "evidence": "A2",
+       "value": "A2"
+      },
+      "standard": {
+       "evidence": "DIN 933",
+       "value": "DIN 933"
+      }
+     },
+     "detectedName": "Tornillo hexagonal",
+     "evidence": "Tornillo hexagonal",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "TORNILLO",
+     "role": "principal"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": null,
+       "value": null
+      },
+      "quality": {
+       "evidence": null,
+       "value": null
+      },
+      "standard": {
+       "evidence": null,
+       "value": null
+      }
+     },
+     "detectedName": "tuerca",
+     "evidence": "tuerca",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "TUERCA",
+     "role": "secondary"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": null,
+       "value": null
+      },
+      "quality": {
+       "evidence": null,
+       "value": null
+      },
+      "standard": {
+       "evidence": null,
+       "value": null
+      }
+     },
+     "detectedName": "arandela",
+     "evidence": "arandela",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "ARANDELA",
+     "role": "secondary"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "4": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": "zinc plated",
+       "value": "zinc plated"
+      },
+      "length": {
+       "evidence": "M16x60",
+       "value": "60"
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M16x60",
+       "value": "M16"
+      },
+      "quality": {
+       "evidence": "8.8",
+       "value": "8.8"
+      },
+      "standard": {
+       "evidence": "DIN933",
+       "value": "DIN933"
+      }
+     },
+     "detectedName": "BOLT",
+     "evidence": "BOLT DIN933 M16x60",
+     "multiplicity": 100,
+     "multiplicityStated": false,
+     "normalizedName": "TORNILLO",
+     "role": "principal"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": null,
+       "value": null
+      },
+      "quality": {
+       "evidence": null,
+       "value": null
+      },
+      "standard": {
+       "evidence": "DIN934",
+       "value": "DIN934"
+      }
+     },
+     "detectedName": "NUT",
+     "evidence": "NUT DIN934",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "TUERCA",
+     "role": "secondary"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": null,
+       "value": null
+      },
+      "quality": {
+       "evidence": null,
+       "value": null
+      },
+      "standard": {
+       "evidence": "DIN125",
+       "value": "DIN125"
+      }
+     },
+     "detectedName": "WASHER",
+     "evidence": "WASHER DIN125",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "ARANDELA",
+     "role": "secondary"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "5": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": "1\" X 150 LG",
+       "value": "150"
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "1\" X 150",
+       "value": "1\""
+      },
+      "quality": {
+       "evidence": "ASTM A193, GR B7",
+       "value": "ASTM A193, GR B7"
+      },
+      "standard": {
+       "evidence": "ASTM A193, GR B7",
+       "value": "ASTM A193"
+      }
+     },
+     "detectedName": "STUD BOLT",
+     "evidence": "STUD BOLT 1\" X 150 LG",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "ESPARRAGO",
+     "role": "principal"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": null,
+       "value": null
+      },
+      "quality": {
+       "evidence": "ASTM A194, GR 2H",
+       "value": "ASTM A194, GR 2H"
+      },
+      "standard": {
+       "evidence": "ASTM A194, GR 2H",
+       "value": "ASTM A194"
+      }
+     },
+     "detectedName": "NUT",
+     "evidence": "2 NUT ASTM A194, GR 2H",
+     "multiplicity": 2,
+     "multiplicityStated": true,
+     "normalizedName": "TUERCA",
+     "role": "secondary"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": null,
+       "value": null
+      },
+      "quality": {
+       "evidence": "ASTM F436",
+       "value": "ASTM F436"
+      },
+      "standard": {
+       "evidence": "ASTM F436",
+       "value": "ASTM F436"
+      }
+     },
+     "detectedName": "WASHER",
+     "evidence": "1 WASHER ASTM F436",
+     "multiplicity": 1,
+     "multiplicityStated": true,
+     "normalizedName": "ARANDELA",
+     "role": "secondary"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "6": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": "zincado",
+       "value": "zincado"
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M16x80",
+       "value": "M16x80"
+      },
+      "quality": {
+       "evidence": "8.8",
+       "value": "8.8"
+      },
+      "standard": {
+       "evidence": "DIN 931",
+       "value": "DIN 931"
+      }
+     },
+     "detectedName": "Tornillo",
+     "evidence": "Tornillo DIN 931 M16 x 80",
+     "multiplicity": 60,
+     "multiplicityStated": true,
+     "normalizedName": "TORNILLO",
+     "role": "principal"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": null,
+       "value": null
+      },
+      "quality": {
+       "evidence": null,
+       "value": null
+      },
+      "standard": {
+       "evidence": "DIN 934",
+       "value": "DIN 934"
+      }
+     },
+     "detectedName": "tuerca",
+     "evidence": "tuerca DIN 934",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "TUERCA",
+     "role": "secondary"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "7": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": "M12x60",
+       "value": "60"
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M12x60",
+       "value": "M12"
+      },
+      "quality": {
+       "evidence": "A4-70",
+       "value": "A4-70"
+      },
+      "standard": {
+       "evidence": "DIN931",
+       "value": "DIN931"
+      }
+     },
+     "detectedName": "BOLT",
+     "evidence": "BOLT DIN931 M12x60 A4-70 with NUT DIN934 M12 A4-80",
+     "multiplicity": 50,
+     "multiplicityStated": true,
+     "normalizedName": "TORNILLO",
+     "role": "principal"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M12",
+       "value": "M12"
+      },
+      "quality": {
+       "evidence": "A4-80",
+       "value": "A4-80"
+      },
+      "standard": {
+       "evidence": "DIN934",
+       "value": "DIN934"
+      }
+     },
+     "detectedName": "NUT",
+     "evidence": "with NUT DIN934 M12 A4-80",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "TUERCA",
+     "role": "secondary"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "8": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": "ZN",
+       "value": "ZN"
+      },
+      "length": {
+       "evidence": "70",
+       "value": "70"
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M16",
+       "value": "M16"
+      },
+      "quality": {
+       "evidence": "8.8",
+       "value": "8.8"
+      },
+      "standard": {
+       "evidence": null,
+       "value": null
+      }
+     },
+     "detectedName": "HEX BOLT",
+     "evidence": "HEX BOLT",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "TORNILLO",
+     "role": "principal"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": null,
+       "value": null
+      },
+      "quality": {
+       "evidence": null,
+       "value": null
+      },
+      "standard": {
+       "evidence": null,
+       "value": null
+      }
+     },
+     "detectedName": "NUT",
+     "evidence": "NUT",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "TUERCA",
+     "role": "secondary"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": null,
+       "value": null
+      },
+      "quality": {
+       "evidence": null,
+       "value": null
+      },
+      "standard": {
+       "evidence": null,
+       "value": null
+      }
+     },
+     "detectedName": "WASHER",
+     "evidence": "WASHER",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "ARANDELA",
+     "role": "secondary"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "9": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": "zincado",
+       "value": "zincado"
+      },
+      "length": {
+       "evidence": "M20x200",
+       "value": "200"
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M20x200",
+       "value": "M20"
+      },
+      "quality": {
+       "evidence": "8.8",
+       "value": "8.8"
+      },
+      "standard": {
+       "evidence": "DIN 975",
+       "value": "DIN 975"
+      }
+     },
+     "detectedName": "esparrago",
+     "evidence": "Conjunto esparrago M20 x 200 DIN 975 con 2 tuercas DIN 934 y 2 arandelas DIN 125",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "ESPARRAGO",
+     "role": "principal"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": null,
+       "value": null
+      },
+      "quality": {
+       "evidence": null,
+       "value": null
+      },
+      "standard": {
+       "evidence": "DIN 934",
+       "value": "DIN 934"
+      }
+     },
+     "detectedName": "tuercas",
+     "evidence": "2 tuercas DIN 934",
+     "multiplicity": 2,
+     "multiplicityStated": true,
+     "normalizedName": "TUERCA",
+     "role": "secondary"
+    },
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": null,
+       "value": null
+      },
+      "quality": {
+       "evidence": null,
+       "value": null
+      },
+      "standard": {
+       "evidence": "DIN 125",
+       "value": "DIN 125"
+      }
+     },
+     "detectedName": "arandelas",
+     "evidence": "2 arandelas DIN 125",
+     "multiplicity": 2,
+     "multiplicityStated": true,
+     "normalizedName": "ARANDELA",
+     "role": "secondary"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "10": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": "zincado",
+       "value": "zincado"
+      },
+      "length": {
+       "evidence": "M10x40",
+       "value": "40"
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M10x40",
+       "value": "M10"
+      },
+      "quality": {
+       "evidence": "8.8",
+       "value": "8.8"
+      },
+      "standard": {
+       "evidence": "DIN 933",
+       "value": "DIN 933"
+      }
+     },
+     "detectedName": "Tornillo hexagonal",
+     "evidence": "Tornillo hexagonal DIN 933 M10 x 40, 8.8, zincado",
+     "multiplicity": 1,
+     "multiplicityStated": false,
+     "normalizedName": "TORNILLO",
+     "role": "principal"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "11": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M16",
+       "value": "M16"
+      },
+      "quality": {
+       "evidence": "A4-80",
+       "value": "A4-80"
+      },
+      "standard": {
+       "evidence": "DIN 934",
+       "value": "DIN 934"
+      }
+     },
+     "detectedName": "Tuerca hexagonal",
+     "evidence": "Tuerca hexagonal DIN 934 M16, A4-80",
+     "multiplicity": 200,
+     "multiplicityStated": true,
+     "normalizedName": "TUERCA",
+     "role": "principal"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "12": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": null,
+       "value": null
+      },
+      "length": {
+       "evidence": "110",
+       "value": "110"
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "3/4\"",
+       "value": "3/4\""
+      },
+      "quality": {
+       "evidence": "ASTM A193 GR B7",
+       "value": "ASTM A193 GR B7"
+      },
+      "standard": {
+       "evidence": "ASTM A193",
+       "value": "ASTM A193"
+      }
+     },
+     "detectedName": "STUD BOLT",
+     "evidence": "STUD BOLT 3/4\" X 110 LG",
+     "multiplicity": 40,
+     "multiplicityStated": true,
+     "normalizedName": "ESPARRAGO",
+     "role": "principal"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "13": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": "zincada",
+       "value": "zincada"
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M12",
+       "value": "M12"
+      },
+      "quality": {
+       "evidence": "8.8",
+       "value": "8.8"
+      },
+      "standard": {
+       "evidence": "DIN 985",
+       "value": "DIN 985"
+      }
+     },
+     "detectedName": "Tuerca autoblocante",
+     "evidence": "Tuerca autoblocante DIN 985 M12, 8.8, zincada",
+     "multiplicity": 300,
+     "multiplicityStated": true,
+     "normalizedName": "TUERCA",
+     "role": "principal"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "14": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": "zincada",
+       "value": "zincada"
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": "acero",
+       "value": "acero"
+      },
+      "measure": {
+       "evidence": "M10",
+       "value": "M10"
+      },
+      "quality": {
+       "evidence": null,
+       "value": null
+      },
+      "standard": {
+       "evidence": "DIN 125",
+       "value": "DIN 125"
+      }
+     },
+     "detectedName": "Arandela plana",
+     "evidence": "Arandela plana DIN 125 M10, acero, zincada",
+     "multiplicity": 250,
+     "multiplicityStated": true,
+     "normalizedName": "ARANDELA",
+     "role": "principal"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  },
+  "15": {
+   "elements": [
+    {
+     "attributes": {
+      "finish": {
+       "evidence": "geomet",
+       "value": "geomet"
+      },
+      "length": {
+       "evidence": null,
+       "value": null
+      },
+      "material": {
+       "evidence": null,
+       "value": null
+      },
+      "measure": {
+       "evidence": "M10x40",
+       "value": "M10x40"
+      },
+      "quality": {
+       "evidence": "12.9",
+       "value": "12.9"
+      },
+      "standard": {
+       "evidence": "DIN 912",
+       "value": "DIN 912"
+      }
+     },
+     "detectedName": "Tornillo Allen cilindrico",
+     "evidence": "Tornillo Allen cilindrico DIN 912 M10 x 40, 12.9, geomet",
+     "multiplicity": 120,
+     "multiplicityStated": true,
+     "normalizedName": "TORNILLO",
+     "role": "principal"
+    }
+   ],
+   "outOfFamily": false,
+   "outOfFamilyReason": null
+  }
+ }
+}

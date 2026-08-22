@@ -43,6 +43,25 @@ export async function POST(req: Request): Promise<Response> {
             sheet: r.sheet,
             rowNumber: r.rowNumber,
           })),
+          diagnostics: {
+            failedRows: out.analyses
+              .filter((a) => a.error)
+              .map((a) => ({ rowRef: a.rowRef, kind: a.error!.kind, message: a.error!.message.split('\n')[0] })),
+            hallucinations: out.hallucinations,
+            rejectedMultiplicity: out.analyses.flatMap((a) =>
+              a.rejectedMultiplicity.map((r) => ({
+                row: a.rowRef, element: r.element, claimed: r.claimed, reason: r.reason,
+              }))),
+            outOfFamilyRows: out.outOfFamilyRows,
+            policyBacklog: out.policyBacklog,
+            gapRows: [...new Set(out.gaps.map((g) => g.rowRef))],
+            tierUsage: out.tierUsage,
+            critic: {
+              rowsRun: out.critic.rowsRun,
+              rowsEligible: out.critic.rowsEligible,
+              downgraded: out.critic.downgraded.length,
+            },
+          },
           metrics: {
             latencyMs: out.metrics.latencyMs,
             costEur: fx ? llm.stats.costUsd / fx : 0,

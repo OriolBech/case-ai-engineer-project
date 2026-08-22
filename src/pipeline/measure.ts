@@ -14,6 +14,29 @@ export interface ParsedMeasure {
   /** Nominal diameter in mm. For plausibility reasoning only, never emitted as the attribute. */
   nominalMm: number;
   canonical: string;
+  /**
+   * The length written inside the designation itself, verbatim and without a unit: the `60` of
+   * `M16x60`, the `130` of `7/8" X 130`. Null when the designation carries only a diameter.
+   *
+   * It exists because the length was being taken on the model's word for a value the row states
+   * unambiguously. On row 4 (`M16x60`) the extractor returned `measure: "M16x60"` and
+   * `length: null`, and the line went to review with LENGTH_MISSING — a resolvable line in the
+   * buyer's queue because one field of a JSON object came back empty. The diameter and the length
+   * are one string in an ISO designation, and reading it is a regex, not a judgement. Same boundary
+   * as findNames over the model's own classification: where a table can decide, the table decides.
+   *
+   * No unit is assumed here. `resolveLength` still applies §7 and P-4 to it, so `M16x60` resolves
+   * to 60 mm by the designation and `7/8" X 130` goes through the plausibility range like any other
+   * unitless imperial length.
+   */
+  lengthRaw: string | null;
+}
+
+/** Pulls the length out of a combined designation: `M16x60`, `M12 x 50`, `7/8" X 130`, `4.8x25`. */
+function designationLength(s: string, afterDiameter: number): string | null {
+  const rest = s.slice(afterDiameter);
+  const m = rest.match(/^\s*[X×*]\s*(\d+(?:[.,]\d+)?)\s*(?:LG)?\s*$/);
+  return m ? m[1] : null;
 }
 
 /** `M20` -> metric 20. `7/8"` -> imperial 22.225. `1-1/2"` -> imperial 38.1. */
@@ -24,20 +47,33 @@ export function parseMeasure(raw: string): ParsedMeasure | null {
   if (metric) {
     const n = Number(metric[1].replace(',', '.'));
     if (!Number.isFinite(n) || n <= 0) return null;
-    return { raw, system: 'metric', nominalMm: n, canonical: `M${trim(n)}` };
+    return {
+      raw, system: 'metric', nominalMm: n, canonical: `M${trim(n)}`,
+      lengthRaw: designationLength(s, metric[0].length),
+    };
   }
 
   const inches = parseInches(s);
   if (inches !== null) {
-    return { raw, system: 'imperial', nominalMm: inches * MM_PER_INCH, canonical: `${formatInches(inches)}"` };
+    // parseInches reads the leading inch expression; the length, if any, follows the closing quote.
+    const quote = s.indexOf('"');
+    return {
+      raw, system: 'imperial', nominalMm: inches * MM_PER_INCH, canonical: `${formatInches(inches)}"`,
+      lengthRaw: quote >= 0 ? designationLength(s, quote + 1) : null,
+    };
   }
 
   // Bare numeric designations such as the `4.8x25` of DIN 7981 self-tapping screws: metric family,
   // no M prefix. Treated as metric so length reasoning works; kept verbatim as the canonical value.
-  const bare = s.match(/^(\d+(?:[.,]\d+)?)$/);
+  const bare = s.match(/^(\d+(?:[.,]\d+)?)(?:\s*[X×*]\s*\d+(?:[.,]\d+)?)?$/);
   if (bare) {
     const n = Number(bare[1].replace(',', '.'));
-    if (Number.isFinite(n) && n > 0) return { raw, system: 'metric', nominalMm: n, canonical: trim(n) };
+    if (Number.isFinite(n) && n > 0) {
+      return {
+        raw, system: 'metric', nominalMm: n, canonical: trim(n),
+        lengthRaw: designationLength(s, bare[1].length),
+      };
+    }
   }
   return null;
 }

@@ -7,13 +7,13 @@ import type { Llm } from '../../lib/llm.ts';
 
 const row: MtoRow = {
   itemRef: '1', sourceText: 'STUD BOLT 7/8" X 130 LG, ASTM A193, GR B7 W/2 HEX. NUT 7/8", ASTM A194, GR 2H',
-  cellOffsets: {}, quantity: 40, unit: 'uds', sheet: 'MTO', rowNumber: 5,
+  cellOffsets: {}, quantity: 40, quantityColumn: 'CANTIDAD', unit: 'uds', sheet: 'MTO', rowNumber: 5,
 };
 
 const analysis = (n: number, extra: Partial<Analysis> = {}): Analysis => ({
   rowRef: '1', outOfFamily: false, outOfFamilyReason: null,
   elements: Array.from({ length: n }, () => ({} as never)),
-  hallucinations: [], skippedLlm: false, tier: 'main', escalated: false, error: null, ...extra,
+  hallucinations: [], rejectedMultiplicity: [], skippedLlm: false, tier: 'main', escalated: false, error: null, ...extra,
 });
 
 const attr = { raw: null, normalized: null, provenance: 'absent' as const, span: null, rule: null };

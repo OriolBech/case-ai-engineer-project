@@ -6,6 +6,7 @@ import { formatEur, formatSeconds, queueOf } from '../lib/derive.ts';
 import { UploadScreen, type UploadProgress } from './UploadScreen.tsx';
 import { QueueScreen } from './QueueScreen.tsx';
 import { TracePanel } from './TracePanel.tsx';
+import { KpiPanel } from './KpiPanel.tsx';
 
 type Phase = 'upload' | 'processing' | 'ready';
 
@@ -17,6 +18,7 @@ export function App() {
   const [result, setResult] = useState<ProcessSummary | null>(null);
   const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
   const [traceLineId, setTraceLineId] = useState<string | null>(null);
+  const [showKpis, setShowKpis] = useState(false);
 
   const rowsSourceText = useMemo(() => {
     const m = new Map<string, string>();
@@ -105,8 +107,13 @@ export function App() {
           <span className="wf-file-name" title={result.fileName}>{result.fileName}</span>
 
           <div className="wf-stats">
+            {/* "Resueltas" y NO "% de acierto": esta cifra sube igual si el sistema resuelve mal, y
+                confundir las dos es el sistema que el enunciado descarta. La autonomía útil —resueltas
+                Y correctas— necesita respuestas conocidas, y el panel de KPIs lo dice con su nombre. */}
             <div className="wf-stat">
-              <span className="wf-stat-label">% resuelto</span>
+              <span className="wf-stat-label" title="Tasa de resolución, no de acierto: sube igual si el sistema resuelve mal">
+                % resueltas
+              </span>
               <span className="wf-stat-value accent">{pctResolved}%</span>
             </div>
             <div className="wf-stat">
@@ -123,6 +130,7 @@ export function App() {
               <span className="wf-stat-label">Tiempo</span>
               <span className="wf-stat-value">{formatSeconds(result.metrics.latencyMs)}</span>
             </div>
+            <button className="wf-btn small" onClick={() => setShowKpis(true)}>Cómo ha ido</button>
             <button className="wf-btn dark small" onClick={reset}>Nuevo MTO</button>
           </div>
         </div>
@@ -135,6 +143,8 @@ export function App() {
         onConfirm={confirmLines}
         onOpenTrace={setTraceLineId}
       />
+
+      {showKpis && <KpiPanel result={result} onClose={() => setShowKpis(false)} />}
 
       {traceLine && (
         <TracePanel

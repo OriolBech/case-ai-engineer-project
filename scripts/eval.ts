@@ -31,6 +31,16 @@ const out = await processMto(llm, 'data/input/MTO_tornilleria.xlsx', {
   routing,
   criticRouting,
 });
+// Una fila que falló en el proveedor produce una línea PROCESSING_FAILED, y todas las métricas
+// bajan sin que ninguna diga por qué. Ya se leyó una vez como una regresión del prompt cuando eran
+// rate limits. Si hay filas caídas, la medida NO vale y se dice antes que cualquier cifra.
+const failedRows = out.analyses.filter((a) => a.error);
+if (failedRows.length) {
+  console.log(`\n!! MEDIDA INVÁLIDA: ${failedRows.length} de ${out.rowsIngested} filas fallaron en el proveedor`);
+  for (const a of failedRows) console.log(`   fila ${a.rowRef}: ${a.error!.kind} — ${a.error!.message.slice(0, 140)}`);
+  console.log('   Repite con menos concurrencia (CONCURRENCY=4) y sin otra medición en paralelo.');
+}
+
 const r = evaluate(out.lines, loadGold(), model);
 const fx = eurPerUsd() || 1;
 const eurPerRow = llm.stats.costUsd / fx / out.rowsIngested;
@@ -47,6 +57,15 @@ console.log(`  ruido en cola          ${pc(r.queueNoise.pct)}  (${r.queueNoise.n
 console.log(`  acuerdo de estado      ${pc(r.statusAgreement.pct)}`);
 console.log(`  motivos exactos        ${pc(r.reasonAgreement.pct)}`);
 console.log(`  alucinaciones          ${out.hallucinations.length}`);
+const rejected = out.analyses.flatMap((a) => a.rejectedMultiplicity.map((r) => ({ row: a.rowRef, ...r })));
+console.log(`  multiplicidades rechazadas ${rejected.length}`);
+for (const r of rejected) {
+  // `evidence` es lo que dice la FILA, no lo que alegaba el modelo: la fila es la que decide.
+  const said = r.reason === 'row_says_other'
+    ? `la fila dice ${JSON.stringify(r.evidence)}`
+    : 'la fila no escribe ninguna cantidad delante del nombre';
+  console.log(`    fila ${r.row} ${r.element}: el modelo decía x${r.claimed}, ${said}`);
+}
 console.log(`  €/fila                 ${eurPerRow.toFixed(4)} €   (cache ${llm.stats.cacheHits}/${llm.stats.calls})`);
 console.log(`  s de modelo / fila     ${(llm.stats.latencyMsTotal / 1000 / out.rowsIngested).toFixed(1)}s`);
 console.log(`  reparto de niveles     main ${out.tierUsage.main} / cheap ${out.tierUsage.cheap}` +

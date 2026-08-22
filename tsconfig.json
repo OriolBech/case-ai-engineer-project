@@ -33,6 +33,7 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
+    "scripts/**/*.ts",
     "app/**/*.ts",
     "app/**/*.tsx",
     ".next/types/**/*.ts",

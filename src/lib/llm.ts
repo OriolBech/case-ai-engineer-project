@@ -50,6 +50,22 @@ export interface LlmRequest {
   /** Which configured tier to use. See src/lib/tiers.ts. */
   tier?: Tier;
   maxTokens?: number;
+  /**
+   * Shape check the caller requires of the response, beyond what the provider's strict schema is
+   * supposed to guarantee. A response that fails it is treated as a PROVIDER FAILURE: retried, and
+   * never written to (nor served from) the cache.
+   *
+   * It exists because a strict schema is a request, not a promise. An open-weight model behind
+   * OpenRouter returned a response for row 6 of the MTO with no `elements` field at all — and the
+   * pipeline, which tolerates a malformed response rather than crashing, read that as "this row
+   * contains no materials". Those are not the same statement, and the second one is a lie the
+   * measurement then reports as a data problem.
+   *
+   * Worse, the malformed answer was CACHED, so the row stayed broken across runs and no retry could
+   * ever reach the provider again. The check runs on cache reads too, which evicts a poisoned entry
+   * the first time it is read.
+   */
+  validate?: (data: unknown) => boolean;
 }
 
 export interface LlmUsage {
@@ -357,7 +373,14 @@ export class Llm {
     let last: unknown;
     for (let i = 0; i < attempts; i++) {
       try {
-        return await provider.complete<T>(req, cfg);
+        const out = await provider.complete<T>(req, cfg);
+        // A response that ignores the schema we demanded is a provider failure, and a retryable one:
+        // the same request usually comes back well formed. Silently accepting it would turn "the
+        // model did not answer" into "the row has nothing in it".
+        if (req.validate && !req.validate(out.data)) {
+          throw new LlmError(502, `${cfg.model} devolvió una respuesta que no cumple el esquema pedido`);
+        }
+        return out;
       } catch (e) {
         last = e;
         if (!(e instanceof LlmError) || !e.retryable || i === attempts - 1) throw e;
@@ -376,7 +399,9 @@ export class Llm {
 
     if (key) {
       const hit = this.cache!.get<T>(key);
-      if (hit) {
+      // A cached response that fails the caller's shape check is a poisoned entry, not a hit: it is
+      // ignored here and overwritten below by the fresh call.
+      if (hit && (!req.validate || req.validate(hit.data))) {
         this.stats.calls++;
         this.stats.cacheHits++;
         return { data: hit.data, usage: { ...hit.usage, cacheHit: true, latencyMs: 0 } };

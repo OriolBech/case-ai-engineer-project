@@ -1,23 +1,29 @@
 # Results
 
 > Status: 🚧. Feeds section 3 of the 2-pager. Measured with `npm run eval`.
-> **Measurement is halted**: API credit ran out mid-benchmark (2026-08-22).
+> **Reference model: `openai/gpt-oss-120b` via OpenRouter** — this is the one being delivered, and the one
+> that costs 176× less on output than `gpt-5.5` while matching its result. No OpenAI credit since
+> 2026-08-22, so the `gpt-5.5` figures left in this document are from before and are marked as such.
 
 ## Against the gold set (15 rows → 30 lines)
 
-`gpt-5.5`, 3 repetitions, identical result across all three:
+**Eight cells per line**: the seven attributes plus the quantity. **211 certain out of 240**; the 29
+remaining ones depend on a declared policy and are reported separately.
+
+`openai/gpt-oss-120b`, critic off (this measures the extractor):
 
 | Metric | Value |
 |---|---|
-| **Silent error** (primary) | **0.0%** — 0 of 15 resolved |
+| **Silent error** (primary) | **0.0%** — 0 of 15 resolved · **count 0** |
 | **Useful autonomy** | **50.0%** — 15 of 30 |
 | **Split fidelity** | **100%** — 15 of 15 rows |
 | **Queue noise** | **0.0%** — 0 of 15 reviews |
 | Status agreement | 100% |
 | Exact reasons | 100% |
 | Span hallucinations | 0 |
+| Rejected multiplicities | 0 |
 
-Breakdown by attribute: **210 of 210 cells correct**, including the 27 policy-dependent ones.
+Breakdown by attribute: **211 of 211 certain cells**, and the 29 policy-dependent ones also correct.
 
 | Attribute | Certain | Policy |
 |---|---|---|
@@ -27,13 +33,33 @@ Breakdown by attribute: **210 of 210 cells correct**, including the 27 policy-de
 | measure | 30/30 | — |
 | length | 27/27 | 3/3 |
 | standard | 30/30 | — |
-| finish | 23/23 | 7/7 |
+| finish | 30/30 | — |
+| **quantity** | **21/21** | **9/9** |
+
+### Quantity is the eighth cell, and it wasn't being looked at
+
+This has to be said here and not in a footnote, because it changes the reading of everything above. `gold.jsonl`
+has labeled quantity per line from day one, with its own certain/policy split, and the
+harness **only compared seven cells**: the loop iterated over the catalog attribute list and
+quantity isn't in it.
+
+Consequence: a line asking for **10,000 screws where the MTO asks for 100** came out with the
+perfect breakdown. That was the actual state of two `gpt-5.4-mini` lines, and it was detected
+by **the critic**, whose two "false positives" on rows 4 and 7 were correct and got counted against
+it by a judge that wasn't even looking at the field they were talking about.
+
+Quantity isn't part of the breakdown of the seven —it's not a catalog attribute— but it **does
+count toward the silent error rate**: it's the only field where getting it wrong *multiplies*
+the order. Full detail, with the three fixes it took, in `11-benchmarks.md` §3-bis.
+
+**Any figure in this project prior to the afternoon of 2026-08-22 is blind to that cell**, and the
+ones kept here are marked accordingly.
 
 **The mandatory caveat about this 100%.** It's 30 lines, and I wrote both the gold set **and** the
-prompt. A blind spot shared between the two isn't detected by this measurement. What backs the number
-up against that are the 64 targeted synthetic rows —written from coverage gaps, not from the
-MTO— where the 12 planted tests trigger correctly. And the blind set from the session day is
-the real proof.
+prompt. A blind spot shared between the two isn't detected by this measurement — and the quantity
+cell is proof that this risk is real, because it went eighteen hours unmeasured. What backs the number
+up against that are the 64 targeted synthetic rows —written from coverage gaps, not from
+the MTO— and the blind set from the session day, which is the real proof.
 
 ## Sweep of open models (OpenRouter)
 
@@ -129,12 +155,62 @@ per-attribute breakdown instead of the aggregate.
 | | Quality | €/row | € per job | Argument |
 |---|---|---|---|---|
 | `gpt-5.5` | perfect | 0.0239 | 1,749 | The reference. Latency with 9× variance |
-| `kimi-k3` | **perfect** | 0.0169 | ~1,240 | Same quality without vendor lock-in |
-| `gpt-oss-120b` | 13% silent err. | **0.000095** | **9** | 178× cheaper; its only failure is the name, and the tables get the name right |
+| `kimi-k3` | perfect on the gold set, **1 of 4** on the synthetic set | 0.0169 | ~1,240 | Same quality without vendor lock-in |
+| **`gpt-oss-120b`** | **perfect** · 211/211 certain cells | **0.000095** | **9** | **The choice.** 176× cheaper on output |
 
-If preferring the table for the name gets `gpt-oss-120b` to 0%, the third row wins without
-discussion and the other two remain as calibration references. If it doesn't, the choice is
-`kimi-k3`: same quality as the reference, with no vendor dependency.
+**Decided: `gpt-oss-120b`.** The condition left written here —"if preferring the table for the
+name gets it to 0%"— was met: the 13% silent error it had was **two cells**
+(`STUD BOLT` classified as `VARILLA ROSCADA`), the model returned the correct literal term
+and only got the classification wrong, and the table decides the name. It's now at 0% across all eight
+cells.
+
+The other two remain as calibration: `gpt-5.5` because the prompt was tuned on it, and `kimi-k3`
+because it's the useful counterexample — identical on the gold set, and three rows worse on the synthetic one.
+
+### 7. The cost denominator was wrong, and it's a 5× · 2026-08-22
+
+The brief says *"better to do the multiplication before the CFO does."* Doing it seriously
+reveals that the number we were multiplying wasn't the right one.
+
+The figures above extrapolate **4,000 rows × 25 revisions**, which are the **fastener**
+rows (20,000 × 20%). But the system doesn't charge per fastener row: it charges per **row it reads**. And to
+know which of the 20,000 are fasteners, they have to be read. Today the only shortcut before
+the model is `isEmptyDescription` —rows with no text—, so a flange or a gasket **pays for its call** and
+comes back with `outOfFamily: true`.
+
+Real denominator: **20,000 × 25 = 500,000 calls per job, not 100,000.**
+
+| | €/row | Rows charged per job | € per job |
+|---|---|---|---|
+| As it was written | 0.000095 | 100,000 | €9 |
+| **Honest, without a pre-filter** | 0.000095 | **500,000** | **€48** |
+| `gpt-5.5`, honest | 0.0175 | 500,000 | **€8,750** (was €1,749) |
+
+With the chosen model the error is irrelevant in euros —€48 against an €87,500 baseline is still
+0.05%— but with `gpt-5.5` the difference is €1,749 vs. €8,750, and that's a figure that
+does need to be defended in front of a CFO. **The order of magnitude of the argument doesn't change; the
+honesty of the figure does.**
+
+**The lever, measured but not implemented.** The filter is deterministic and free: a row with no
+catalog name at all (`findNames`) isn't a fastener row and doesn't need the model. Measured over the 79 rows
+we have —15 real and 64 synthetic, with 2 out-of-family ones planted on purpose:
+
+| | Result |
+|---|---|
+| False negatives (fastener rows that would be skipped) | **0 of 79** |
+| False positives (call paid for unnecessarily) | **0 of 79** |
+| Calls saved in the synthetic set | 3 of 64 |
+
+A filter by **name or standard** wouldn't work: the flange in row 56 carries `ASTM A105`, the standards
+regex recognizes it and would pay for the call again. It has to be by catalog name only.
+
+**Why it isn't implemented yet and what its failure mode is.** The risk is a fastener row
+written with an alias not in the table: it would get skipped. It doesn't disappear —it comes out as
+`OUT_OF_FAMILY` in the separate P-9 queue— so the cost of the failure is **a review, not a wrong
+purchase**. Still, it changes the semantics of P-9 (today the out-of-family verdict is given by the
+model; with the filter it would be given by a table in 80% of cases), and that's a product decision
+that deserves its own measurement, not a patch before delivery. It goes as the first line of
+`07-target-solution.md`.
 
 ## Model comparison (OpenAI)
 

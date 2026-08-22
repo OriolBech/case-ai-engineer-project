@@ -136,35 +136,48 @@ function buildLine(el: NormalizedElement, ctx: Ctx): OutputLine {
 
   // --- length (§7 obligation + P-4 unit) ----------------------------------
   const exempt = name !== null && LENGTH_EXEMPT.includes(name);
+  // The designation is the fallback, not the first choice: if the extractor placed a length we use
+  // that one, with its own span. Row 4 is why the fallback exists — the model returned
+  // `measure: "M16x60"` and `length: null`, and a line the row states unambiguously was going to
+  // review with LENGTH_MISSING. The diameter and the length are one string in an ISO designation,
+  // and splitting it is a regex, not a judgement.
+  //
+  // But ONLY from this element's OWN measure. An extrapolated `M16x60` carries the principal's
+  // length inside it, and taking it would extrapolate the LENGTH across the set while calling it a
+  // measure — precisely the thing §2 allows for the measure and nothing else. The invariant has to
+  // survive the shortcut that makes it convenient to break.
+  const ownDesignationLength = measure.provenance === 'extrapolated' ? null : parsedMeasure?.lengthRaw ?? null;
+  const lengthRaw = el.lengthRaw ?? ownDesignationLength;
+  const lengthSpan = el.lengthRaw !== null ? el.lengthSpan : measure.span;
   let length: Attributes['length'];
   if (exempt) {
     length = { raw: el.lengthRaw, normalized: 'N/A', provenance: 'not_applicable', span: el.lengthSpan, rule: 'rule:§7:exempt' };
-  } else if (el.lengthRaw === null) {
+  } else if (lengthRaw === null) {
     length = { raw: null, normalized: null, provenance: 'absent', span: null, rule: null };
     reasons.push(reason('LENGTH_MISSING', 'length'));
   } else {
-    const r = resolveLength(el.lengthRaw, parsedMeasure);
+    const r = resolveLength(lengthRaw, parsedMeasure);
     if (r === null) {
-      length = { raw: el.lengthRaw, normalized: null, provenance: 'absent', span: el.lengthSpan, rule: 'length:unparsed' };
+      length = { raw: lengthRaw, normalized: null, provenance: 'absent', span: lengthSpan, rule: 'length:unparsed' };
       reasons.push(reason('LENGTH_MISSING', 'length'));
     } else if (r.implausible || P.unitlessLength === 'review') {
       const ambiguous = r.implausible || (!r.implausible && r.basis === 'plausibility');
       if (ambiguous) {
-        length = { raw: el.lengthRaw, normalized: null, provenance: 'absent', span: el.lengthSpan, rule: 'P-4:implausible' };
+        length = { raw: lengthRaw, normalized: null, provenance: 'absent', span: lengthSpan, rule: 'P-4:implausible' };
         reasons.push(reason('LENGTH_UNIT_IMPLAUSIBLE', 'length'));
         policies.add('P-4');
       } else {
-        length = { raw: el.lengthRaw, normalized: formatLength(r), provenance: 'extracted', span: el.lengthSpan, rule: `length:${r.basis}` };
+        length = { raw: lengthRaw, normalized: formatLength(r), provenance: 'extracted', span: lengthSpan, rule: `length:${r.basis}` };
       }
     } else {
       // 'stated' and 'designation' are certain; only 'plausibility' is policy-dependent.
       const isPolicy = r.basis === 'plausibility';
       if (isPolicy) policies.add('P-4');
       length = {
-        raw: el.lengthRaw,
+        raw: lengthRaw,
         normalized: formatLength(r),
         provenance: isPolicy ? 'inferred' : 'extracted',
-        span: el.lengthSpan,
+        span: lengthSpan,
         rule: `length:${r.basis}`,
       };
       // §6: no equivalence between systems, so a mismatch is an incoherence, not a conversion.
@@ -202,10 +215,28 @@ function buildLine(el: NormalizedElement, ctx: Ctx): OutputLine {
   let material = el.material;
   if (!material.normalized && P.materialDerivation === 'from_quality' && quality.raw) {
     const d = deriveMaterialFromQuality(quality.raw);
-    if (d) {
+    if (d.material !== null) {
       material = { raw: null, normalized: d.material, provenance: 'derived', span: quality.span, rule: d.rule };
       policies.add('P-3');
+    } else if (d.why.reason === 'ambiguous') {
+      // La tabla cubre esta calidad DOS veces con materiales distintos. Es el único caso de los tres
+      // que manda la línea a revisión, y es la respuesta literal a la Q3 del correo: "cualquier
+      // calidad no cubierta o NO UNÍVOCA irá a revisión". No se elige la primera entrada: elegir por
+      // orden de fichero es un default disparándose en silencio, y el material equivocado es la
+      // compra equivocada.
+      const which = d.why.candidates.map((c) => `${c.entryId} (${c.material})`).join(' vs ');
+      reasons.push({
+        code: 'UNMAPPED_VALUE',
+        kind: 'LOW_CONFIDENCE',
+        message: `La calidad ${quality.raw} deriva a dos materiales distintos según la tabla: ${which}. `
+          + 'El vocabulario debe una desambiguación.',
+        attribute: 'material',
+      });
+      policies.add('P-3');
     }
+    // 'uncovered' NO añade motivo aquí: lo recoge coverage.ts como hueco de política, que es un canal
+    // distinto —una decisión que el proyecto debe, no un dato que el comprador pueda arreglar.
+    // 'deliberate' es una ausencia válida y declarada: no es un hueco ni una revisión.
   }
   // §5's only written review rule is the quality one; an absent material never blocks. §9 sets the
   // precedent: an empty attribute can be a valid, resolved value.
