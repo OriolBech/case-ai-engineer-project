@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <body style={{ '--logo-mask': "url('/logo-sapira.svg')" } as React.CSSProperties}>
         {children}
       </body>
