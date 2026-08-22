@@ -1,0 +1,52 @@
+[
+  {
+    "file": "v01-control.xlsx",
+    "ataca": "ninguna (control)",
+    "expectQuantity": true
+  },
+  {
+    "file": "v02-ingles-otro-orden.xlsx",
+    "ataca": "orden de columnas y detección de cantidad",
+    "expectQuantity": true
+  },
+  {
+    "file": "v03-qty-apostrofo.xlsx",
+    "ataca": "regex de cantidad (Q'TY) y ausencia de ITEM",
+    "expectQuantity": true
+  },
+  {
+    "file": "v04-sin-cantidad.xlsx",
+    "ataca": "ausencia total de cantidad",
+    "expectQuantity": false
+  },
+  {
+    "file": "v05-descripcion-partida.xlsx",
+    "ataca": "concatenación de todas las celdas de texto",
+    "expectQuantity": true
+  },
+  {
+    "file": "v06-columnas-ruido.xlsx",
+    "ataca": "columnas irrelevantes y cantidad no final",
+    "expectQuantity": true
+  },
+  {
+    "file": "v07-titulo-largo.xlsx",
+    "ataca": "detección de la fila de cabeceras",
+    "expectQuantity": true
+  },
+  {
+    "file": "v08-segunda-hoja.xlsx",
+    "ataca": "selección de hoja",
+    "expectQuantity": true
+  },
+  {
+    "file": "v09-tipos-sucios.xlsx",
+    "ataca": "lectura de celdas con tipos inconsistentes",
+    "expectQuantity": true
+  },
+  {
+    "file": "v10-frances.xlsx",
+    "ataca": "cabeceras en otro idioma",
+    "expectQuantity": true
+  }
+]
