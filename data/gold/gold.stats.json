@@ -1,0 +1,12 @@
+{
+  "lines": 30,
+  "resuelta": 15,
+  "revision": 15,
+  "attr_cells": 210,
+  "policy_cells": 27,
+  "reasons": {
+    "QUALITY_MISSING": 13,
+    "STANDARD_MISSING": 5,
+    "QUALITY_TYPE_INCOHERENCE": 1
+  }
+}

@@ -16,7 +16,9 @@ export type Material = 'AC' | 'INOX';
 
 export const MATERIAL_ALIASES: ReadonlyMap<Material, readonly Alias[]> = new Map<Material, Alias[]>([
   ['AC', [...c('ACERO', 'STEEL', 'AC'), ...a('ACERO AL CARBONO', 'CARBON STEEL', 'ACIER', 'ACO')]],
-  ['INOX', [...c('INOX'), ...a('ACERO INOXIDABLE', 'STAINLESS', 'STAINLESS STEEL', 'INOXIDABLE', 'A2', 'A4')]],
+  // A2 / A4 / 304 / 316 are NOT here on purpose: §5 lists them as qualities (G1, G3). The material
+  // comes from them through deriveMaterialFromQuality (P-3), never by treating them as a material.
+  ['INOX', [...c('INOX'), ...a('ACERO INOXIDABLE', 'STAINLESS', 'STAINLESS STEEL', 'INOXIDABLE')]],
 ]);
 
 export const findMaterials = (text: string): AliasHit<Material>[] => findAliases(text, MATERIAL_ALIASES);
