@@ -30,6 +30,16 @@ export interface ParsedMeasure {
    * unitless imperial length.
    */
   lengthRaw: string | null;
+  /**
+   * True when the designation carried neither `M` nor `"` — the `4.8` of a DIN 7981 `4.8x25`.
+   *
+   * §6 says a measure is always inches or metric, so strictly this shape is neither. It is parsed
+   * anyway because the DIN 7981/7982 family really is written like that, but the caller has to be
+   * able to tell it apart: a lone number is also what a misread produces when the extractor lifts
+   * the `10` of `DIN 934 10` or the `125` of `DIN 125` into the measure field. Both of those pass
+   * span verification —the digits are in the row— and neither is a measure. See P-10.
+   */
+  bareNumeric: boolean;
 }
 
 /** Pulls the length out of a combined designation: `M16x60`, `M12 x 50`, `7/8" X 130`, `4.8x25`. */
@@ -49,7 +59,7 @@ export function parseMeasure(raw: string): ParsedMeasure | null {
     if (!Number.isFinite(n) || n <= 0) return null;
     return {
       raw, system: 'metric', nominalMm: n, canonical: `M${trim(n)}`,
-      lengthRaw: designationLength(s, metric[0].length),
+      lengthRaw: designationLength(s, metric[0].length), bareNumeric: false,
     };
   }
 
@@ -59,7 +69,7 @@ export function parseMeasure(raw: string): ParsedMeasure | null {
     const quote = s.indexOf('"');
     return {
       raw, system: 'imperial', nominalMm: inches * MM_PER_INCH, canonical: `${formatInches(inches)}"`,
-      lengthRaw: quote >= 0 ? designationLength(s, quote + 1) : null,
+      lengthRaw: quote >= 0 ? designationLength(s, quote + 1) : null, bareNumeric: false,
     };
   }
 
@@ -71,7 +81,7 @@ export function parseMeasure(raw: string): ParsedMeasure | null {
     if (Number.isFinite(n) && n > 0) {
       return {
         raw, system: 'metric', nominalMm: n, canonical: trim(n),
-        lengthRaw: designationLength(s, bare[1].length),
+        lengthRaw: designationLength(s, bare[1].length), bareNumeric: true,
       };
     }
   }

@@ -1,8 +1,9 @@
-/** `npm run gaps [xlsx]` — el backlog de políticas de un MTO. Determinista sobre la caché. */
+/** `pnpm run gaps [xlsx]` — el backlog de políticas de un MTO. Determinista sobre la caché. */
 import { installErrorHandler } from '../src/lib/cli.ts';
 import { loadEnv } from '../src/lib/env.ts';
 import { createLlm } from '../src/lib/llm.ts';
 import { processMto } from '../src/pipeline/index.ts';
+import { describeOverrides } from '../src/rules/policies.ts';
 
 installErrorHandler();
 loadEnv();
@@ -16,6 +17,7 @@ const out = await processMto(llm, file, {
 
 const rowsWithGaps = new Set(out.gaps.map((g) => g.rowRef));
 console.log(`\n${file}`);
+if (out.policyOverrides.length) console.log(`  políticas NO por defecto: ${describeOverrides(out.policyOverrides)}`);
 console.log(`  filas ${out.rowsIngested} · líneas ${out.lines.length}`);
 console.log(`  huecos ${out.gaps.length} en ${rowsWithGaps.size} filas (${((100 * rowsWithGaps.size) / out.rowsIngested).toFixed(0)}% de las filas)`);
 console.log(`  decisiones que debe el proyecto: ${out.policyBacklog.length}\n`);

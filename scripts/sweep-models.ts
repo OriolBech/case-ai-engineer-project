@@ -1,5 +1,5 @@
 /**
- * `npm run sweep` — evalúa el pipeline completo con varios modelos y compara.
+ * `pnpm run sweep` — evalúa el pipeline completo con varios modelos y compara.
  *
  * Crítico apagado: aquí se mide la calidad del EXTRACTOR. Mezclar las dos etapas haría imposible
  * saber a quién atribuir un fallo.

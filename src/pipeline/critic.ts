@@ -185,11 +185,34 @@ export function needsCritic(analysis: Analysis, routing: CriticRouting): boolean
   return analysis.elements.length > 1 || analysis.hallucinations.length > 0;
 }
 
+/**
+ * Output token budget for one critic call.
+ *
+ * NOT a round number pulled from nowhere. It was 2048, and 2048 is what the critic's own reasoning
+ * costs before it writes a single verdict: the critic tier runs `gpt-oss-120b` with
+ * `LLM_REASONING_EFFORT_CRITIC=high` — the dial that took its precision from 33% to 100%
+ * (docs/05-results.md) — and on OpenRouter thinking tokens are charged against `max_tokens`.
+ * So the harder the row, the more likely the safety net was to run out of budget and vanish. It
+ * failed on row 63 of the synthetic set: three elements, three different quality groups, two
+ * attributes misread — the single row in 79 where the critic was most needed.
+ */
+const CRITIC_MAX_TOKENS = 8192;
+
 export interface CriticResult {
   lines: OutputLine[];
   ran: boolean;
   downgraded: string[];
   missingElements: string[];
+  /**
+   * Why the critic did not run, when it was supposed to. Null when it ran, or when the row was
+   * never eligible.
+   *
+   * It exists because `ran: false` used to mean two things that are not remotely the same —
+   * "this row did not need checking" and "the check broke and nobody was told" — and the caller
+   * could not tell them apart. A safety net that silently stops being there is worse than no
+   * safety net, because the number on the panel does not move.
+   */
+  failure: string | null;
 }
 
 export async function criticiseRow(
@@ -200,7 +223,7 @@ export async function criticiseRow(
   routing: CriticRouting = 'multi_element',
 ): Promise<CriticResult> {
   if (!needsCritic(analysis, routing) || lines.length === 0) {
-    return { lines, ran: false, downgraded: [], missingElements: [] };
+    return { lines, ran: false, downgraded: [], missingElements: [], failure: null };
   }
 
   let res: CriticResponse;
@@ -211,13 +234,15 @@ export async function criticiseRow(
       schema: CRITIC_SCHEMA,
       schemaName: 'critic_verdicts',
       tier: 'critic',
-      maxTokens: 2048,
+      maxTokens: CRITIC_MAX_TOKENS,
     });
     res = out.data;
-  } catch {
+  } catch (e) {
     // The critic is a safety net, not a dependency. If it fails, the rules engine's verdict stands:
-    // failing the whole row because the optional check broke would be the worse outcome.
-    return { lines, ran: false, downgraded: [], missingElements: [] };
+    // failing the whole row because the optional check broke would be the worse outcome. But it is
+    // REPORTED — swallowing it is what let a truncated response look like a clean pass.
+    const failure = e instanceof Error ? e.message : String(e);
+    return { lines, ran: false, downgraded: [], missingElements: [], failure };
   }
 
   // Defensive on purpose: strict schemas are enforced by the provider, and not every provider —
@@ -249,5 +274,5 @@ export async function criticiseRow(
   });
 
   const missing = Array.isArray(res?.missingElements) ? res.missingElements.filter((x) => typeof x === 'string') : [];
-  return { lines: out, ran: true, downgraded, missingElements: missing };
+  return { lines: out, ran: true, downgraded, missingElements: missing, failure: null };
 }

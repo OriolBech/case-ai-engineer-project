@@ -523,7 +523,7 @@ export async function analyzeRows(
   rows: MtoRow[],
   opts: { concurrency?: number; routing?: ModelRouting; onRow?: (a: Analysis) => void } = {},
 ): Promise<Analysis[]> {
-  const limit = opts.concurrency ?? 6;
+  const limit = opts.concurrency ?? 12;
   const out: Analysis[] = new Array(rows.length);
   let next = 0;
 

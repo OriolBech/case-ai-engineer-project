@@ -38,6 +38,25 @@ export interface Policies {
    * emitting seven plausible attributes for one of these as RESUELTA, so the default surfaces it.
    */
   outOfFamily: 'review' | 'silent_skip';
+  /**
+   * P-10. A bare number in the measure field of an element that shares a row with a well-formed
+   * measure. §6 admits only inches and metric and denies any equivalence between them, and §2 makes
+   * the measure the one thing that travels across a set — so a nut in an M20 set is M20, never
+   * "10". Default rejects it and lets §2 extrapolate.
+   */
+  bareMeasureInSet: 'reject' | 'keep';
+  /**
+   * P-11. What to do with the value P-10 just rejected. When it is a catalogue quality and it is
+   * coherent with this element's type, it is that element's quality — a closed-table reading, not
+   * a guess. Default recovers it; 'off' drops it and the line goes to review as QUALITY_MISSING.
+   */
+  rejectedMeasureAsQuality: 'if_catalog_and_coherent' | 'off';
+  /**
+   * P-12. A finish the vocabulary does not recognise. Default `resolve` preserves the published KPI
+   * (the line resolves as if it had no finish; the gap stays in the backlog). `review` surfaces it
+   * as UNMAPPED_VALUE. See specs/SPEC-011-finish-vocabulary.md.
+   */
+  unknownFinish: 'review' | 'resolve';
 }
 
 /**
@@ -54,4 +73,91 @@ export const DEFAULT_POLICIES: Policies = {
   qualityCoherence: 'review',
   hvScope: 'anywhere',
   outOfFamily: 'review',
+  bareMeasureInSet: 'reject',
+  rejectedMeasureAsQuality: 'if_catalog_and_coherent',
+  unknownFinish: 'resolve',
 };
+
+// ---------------------------------------------------------------------------
+// Los flags, conectados de verdad
+// ---------------------------------------------------------------------------
+
+/**
+ * Lectura de las políticas desde el entorno.
+ *
+ * Existía la documentación y no existía el mecanismo: `.env.example` listaba diez `POLICY_*` bajo el
+ * rótulo "conmutables en caliente durante el challenge", `03-policies.md` daba a cada política su
+ * flag, y **ninguno se leía en ninguna parte**. `processMto` aceptaba `opts.policies` y lo pasaba
+ * bien hasta el validador, pero ningún llamador lo rellenaba. Cambiar el `.env` no hacía nada.
+ *
+ * Dos decisiones sobre cómo se lee, y las dos son el mismo principio del proyecto:
+ *
+ * **Un valor inválido revienta, no cae al default.** `POLICY_MISSING_STANDARD=revisar` (en vez de
+ * `review`) tiene que parar la ejecución con el listado de valores admitidos. Caer al default sería
+ * un default disparándose en silencio, que es literalmente el modo de fallo que este fichero existe
+ * para evitar — y encima con el operador convencido de que cambió algo.
+ *
+ * **Se devuelve qué se cambió, no sólo el resultado.** Una medida tomada con políticas distintas de
+ * las publicadas no es comparable con las cifras del 2-pager, así que la ejecución tiene que poder
+ * decirlo. Es la misma lección que el crítico que se caía sin avisar: el número no vale si no viene
+ * con las condiciones en que se tomó.
+ */
+interface PolicySpec {
+  env: string;
+  values: readonly string[];
+}
+
+const SPEC: { [K in keyof Policies]: PolicySpec } = {
+  finishSetScope: { env: 'POLICY_FINISH_SET_SCOPE', values: ['review', 'whole_set', 'principal_only'] },
+  implicitMultiplicity: { env: 'POLICY_IMPLICIT_MULTIPLICITY', values: ['infer_one', 'review'] },
+  materialDerivation: { env: 'POLICY_MATERIAL_DERIVATION', values: ['from_quality', 'off'] },
+  unitlessLength: { env: 'POLICY_UNITLESS_LENGTH', values: ['plausibility_range', 'review'] },
+  missingStandard: { env: 'POLICY_MISSING_STANDARD', values: ['review', 'resolve'] },
+  qualityCoherence: { env: 'POLICY_QUALITY_COHERENCE', values: ['review', 'ignore'] },
+  hvScope: { env: 'POLICY_HV_SCOPE', values: ['anywhere', 'washer_only'] },
+  outOfFamily: { env: 'POLICY_OUT_OF_FAMILY', values: ['review', 'silent_skip'] },
+  bareMeasureInSet: { env: 'POLICY_BARE_MEASURE_IN_SET', values: ['reject', 'keep'] },
+  rejectedMeasureAsQuality: { env: 'POLICY_REJECTED_MEASURE_AS_QUALITY', values: ['if_catalog_and_coherent', 'off'] },
+  unknownFinish: { env: 'POLICY_UNKNOWN_FINISH', values: ['review', 'resolve'] },
+};
+
+export interface PolicyOverride {
+  policy: keyof Policies;
+  env: string;
+  value: string;
+  fallback: string;
+}
+
+export interface ResolvedPolicies {
+  policies: Policies;
+  /** Vacío en una ejecución normal. Si trae algo, la medida no es comparable con las publicadas. */
+  overrides: PolicyOverride[];
+}
+
+export function policiesFromEnv(env: Record<string, string | undefined> = process.env): ResolvedPolicies {
+  const policies = { ...DEFAULT_POLICIES };
+  const overrides: PolicyOverride[] = [];
+
+  for (const key of Object.keys(SPEC) as (keyof Policies)[]) {
+    const spec = SPEC[key];
+    const raw = env[spec.env]?.trim();
+    if (!raw) continue;
+    if (!spec.values.includes(raw)) {
+      throw new Error(
+        `${spec.env}="${raw}" no es un valor válido. Admitidos: ${spec.values.join(' | ')}. ` +
+        `Ver docs/03-policies.md#${String(key).toLowerCase()}.`,
+      );
+    }
+    const fallback = DEFAULT_POLICIES[key] as string;
+    if (raw === fallback) continue;
+    (policies as Record<string, string>)[key] = raw;
+    overrides.push({ policy: key, env: spec.env, value: raw, fallback });
+  }
+
+  return { policies, overrides };
+}
+
+/** Una línea legible para las cabeceras de los scripts y del front. */
+export function describeOverrides(overrides: PolicyOverride[]): string {
+  return overrides.map((o) => `${o.policy}: ${o.fallback} -> ${o.value}`).join(' · ');
+}

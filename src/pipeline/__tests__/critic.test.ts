@@ -93,6 +93,26 @@ describe('criticiseRow · SÓLO puede degradar', () => {
     assert.equal(r.lines[0].status, 'RESUELTA', 'una red de seguridad que falla no rompe la ejecución');
   });
 
+  /**
+   * El fallo se vio en la fila 63 del set sintético: el crítico se truncaba por `max_tokens` —el
+   * nivel razona con `effort=high` y los thinking tokens salen del mismo presupuesto— y la
+   * excepción se tragaba. Tres filas revisadas de cuatro elegibles se leía como un detalle de
+   * redondeo, no como la fila más difícil del set saliendo sin red.
+   */
+  test('un crítico que se cae NO se lee igual que un crítico que aprueba', async () => {
+    const caido = await criticiseRow(stubLlm(null, { throws: true }), row, analysis(2), [line('1.1', 'RESUELTA')]);
+    assert.equal(caido.ran, false);
+    assert.match(caido.failure ?? '', /proveedor caído/, 'el motivo del fallo viaja, no se traga');
+
+    const noElegible = await criticiseRow(stubLlm(null), row, analysis(1), [line('1.1', 'RESUELTA')]);
+    assert.equal(noElegible.ran, false);
+    assert.equal(noElegible.failure, null, 'no elegible no es un fallo, y hay que poder distinguirlos');
+
+    const ok = await criticiseRow(stubLlm({ missingElements: [], verdicts: [] }), row, analysis(2), [line('1.1', 'RESUELTA')]);
+    assert.equal(ok.ran, true);
+    assert.equal(ok.failure, null);
+  });
+
   test('un veredicto sobre un lineId inexistente se ignora', async () => {
     const llm = stubLlm({ missingElements: [], verdicts: [{ lineId: 'NOPE', agrees: false, issue: 'OTHER', attribute: null, explanation: 'x' }] });
     const r = await criticiseRow(llm, row, analysis(2), [line('1.1', 'RESUELTA')]);

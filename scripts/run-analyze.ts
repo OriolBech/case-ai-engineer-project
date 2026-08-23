@@ -14,7 +14,7 @@ const llm = createLlm();
 const t0 = Date.now();
 const { rows, skipped } = await ingest(file);
 const analyses = await analyzeRows(llm, rows, {
-  concurrency: Number(process.env.CONCURRENCY ?? 6),
+  concurrency: Number(process.env.CONCURRENCY ?? 12),
   onRow: (a) => process.stdout.write(a.skippedLlm ? '·' : a.hallucinations.length ? '!' : '.'),
 });
 process.stdout.write('\n');

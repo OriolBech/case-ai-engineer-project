@@ -86,6 +86,12 @@ export interface LlmResponse<T> {
 export interface LlmProvider {
   readonly name: string;
   complete<T>(req: LlmRequest, cfg: TierConfig): Promise<LlmResponse<T>>;
+  /**
+   * Extra fingerprint for the disk-cache key. A provider option that can change the output
+   * (routing, reasoning effort) MUST appear here, or enabling it would silently serve stale
+   * entries cached under the old configuration.
+   */
+  cacheKeyExtra?(tier?: Tier): string;
 }
 
 /**
@@ -149,9 +155,9 @@ class DiskCache {
 
   private path(key: string): string { return join(this.dir, `${key}.json`); }
 
-  key(provider: string, model: string, req: LlmRequest): string {
+  key(provider: string, model: string, req: LlmRequest, extra = ''): string {
     return createHash('sha256')
-      .update(JSON.stringify([provider, model, req.system, req.user, req.schema, req.maxTokens ?? 0]))
+      .update(JSON.stringify([provider, model, req.system, req.user, req.schema, req.maxTokens ?? 0, extra]))
       .digest('hex')
       .slice(0, 32);
   }
@@ -246,14 +252,65 @@ class OpenAiProvider implements LlmProvider {
  *
  * OpenAI-compatible /chat/completions, so only the envelope differs.
  */
-class OpenRouterProvider implements LlmProvider {
+export class OpenRouterProvider implements LlmProvider {
   readonly name = 'openrouter';
   private readonly apiKey: string;
+  private readonly providerPrefs: Record<string, unknown> | null;
+  private readonly reasoningEffort: string | null;
+  private readonly reasoningEffortCritic: string | null;
 
-  constructor(apiKey: string) { this.apiKey = apiKey; }
+  constructor(
+    apiKey: string,
+    opts: { providerSort?: string; providerOrder?: string; reasoningEffort?: string; reasoningEffortCritic?: string } = {},
+  ) {
+    this.apiKey = apiKey;
+
+    // Provider routing: https://openrouter.ai/docs/features/provider-routing
+    // The default route lands wherever OpenRouter decides, and the SAME model is served at
+    // ~50 tok/s by one provider and ~2.000 tok/s by another. That is where the 9x latency
+    // variance in docs/11-benchmarks.md comes from. Sorting by throughput (or pinning an order)
+    // is what makes a latency promise possible at all.
+    const sort = opts.providerSort?.trim();
+    if (sort && !['price', 'throughput', 'latency'].includes(sort)) {
+      throw new Error(`OPENROUTER_PROVIDER_SORT="${sort}" no válido. Usa price, throughput o latency.`);
+    }
+    const order = opts.providerOrder
+      ?.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    this.providerPrefs = order?.length ? { order } : sort ? { sort } : null;
+
+    // gpt-oss is a reasoning model: most of its wall clock is thinking tokens, and effort is the
+    // dial. The CRITIC gets its own dial on purpose: the measured failure mode of a low-effort
+    // critic is disagreeing with CORRECT lines (docs/11-benchmarks.md §4), and that one has to
+    // see more clearly, not less — its worst case is a noisy queue, which destroys the whole
+    // protection (the "invisible failure" of the brief).
+    const effort = opts.reasoningEffort?.trim();
+    if (effort && !['low', 'medium', 'high'].includes(effort)) {
+      throw new Error(`LLM_REASONING_EFFORT="${effort}" no válido. Usa low, medium o high.`);
+    }
+    this.reasoningEffort = effort ?? null;
+    const effortCritic = opts.reasoningEffortCritic?.trim();
+    if (effortCritic && !['low', 'medium', 'high'].includes(effortCritic)) {
+      throw new Error(`LLM_REASONING_EFFORT_CRITIC="${effortCritic}" no válido. Usa low, medium o high.`);
+    }
+    this.reasoningEffortCritic = effortCritic ?? null;
+  }
+
+  cacheKeyExtra(tier?: Tier): string {
+    if (!this.providerPrefs && !this.reasoningEffort && !this.reasoningEffortCritic) return '';
+    return JSON.stringify({ p: this.providerPrefs, r: this.effortFor(tier) });
+  }
+
+  private effortFor(tier?: Tier): string | null {
+    return tier === 'critic'
+      ? this.reasoningEffortCritic ?? this.reasoningEffort
+      : this.reasoningEffort;
+  }
 
   async complete<T>(req: LlmRequest, cfg: TierConfig): Promise<LlmResponse<T>> {
     const started = Date.now();
+    const effort = this.effortFor(req.tier);
     const res = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -270,11 +327,13 @@ class OpenRouterProvider implements LlmProvider {
         ],
         max_tokens: req.maxTokens ?? 4096,
         // Only models advertising `structured_outputs` honour strict mode. Picking one that does
-        // is a configuration decision, checked by `npm run providers:check`.
+        // is a configuration decision, checked by `pnpm run providers:check`.
         response_format: {
           type: 'json_schema',
           json_schema: { name: req.schemaName, strict: true, schema: req.schema },
         },
+        ...(this.providerPrefs ? { provider: this.providerPrefs } : {}),
+        ...(effort ? { reasoning: { effort } } : {}),
       }),
     });
 
@@ -367,7 +426,7 @@ export class Llm {
       throw new Error(
         `El nivel '${cfg.tier}' usa ${cfg.provider} (${cfg.model}) y falta su API key. ` +
           `Define ${cfg.provider === 'openai' ? 'OPENAI_API_KEY' : 'OPENROUTER_API_KEY'} en .env, ` +
-          'o apunta ese nivel a otro proveedor. Comprueba con: npm run providers:check',
+          'o apunta ese nivel a otro proveedor. Comprueba con: pnpm run providers:check',
       );
     }
     let last: unknown;
@@ -395,7 +454,7 @@ export class Llm {
   async complete<T>(req: LlmRequest): Promise<LlmResponse<T>> {
     const tier = req.tier ?? 'main';
     const cfg = this.tiers[tier];
-    const key = this.cache?.key(cfg.provider, cfg.model, req);
+    const key = this.cache?.key(cfg.provider, cfg.model, req, this.providers.get(cfg.provider)?.cacheKeyExtra?.(tier) ?? '');
 
     if (key) {
       const hit = this.cache!.get<T>(key);
@@ -437,11 +496,18 @@ export function createLlm(env: NodeJS.ProcessEnv = process.env): Llm {
 
   // Registered lazily: a tier that is configured but never used must not require a key. Turning the
   // critic off should not demand credentials for the critic's provider. The missing-key error
-  // arrives when a call actually needs it, and `npm run providers:check` validates all of them up
+  // arrives when a call actually needs it, and `pnpm run providers:check` validates all of them up
   // front for when you do want that check.
   const providers = new Map<ProviderName, LlmProvider>();
   if (env.OPENAI_API_KEY) providers.set('openai', new OpenAiProvider(env.OPENAI_API_KEY));
-  if (env.OPENROUTER_API_KEY) providers.set('openrouter', new OpenRouterProvider(env.OPENROUTER_API_KEY));
+  if (env.OPENROUTER_API_KEY) {
+    providers.set('openrouter', new OpenRouterProvider(env.OPENROUTER_API_KEY, {
+      providerSort: env.OPENROUTER_PROVIDER_SORT,
+      providerOrder: env.OPENROUTER_PROVIDER_ORDER,
+      reasoningEffort: env.LLM_REASONING_EFFORT,
+      reasoningEffortCritic: env.LLM_REASONING_EFFORT_CRITIC,
+    }));
+  }
   if (providers.size === 0) {
     throw new Error('Sin credenciales: define OPENAI_API_KEY y/o OPENROUTER_API_KEY. Ver .env.example.');
   }

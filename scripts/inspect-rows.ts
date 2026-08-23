@@ -1,4 +1,4 @@
-/** `npm run inspect -- <fila>...` — qué devolvió el modelo para filas concretas del set sintético. */
+/** `pnpm run inspect -- <fila>...` — qué devolvió el modelo para filas concretas del set sintético. */
 import { installErrorHandler } from '../src/lib/cli.ts';
 import { loadEnv } from '../src/lib/env.ts';
 import { createLlm } from '../src/lib/llm.ts';

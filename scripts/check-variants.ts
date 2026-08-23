@@ -1,5 +1,5 @@
 /**
- * `npm run variants` — pasa la ingesta por cada variante de formato y comprueba invariantes.
+ * `pnpm run variants` — pasa la ingesta por cada variante de formato y comprueba invariantes.
  *
  * Sin modelo y sin coste: es la etapa determinista, y es donde vive el riesgo de que un MTO de otro
  * estudio de ingeniería entre mal. Las 15 filas lógicas son las mismas en todas; lo que cambia es la

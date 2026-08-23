@@ -13,8 +13,8 @@ export function installErrorHandler(): void {
       const detail = e instanceof Error ? e.message.split('\n').slice(1).join('\n').trim() : '';
       if (detail) console.error(`  ${detail}`);
       console.error('\n  El pipeline determinista y la caché siguen funcionando:');
-      console.error('    npm run rules:audit      tablas y baseline, sin modelo');
-      console.error('    npm run run              si las filas ya están en la caché\n');
+      console.error('    pnpm run rules:audit      tablas y baseline, sin modelo');
+      console.error('    pnpm run run              si las filas ya están en la caché\n');
       process.exit(2);
     }
     console.error(`\n✖ ${e instanceof Error ? e.message : String(e)}\n`);

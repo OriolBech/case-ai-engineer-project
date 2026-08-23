@@ -15,7 +15,7 @@ loadEnv();
 process.env.LLM_CACHE = 'off';
 const FILE = process.argv[2] ?? 'data/input/MTO_tornilleria.xlsx';
 const llm = createLlm();
-const out = await processMto(llm, FILE, { concurrency: Number(process.env.CONCURRENCY ?? 6) });
+const out = await processMto(llm, FILE, { concurrency: Number(process.env.CONCURRENCY ?? 12) });
 const s = llm.stats;
 const fx = eurPerUsd();
 if (!s.pricesConfigured) throw new Error('Faltan LLM_PRICE_IN / LLM_PRICE_OUT en .env');

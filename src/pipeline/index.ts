@@ -12,10 +12,11 @@ import { scoreLine, thresholds, route, type Routing } from '../lib/confidence.ts
 import { criticiseRow, needsCritic, type CriticRouting } from './critic.ts';
 import { detectGaps, policyBacklog, type PolicyGap, type PolicyBacklogItem } from './coverage.ts';
 import type { Llm } from '../lib/llm.ts';
-import type { Policies } from '../rules/policies.ts';
+import { policiesFromEnv, type Policies, type PolicyOverride } from '../rules/policies.ts';
 import type { MtoRow, OutputLine, ProcessResult } from './types.ts';
 
 export interface ProcessOptions {
+  /** Se omite en todas las llamadas normales: se resuelven desde el entorno. Ver policiesFromEnv. */
   policies?: Policies;
   concurrency?: number;
   routing?: ModelRouting;
@@ -31,13 +32,27 @@ export interface ProcessOutput extends ProcessResult {
   hallucinations: { row: string; element: string; attribute: string; evidence: string }[];
   outOfFamilyRows: string[];
   tierUsage: { main: number; cheap: number; none: number; escalated: number };
-  critic: { rowsRun: number; rowsEligible: number; downgraded: string[]; missingElements: { row: string; items: string[] }[] };
+  critic: {
+    rowsRun: number;
+    rowsEligible: number;
+    downgraded: string[];
+    missingElements: { row: string; items: string[] }[];
+    /** Rows the critic was supposed to check and could not. Never empty in silence: see CriticResult.failure. */
+    failures: { row: string; reason: string }[];
+  };
   /**
    * Cases no policy covers. A THIRD channel, deliberately not the buyer's queue: a gap is a rules
    * problem, not a data problem, and it is owed a decision rather than a correction.
    */
   gaps: PolicyGap[];
   policyBacklog: PolicyBacklogItem[];
+  /**
+   * Políticas que esta ejecución NO tomó por defecto. Vacío en una ejecución normal.
+   *
+   * Va en la salida y no en un log porque una medida tomada con políticas cambiadas no es comparable
+   * con las cifras publicadas, y quien la lea tiene que enterarse sin ir a mirar el `.env`.
+   */
+  policyOverrides: PolicyOverride[];
 }
 
 export async function processMto(
@@ -55,6 +70,13 @@ export async function processMto(
     onRow: () => opts.onProgress?.(++done, rows.length),
   });
 
+  // Un único punto de resolución para toda la ejecución: así ningún llamador puede olvidarse de
+  // pasarlas —que es exactamente lo que pasaba— y las 12 filas del blind set corren con lo que diga
+  // el `.env` de la máquina, no con lo que diga el código.
+  const { policies, overrides: policyOverrides } = opts.policies
+    ? { policies: opts.policies, overrides: [] as PolicyOverride[] }
+    : policiesFromEnv();
+
   const t = thresholds();
   const criticRouting = opts.criticRouting ?? 'multi_element';
   const lines: OutputLine[] = [];
@@ -64,6 +86,7 @@ export async function processMto(
     rowsEligible: 0,
     downgraded: [] as string[],
     missingElements: [] as { row: string; items: string[] }[],
+    failures: [] as { row: string; reason: string }[],
   };
 
   // Validate every row first (deterministic, free), then run the critic over the eligible rows
@@ -72,14 +95,14 @@ export async function processMto(
   const perRow = analyses.map((analysis, i) => ({
     analysis,
     row: rows[i],
-    lines: validateRow(analysis, analysis.elements.map(normalizeElement), rows[i], { policies: opts.policies }),
+    lines: validateRow(analysis, analysis.elements.map(normalizeElement), rows[i], { policies }),
   }));
 
   const eligible = perRow.filter((r) => needsCritic(r.analysis, criticRouting));
   criticStats.rowsEligible = eligible.length;
 
   if (eligible.length) {
-    const limit = opts.concurrency ?? 6;
+    const limit = opts.concurrency ?? 12;
     let next = 0;
     await Promise.all(
       Array.from({ length: Math.min(limit, eligible.length) }, async () => {
@@ -90,6 +113,9 @@ export async function processMto(
           const c = await criticiseRow(llm, e.row, e.analysis, e.lines, criticRouting);
           e.lines = c.lines;
           if (c.ran) criticStats.rowsRun++;
+          // A row the critic could not check is NOT a row that passed. It is counted and named, or
+          // "3 de 4 ejecutadas" reads as a rounding detail instead of a hole in the safety net.
+          else if (c.failure) criticStats.failures.push({ row: e.row.itemRef, reason: c.failure });
           criticStats.downgraded.push(...c.downgraded);
           if (c.missingElements.length) criticStats.missingElements.push({ row: e.row.itemRef, items: c.missingElements });
         }
@@ -143,5 +169,6 @@ export async function processMto(
     critic: criticStats,
     gaps,
     policyBacklog: policyBacklog(gaps),
+    policyOverrides,
   };
 }

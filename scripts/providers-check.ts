@@ -1,5 +1,5 @@
 /**
- * `npm run providers:check` — comprueba la configuración de niveles antes de gastar.
+ * `pnpm run providers:check` — comprueba la configuración de niveles antes de gastar.
  *
  * Existe porque los tres fallos que cuestan una demo son de configuración, no de modelo: falta una
  * key, el modelo no admite salida estructurada estricta, o la tarifa no está declarada y el €/fila

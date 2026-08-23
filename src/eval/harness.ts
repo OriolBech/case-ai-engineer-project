@@ -68,6 +68,10 @@ export interface LineResult {
   cells: CellResult[];
   missingReasons: string[];
   extraReasons: string[];
+  /** P-9. The gold set says this row is not a fastener, so it is nobody's fastener metric. */
+  goldOutOfScope: boolean;
+  /** The system said so. Agreeing with the gold set is right; disagreeing is a failure either way. */
+  systemOutOfScope: boolean;
 }
 
 export interface EvalReport {
@@ -83,11 +87,26 @@ export interface EvalReport {
   /** THE primary metric: resolved lines carrying at least one wrong CERTAIN cell. */
   silentErrorRate: { bad: number; resolved: number; pct: number; lines: string[] };
 
-  /** Resolved AND fully correct, over all gold lines. The metric that buys hours. */
+  /** Resolved AND fully correct, over all IN-SCOPE gold lines. The metric that buys hours. */
   usefulAutonomy: { ok: number; total: number; pct: number };
 
   /** Lines the system sent to review that the gold set resolves. The invisible failure. */
   queueNoise: { noisy: number; review: number; pct: number; lines: string[] };
+
+  /**
+   * P-9, reported apart and never folded into the rates above.
+   *
+   * A flange is not a fastener the system failed to resolve; it is a row that belongs to another
+   * family. Counting it as unresolved would punish the system for the one thing it must do here —
+   * refuse — and would make the numbers move with how many flanges the MTO happens to carry.
+   *
+   * The two disagreements are NOT symmetric and both are named:
+   *  - `missed`: the gold set says out of family and the system produced fastener lines. This is
+   *    the worst failure in the case: seven plausible attributes invented on a flange.
+   *  - `falsePositives`: the system refused a real fastener. Costs a review, not a purchase — but
+   *    it is a silent hole in coverage, so it stays in every in-scope denominator.
+   */
+  outOfScope: { goldLines: number; detected: number; missed: string[]; falsePositives: string[] };
 
   statusAgreement: { ok: number; total: number; pct: number };
 
@@ -163,6 +182,8 @@ export function evaluate(systemLines: OutputLine[], gold: GoldLine[], model: str
       }
       const goldReasons = new Set<string>(gl?.reasons ?? []);
       const sysReasons = new Set<string>((sl?.reasons ?? []).map((r) => String(r.code)));
+      const goldOutOfScope = goldReasons.has('OUT_OF_FAMILY');
+      const systemOutOfScope = sysReasons.has('OUT_OF_FAMILY');
       lines.push({
         rowRef,
         goldId: gl?.id ?? null,
@@ -175,6 +196,8 @@ export function evaluate(systemLines: OutputLine[], gold: GoldLine[], model: str
         cells,
         missingReasons: [...goldReasons].filter((r) => !sysReasons.has(r)),
         extraReasons: [...sysReasons].filter((r) => !goldReasons.has(r)),
+        goldOutOfScope,
+        systemOutOfScope,
       });
     }
   }
@@ -182,8 +205,13 @@ export function evaluate(systemLines: OutputLine[], gold: GoldLine[], model: str
   const aligned = lines.filter((l) => l.aligned);
   const resolvedSys = aligned.filter((l) => l.systemStatus === 'RESUELTA');
   const badResolved = resolvedSys.filter((l) => !l.allCertainOk);
-  const reviewSys = aligned.filter((l) => l.systemStatus === 'REVISION_MANUAL');
+  // El denominador de las tasas por línea: fuera lo que el gold declara de otra familia. Nótese que
+  // se decide con el GOLD, no con el sistema: si el sistema se saltase un tornillo de verdad
+  // llamándolo "otra familia", excluirlo aquí sería dejar que se borrase su propio fallo.
+  const inScope = aligned.filter((l) => !l.goldOutOfScope);
+  const reviewSys = inScope.filter((l) => l.systemStatus === 'REVISION_MANUAL');
   const noisy = reviewSys.filter((l) => l.goldStatus === 'RESUELTA');
+  const outOfFamilyGold = lines.filter((l) => l.goldOutOfScope);
 
   const perAttribute: EvalReport['perAttribute'] = {};
   for (const k of [...ATTRIBUTE_KEYS, 'quantity'] as const) {
@@ -214,10 +242,14 @@ export function evaluate(systemLines: OutputLine[], gold: GoldLine[], model: str
       pct: resolvedSys.length ? (100 * badResolved.length) / resolvedSys.length : 0,
       lines: badResolved.map((l) => l.systemId ?? '?'),
     },
-    usefulAutonomy: {
-      ok: resolvedSys.filter((l) => l.allCertainOk).length, total: gold.length,
-      pct: (100 * resolvedSys.filter((l) => l.allCertainOk).length) / gold.length,
-    },
+    usefulAutonomy: (() => {
+      // Numerador y denominador sobre el MISMO conjunto. Con el numerador sobre `resolvedSys` (que
+      // incluye una fila de otra familia mal resuelta) y el denominador ya sin ella, la tasa podía
+      // pasar del 100%: se vio en la verificación con una brida resuelta a la fuerza.
+      const ok = inScope.filter((l) => l.systemStatus === 'RESUELTA' && l.allCertainOk).length;
+      const total = gold.length - outOfFamilyGold.length;
+      return { ok, total, pct: total ? (100 * ok) / total : 0 };
+    })(),
     queueNoise: {
       noisy: noisy.length, review: reviewSys.length,
       pct: reviewSys.length ? (100 * noisy.length) / reviewSys.length : 0,
@@ -231,6 +263,12 @@ export function evaluate(systemLines: OutputLine[], gold: GoldLine[], model: str
     reasonAgreement: {
       exact: reasonExact, total: aligned.length,
       pct: aligned.length ? (100 * reasonExact) / aligned.length : 0,
+    },
+    outOfScope: {
+      goldLines: outOfFamilyGold.length,
+      detected: outOfFamilyGold.filter((l) => l.systemOutOfScope).length,
+      missed: outOfFamilyGold.filter((l) => !l.systemOutOfScope).map((l) => l.goldId ?? '?'),
+      falsePositives: lines.filter((l) => l.systemOutOfScope && !l.goldOutOfScope).map((l) => l.systemId ?? '?'),
     },
     lines,
   };

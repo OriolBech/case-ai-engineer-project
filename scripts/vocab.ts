@@ -1,5 +1,5 @@
 /**
- * `npm run vocab` — la tabla de derivación de material: consultarla, ampliarla y auditarla.
+ * `pnpm run vocab` — la tabla de derivación de material: consultarla, ampliarla y auditarla.
  *
  * Es la parte "el cliente puede cambiar una regla sin un despliegue" hecha de verdad. Cada subcomando
  * corresponde a una pregunta que alguien hace en una reunión:
@@ -53,7 +53,7 @@ function list(): void {
 
 function test(): void {
   const quality = flag('quality') ?? argv[1];
-  if (!quality) throw new Error("Falta la calidad: npm run vocab -- test --quality='45H'");
+  if (!quality) throw new Error("Falta la calidad: pnpm run vocab -- test --quality='45H'");
   const r = deriveMaterial(quality);
   console.log(`\n${quality}`);
   if (isDerived(r)) {
@@ -71,7 +71,7 @@ function test(): void {
   } else {
     console.log('  → sin cubrir: DECISIÓN PENDIENTE del proyecto');
     console.log('  La línea sale sin material y la fila produce un hueco de política.');
-    console.log(`  Para decidirlo:\n     npm run vocab -- add --id=... --group=... --material=AC|INOX \\`);
+    console.log(`  Para decidirlo:\n     pnpm run vocab -- add --id=... --group=... --material=AC|INOX \\`);
     console.log(`       --why='...' --by='...' --source='...'`);
   }
 }
@@ -92,7 +92,7 @@ function add(): void {
   if (missing.length) {
     throw new Error(
       `Faltan ${missing.join(', ')}.\n\n` +
-      `  npm run vocab -- add --id=ac-45h --group=G15 --material=AC \\\n` +
+      `  pnpm run vocab -- add --id=ac-45h --group=G15 --material=AC \\\n` +
       `    --why='45H es una clase de tuerca ISO 898-2, sólo definida en acero' \\\n` +
       `    --by='Nombre Apellido' --source='ISO 898-2 tabla 3'\n\n` +
       'Los cinco campos no son burocracia: son lo que hace que dentro de un año se pueda decir por ' +
@@ -110,7 +110,7 @@ function add(): void {
 
   console.log(`\nAñadida '${id}': ${group ?? pattern} → ${material}`);
   console.log('Escrita en el log (que va en git) y aplicada a la base. Sin despliegue.');
-  console.log(`Comprueba el efecto:  npm run vocab -- test --quality='...'`);
+  console.log(`Comprueba el efecto:  pnpm run vocab -- test --quality='...'`);
 }
 
 function retire(): void {
@@ -119,7 +119,7 @@ function retire(): void {
   const by = flag('by');
   if (!id || !why || !by) {
     throw new Error(
-      "Faltan campos: npm run vocab -- retire --id=... --why='...' --by='...'\n\n" +
+      "Faltan campos: pnpm run vocab -- retire --id=... --why='...' --by='...'\n\n" +
       'Una entrada no se borra: se retira con su motivo. Lo que se compró bajo esa regla sigue ' +
       'necesitando la regla para explicarse.',
     );
@@ -139,7 +139,7 @@ function log(): void {
 
 async function gaps(): Promise<void> {
   const file = flag('file') ?? argv[1];
-  if (!file) throw new Error("Falta el fichero: npm run vocab -- gaps --file=data/input/MTO_tornilleria.xlsx");
+  if (!file) throw new Error("Falta el fichero: pnpm run vocab -- gaps --file=data/input/MTO_tornilleria.xlsx");
   const { createLlm } = await import('../src/lib/llm.ts');
   const { processMto } = await import('../src/pipeline/index.ts');
   const out = await processMto(createLlm(), file, { concurrency: 3, criticRouting: 'off' });
@@ -156,12 +156,12 @@ const commands: Record<string, () => void | Promise<void>> = { list, test, add, 
 const run = commands[cmd];
 if (!run) {
   console.log(`\nSubcomandos: ${Object.keys(commands).join(' · ')}\n`);
-  console.log('  npm run vocab                              la tabla, con quién decidió cada entrada');
-  console.log("  npm run vocab -- test --quality='45H'      qué haría con una calidad, y por qué");
-  console.log('  npm run vocab -- add --id=... ...          añadir una entrada (pide el argumento)');
-  console.log("  npm run vocab -- retire --id=... ...       retirar una, con su motivo");
-  console.log('  npm run vocab -- log                       el histórico de decisiones');
-  console.log('  npm run vocab -- gaps --file=x.xlsx        qué calidades de un MTO no sabe derivar');
+  console.log('  pnpm run vocab                              la tabla, con quién decidió cada entrada');
+  console.log("  pnpm run vocab -- test --quality='45H'      qué haría con una calidad, y por qué");
+  console.log('  pnpm run vocab -- add --id=... ...          añadir una entrada (pide el argumento)');
+  console.log("  pnpm run vocab -- retire --id=... ...       retirar una, con su motivo");
+  console.log('  pnpm run vocab -- log                       el histórico de decisiones');
+  console.log('  pnpm run vocab -- gaps --file=x.xlsx        qué calidades de un MTO no sabe derivar');
   process.exit(1);
 }
 await run();

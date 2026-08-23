@@ -2,7 +2,7 @@
  * `node scripts/variants-eval.ts [--only=v03,v07]` — el pipeline COMPLETO sobre cada variante de
  * formato, evaluado contra el mismo gold.
  *
- * POR QUÉ, cuando ya existe `npm run variants`. Ése prueba la **ingesta**, que es determinista y
+ * POR QUÉ, cuando ya existe `pnpm run variants`. Ése prueba la **ingesta**, que es determinista y
  * gratis. Pero las 15 filas lógicas son las mismas en las 10 variantes, así que la salida del
  * pipeline entero **también** debería ser la misma: mismas 30 líneas, mismos siete atributos, misma
  * cantidad. Si cambia con la forma del fichero, el sistema depende del estudio de ingeniería que

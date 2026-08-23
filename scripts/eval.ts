@@ -1,5 +1,5 @@
 /**
- * `npm run eval [-- --model=gpt-5.4-mini] [--report]`
+ * `pnpm run eval [-- --model=gpt-5.4-mini] [--report]`
  * Evalúa el pipeline contra el gold set y escupe el desglose que pide el enunciado.
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -9,6 +9,7 @@ import { createLlm, eurPerUsd } from '../src/lib/llm.ts';
 import { processMto } from '../src/pipeline/index.ts';
 import { loadGold, evaluate, type EvalReport } from '../src/eval/harness.ts';
 import { allTiers } from '../src/lib/tiers.ts';
+import { describeOverrides } from '../src/rules/policies.ts';
 
 installErrorHandler();
 loadEnv();
@@ -41,6 +42,13 @@ if (failedRows.length) {
   console.log('   Repite con menos concurrencia (CONCURRENCY=4) y sin otra medición en paralelo.');
 }
 
+// Las cifras publicadas se tomaron con las políticas por defecto. Con un flag cambiado, este número
+// no se puede comparar con el del 2-pager, y decirlo después de enseñarlo es tarde.
+if (out.policyOverrides.length) {
+  console.log(`\n!! POLÍTICAS NO POR DEFECTO: ${describeOverrides(out.policyOverrides)}`);
+  console.log('   Estas cifras NO son comparables con las publicadas en docs/05-results.md.');
+}
+
 const r = evaluate(out.lines, loadGold(), model);
 const fx = eurPerUsd() || 1;
 const eurPerRow = llm.stats.costUsd / fx / out.rowsIngested;
@@ -54,6 +62,18 @@ console.log(`  ERROR SILENCIOSO       ${pc(r.silentErrorRate.pct)}  (${r.silentE
 if (r.silentErrorRate.lines.length) console.log(`    líneas: ${r.silentErrorRate.lines.join(', ')}`);
 console.log(`  autonomía útil         ${pc(r.usefulAutonomy.pct)}  (${r.usefulAutonomy.ok}/${r.usefulAutonomy.total})`);
 console.log(`  ruido en cola          ${pc(r.queueNoise.pct)}  (${r.queueNoise.noisy}/${r.queueNoise.review} revisiones)`);
+// P-9: las líneas de otra familia están FUERA de los dos denominadores de arriba, así que se
+// enseñan aquí o no se enseñan en ninguna parte. Y los dos desacuerdos no valen lo mismo.
+if (r.outOfScope.goldLines || r.outOfScope.falsePositives.length) {
+  console.log(`  fuera de familia       ${r.outOfScope.detected}/${r.outOfScope.goldLines} detectadas` +
+    ` (excluidas de autonomía y ruido)`);
+  if (r.outOfScope.missed.length) {
+    console.log(`    !! NO DETECTADAS (atributos inventados sobre una fila que no es tornillería): ${r.outOfScope.missed.join(', ')}`);
+  }
+  if (r.outOfScope.falsePositives.length) {
+    console.log(`    !! tornillería descartada como otra familia: ${r.outOfScope.falsePositives.join(', ')}`);
+  }
+}
 console.log(`  acuerdo de estado      ${pc(r.statusAgreement.pct)}`);
 console.log(`  motivos exactos        ${pc(r.reasonAgreement.pct)}`);
 console.log(`  alucinaciones          ${out.hallucinations.length}`);
@@ -72,6 +92,12 @@ console.log(`  reparto de niveles     main ${out.tierUsage.main} / cheap ${out.t
   ` / sin llamada ${out.tierUsage.none} / escalados ${out.tierUsage.escalated}`);
 console.log(`  crítico (${criticRouting})   ${out.critic.rowsRun}/${out.critic.rowsEligible} filas` +
   `  degradadas ${out.critic.downgraded.length}${out.critic.downgraded.length ? ': ' + out.critic.downgraded.join(', ') : ''}`);
+// Una fila que el crítico no pudo revisar no es una fila que aprobó. Si no se dice aquí, la medida
+// del componente está contando como "sin hallazgos" filas donde el componente ni siquiera corrió.
+if (out.critic.failures.length) {
+  console.log(`    !! ${out.critic.failures.length} fila(s) SIN revisar por fallo del crítico — la medida del componente no las cubre:`);
+  for (const f of out.critic.failures) console.log(`       fila ${f.row}: ${f.reason.slice(0, 120)}`);
+}
 if (out.critic.missingElements.length) {
   for (const m of out.critic.missingElements) console.log(`    fila ${m.row}: faltarían ${m.items.join(', ')}`);
 }

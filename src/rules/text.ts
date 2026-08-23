@@ -17,7 +17,7 @@ export function fold(s: string): string {
 /**
  * Where an alias came from. The client's tables are the source of truth; anything we added
  * (gender/number inflections, other languages) is a decision and has to be auditable —
- * `npm run rules:audit` lists every 'added' entry. See docs/03-policies.md.
+ * `pnpm run rules:audit` lists every 'added' entry. See docs/03-policies.md.
  */
 export type AliasSource = 'client' | 'added';
 

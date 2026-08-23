@@ -189,8 +189,15 @@ export type ReasonCode =
  * The distinction the case statement demands explicitly: it is not the same thing that the
  * MTO does not carry the data as that the system is unsure. The first goes back to
  * engineering; the second a buyer can resolve. The UI shows them as two queues.
+ *
+ * `OUT_OF_SCOPE` is a third thing, and it is ours, not theirs (P-9). A flange row is not missing
+ * anything and the system is not unsure: the row is complete, correct, and none of our business.
+ * It was filed under MISSING_IN_SOURCE until we noticed what that implies — sending a perfectly
+ * good row back to engineering, who have nothing to fix and will bounce it straight back. That is
+ * noise in the one queue the case statement says must stay clean, so it gets its own kind and its
+ * own queue.
  */
-export type ReasonKind = 'MISSING_IN_SOURCE' | 'INCOHERENCE' | 'LOW_CONFIDENCE';
+export type ReasonKind = 'MISSING_IN_SOURCE' | 'INCOHERENCE' | 'LOW_CONFIDENCE' | 'OUT_OF_SCOPE';
 
 export interface Reason {
   code: ReasonCode;

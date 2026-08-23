@@ -11,7 +11,7 @@ import type { NormalizedElement } from './normalize.ts';
 import type { Analysis } from './analyze.ts';
 import type { Policies } from '../rules/policies.ts';
 import { DEFAULT_POLICIES } from '../rules/policies.ts';
-import { checkCoherence } from '../rules/quality.ts';
+import { checkCoherence, normalizeQuality } from '../rules/quality.ts';
 import { deriveMaterialFromQuality } from '../rules/material.ts';
 import { resolveLength, formatLength } from './measure.ts';
 import {
@@ -50,7 +50,8 @@ const KINDS: Record<ReasonCode, ReasonKind> = {
   LENGTH_MISSING: 'MISSING_IN_SOURCE',
   NAME_MISSING: 'MISSING_IN_SOURCE',
   QUANTITY_NOT_STATED: 'MISSING_IN_SOURCE',
-  OUT_OF_FAMILY: 'MISSING_IN_SOURCE',
+  // Not MISSING_IN_SOURCE: the row is complete, it just is not ours. See ReasonKind.
+  OUT_OF_FAMILY: 'OUT_OF_SCOPE',
   EMPTY_DESCRIPTION: 'MISSING_IN_SOURCE',
   PROCESSING_FAILED: 'LOW_CONFIDENCE',
   FINISH_SCOPE_UNSTATED: 'MISSING_IN_SOURCE',
@@ -93,6 +94,9 @@ export function validateRow(
   // how a row vanishes from the output entirely.
   if (!elements.length) return [noElementsLine(row)];
 
+  // --- P-10 / P-11: a bare number is not a measure when the row proves otherwise ---
+  elements = rejectBareMeasures(elements, P);
+
   // --- §2: the ONLY extrapolation the rules allow is the measure ----------
   const withMeasure = elements.filter((e) => e.measure.normalized !== null);
   const donor =
@@ -106,6 +110,75 @@ export function validateRow(
 
   return elements.map((el, i) =>
     buildLine(el, { row, donor, rowLevelFinish, P, elementCount: elements.length, index: i }));
+}
+
+/**
+ * P-10 · A bare number in the measure field of a set, and P-11 · what it turns out to be.
+ *
+ * FOUND ON ROW 63 of the synthetic set: `Conjunto: tornillo DIN 931 M20x100 8.8, tuerca DIN 934 10,
+ * 2 arandelas DIN 125 200HV`. The extractor put the nut's QUALITY (`10`, group G9) and the washer's
+ * STANDARD number (the `125` of `DIN 125`) into their measure fields. Both survived every check the
+ * pipeline had: span verification passes because the digits really are in the row, confidence came
+ * out at 0.95 because every value was read literally, and coverage scans names, standards, finishes
+ * and qualities — not measures. The washer was one policy flag away from RESUELTA with measure 125.
+ *
+ * The rules settle it without a model. §6: a measure is inches or metric, and there are NO
+ * equivalences between the two. §2: the measure is the one attribute that travels across a set. So
+ * once one element of the row carries a well-formed measure, a bare number on another element of
+ * the same row cannot be a measure of anything — it is a misread, and dropping it lets §2 put the
+ * right value there instead.
+ *
+ * Deliberately narrow. Single-element rows are untouched, so the DIN 7981 `4.8x25` family (rows 42
+ * and 43, where `4.8` IS the measure) keeps working. The anchor can be any element, not just the
+ * principal: if the extractor put the good measure on the nut, the nut is still the anchor.
+ *
+ * P-11 is the second half. The rejected value is not discarded blindly: if the catalogue recognises
+ * it as a quality AND that quality is coherent with this element's type, it is this element's
+ * quality. `10` on a TUERCA is G9, which §5 restricts to nuts — it fits. `125` is in no catalogue,
+ * so the washer keeps nothing and §2 gives it the real measure. This is a closed-table reading of a
+ * value the extractor had already isolated for this element, not a scan of free text: the line
+ * `normalizeQuality` warns about — deciding whether some number in prose is a quality — is not
+ * crossed here.
+ */
+function rejectBareMeasures(elements: NormalizedElement[], P: Policies): NormalizedElement[] {
+  if (P.bareMeasureInSet !== 'reject' || elements.length < 2) return elements;
+  const anchored = elements.some((e) => e.parsedMeasure && !e.parsedMeasure.bareNumeric);
+  if (!anchored) return elements;
+
+  return elements.map((el) => {
+    if (!el.parsedMeasure?.bareNumeric) return el;
+    const rejected = el.measure.raw;
+    const out: NormalizedElement = {
+      ...el,
+      measure: { ...el.measure, normalized: null, provenance: 'absent', rule: 'P-10:bare_measure_rejected' },
+      parsedMeasure: null,
+    };
+    if (P.rejectedMeasureAsQuality === 'off' || !rejected || el.quality.normalized) return out;
+
+    const q = normalizeQuality(rejected);
+    // Both guards matter. Out of catalogue, it is just a number nobody can place. In catalogue but
+    // incoherent with the type, promoting it would manufacture the incoherence we report elsewhere.
+    if (!q.inCatalog || !el.name.normalized) return out;
+    // Con la MISMA lectura de P-8 que usa el validador. Si no, con `hvScope=washer_only` P-11
+    // colocaría una dureza en un tornillo y dos líneas más abajo la reportaríamos como incoherente:
+    // el sistema discutiendo consigo mismo dentro de la misma fila.
+    if (checkCoherence(q, el.name.normalized, { hvAppliesToWashersOnly: P.hvScope === 'washer_only' }) !== null) {
+      return out;
+    }
+
+    return {
+      ...out,
+      quality: {
+        raw: rejected,
+        normalized: rejected.trim(),
+        // The row does write it. What was wrong was the field it landed in, not the reading.
+        provenance: 'table_normalized',
+        span: el.measure.span,
+        rule: `P-11:quality_from_rejected_measure:${q.group}`,
+      },
+      qualityResult: q,
+    };
+  });
 }
 
 interface Ctx {
@@ -126,10 +199,24 @@ function buildLine(el: NormalizedElement, ctx: Ctx): OutputLine {
   if (!name) reasons.push(reason('NAME_MISSING', 'name'));
 
   // --- measure, with the one legal extrapolation --------------------------
+  // rejectBareMeasures ran before this and left its trace in the rule, so the line records the
+  // policy that fired even though the decision was taken with the whole row in view, not here.
+  if (el.measure.rule === 'P-10:bare_measure_rejected') policies.add('P-10');
+  if (el.quality.rule?.startsWith('P-11:')) policies.add('P-11');
   let measure = el.measure;
   let parsedMeasure = el.parsedMeasure;
   if (!measure.normalized && donor && donor !== el && donor.measure.normalized) {
-    measure = { ...donor.measure, provenance: 'extrapolated', rule: 'rule:§2:measure_extrapolated' };
+    // Si la medida buena llega para tapar una que P-10 descartó, el valor descartado viaja en la
+    // regla. Si no, la traza dice "extrapolada" y el `10` que el extractor leyó mal desaparece sin
+    // que nadie pueda auditarlo — y la traza por atributo es requisito del challenge.
+    const rejected = el.measure.rule === 'P-10:bare_measure_rejected' ? el.measure.raw : null;
+    measure = {
+      ...donor.measure,
+      provenance: 'extrapolated',
+      rule: rejected
+        ? `rule:§2:measure_extrapolated (P-10 descartó ${JSON.stringify(rejected)})`
+        : 'rule:§2:measure_extrapolated',
+    };
     parsedMeasure = donor.parsedMeasure;
   }
   if (!measure.normalized) reasons.push(reason('MEASURE_MISSING', 'measure'));
@@ -253,6 +340,27 @@ function buildLine(el: NormalizedElement, ctx: Ctx): OutputLine {
       reasons.push(reason('FINISH_SCOPE_UNSTATED', 'finish'));
     }
     // 'principal_only' leaves the secondary with no finish and no reason.
+  }
+
+  // --- finish (P-12) ------------------------------------------------------
+  if (finish.raw && !finish.normalized && finish.rule === 'finish:ambiguous') {
+    policies.add('P-12');
+    reasons.push({
+      code: 'UNMAPPED_VALUE',
+      kind: 'LOW_CONFIDENCE',
+      message: `El acabado "${finish.raw}" coincide con varias entradas del vocabulario y necesita desambiguación.`,
+      attribute: 'finish',
+    });
+  } else if (finish.raw && !finish.normalized && finish.rule === 'finish:unmapped') {
+    policies.add('P-12');
+    if (P.unknownFinish === 'review') {
+      reasons.push({
+        code: 'UNMAPPED_VALUE',
+        kind: 'LOW_CONFIDENCE',
+        message: `El acabado "${finish.raw}" no está en el catálogo de §9 ni entre sus alias.`,
+        attribute: 'finish',
+      });
+    }
   }
 
   // --- quantity (P-2). Not one of the seven attributes, and it does not block ---

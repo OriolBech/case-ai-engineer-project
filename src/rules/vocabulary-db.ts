@@ -147,7 +147,7 @@ export function openVocabularyDb(opts: { dbPath?: string; seedPath?: string; log
 
   if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true });
   db = new DatabaseSync(dbPath);
-  // Dos procesos pueden abrir esta base a la vez —el front y una ejecución de `npm run vocab`, o dos
+  // Dos procesos pueden abrir esta base a la vez —el front y una ejecución de `pnpm run vocab`, o dos
   // ficheros de test en paralelo— y `BEGIN IMMEDIATE` sin esto devuelve SQLITE_BUSY al instante. WAL
   // deja leer mientras otro escribe, que es el caso normal: se consulta mucho más de lo que se decide.
   if (dbPath !== ':memory:') db.exec('PRAGMA journal_mode = WAL');
