@@ -13,7 +13,7 @@ import type { AnalyzedElement } from './analyze.ts';
 import { normalizeName, findNames } from '../rules/names.ts';
 import { normalizeQuality, type QualityResult } from '../rules/quality.ts';
 import { normalizeStandard } from '../rules/standards.ts';
-import { normalizeFinish, findFinishes } from '../rules/finish.ts';
+import { resolveFinish } from '../rules/finish-db.ts';
 import { normalizeMaterial, findMaterials } from '../rules/material.ts';
 import { parseMeasure, type ParsedMeasure } from './measure.ts';
 import type { Attribute, Finish, ItemName, Span } from './types.ts';
@@ -119,16 +119,34 @@ export function normalizeElement(el: AnalyzedElement): NormalizedElement {
   const rawFinish = el.attributes.finish.value;
   let finish = absent<Finish>();
   if (rawFinish) {
-    const hit = normalizeFinish(rawFinish) ?? findFinishes(rawFinish)[0] ?? null;
-    finish = hit
-      ? {
-          raw: rawFinish,
-          normalized: hit.value,
-          provenance: 'table_normalized',
-          span: el.attributes.finish.span,
-          rule: `finish:${hit.alias}->${hit.value}`,
-        }
-      : { raw: rawFinish, normalized: null, provenance: 'absent', span: el.attributes.finish.span, rule: 'finish:unmapped' };
+    const resolved = resolveFinish(rawFinish);
+    if (resolved.kind === 'known') {
+      finish = {
+        raw: rawFinish,
+        normalized: resolved.finish,
+        provenance: 'table_normalized',
+        span: el.attributes.finish.span,
+        rule: `finish:${resolved.alias}->${resolved.finish}`,
+      };
+    } else if (resolved.kind === 'not_a_finish') {
+      finish = {
+        raw: null,
+        normalized: null,
+        provenance: 'absent',
+        span: el.attributes.finish.span,
+        rule: `finish:not_a_finish:${resolved.entryId}`,
+      };
+    } else if (resolved.kind === 'ambiguous') {
+      finish = {
+        raw: rawFinish,
+        normalized: null,
+        provenance: 'absent',
+        span: el.attributes.finish.span,
+        rule: 'finish:ambiguous',
+      };
+    } else {
+      finish = { raw: rawFinish, normalized: null, provenance: 'absent', span: el.attributes.finish.span, rule: 'finish:unmapped' };
+    }
   }
 
   // --- material (extracted only; derivation is P-3, in the validator) -----

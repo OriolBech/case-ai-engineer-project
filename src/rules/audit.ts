@@ -1,5 +1,5 @@
 /**
- * Rules audit — `npm run rules:audit`.
+ * Rules audit — `pnpm run rules:audit`.
  *
  * Two jobs:
  *
@@ -15,7 +15,7 @@
 
 import { readFileSync } from 'node:fs';
 import { NAME_ALIASES } from './names.ts';
-import { FINISH_ALIASES } from './finish.ts';
+import { aliasProvenance as finishAliasProvenance } from './finish-db.ts';
 import { MATERIAL_ALIASES } from './material.ts';
 import { findNames } from './names.ts';
 import { findFinishes } from './finish.ts';
@@ -40,7 +40,11 @@ console.log('='.repeat(78));
 console.log('PROCEDENCIA DE ALIAS  (todo lo marcado + es una decisión nuestra, no del cliente)');
 console.log('='.repeat(78));
 auditAliases('Nombres', NAME_ALIASES);
-auditAliases('Acabados', FINISH_ALIASES);
+{
+  const { client, added } = finishAliasProvenance();
+  console.log(`\nAcabados: ${client.length} del cliente, ${added.length} añadidos por nosotros`);
+  for (const a of added) console.log(`  + ${a}`);
+}
 auditAliases('Materiales', MATERIAL_ALIASES);
 
 // --- 2. Deterministic baseline ----------------------------------------------

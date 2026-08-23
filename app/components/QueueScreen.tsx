@@ -5,20 +5,29 @@ import { ATTRIBUTE_KEYS, type OutputLine, type ReasonCode } from '../../src/pipe
 import {
   downloadCsv, groupByFamily, groupByRow, isMarked, linesToCsv, queueOf, type RowGroup,
 } from '../lib/derive.ts';
+import { lineNeedsFinishVocab } from '../lib/finish-vocab-ui.ts';
+import { FinishVocabAddPanel } from './FinishVocabAddPanel.tsx';
 import { StatusBadge } from './StatusBadge.tsx';
 
-type Tab = 'todas' | 'resuelta' | 'ingenieria' | 'comprador';
+type Tab = 'todas' | 'resuelta' | 'ingenieria' | 'comprador' | 'fuera-familia';
 type GroupMode = 'fila' | 'familia';
 
 const PAGE_SIZE = 20;
 
 function attrCell(line: OutputLine, key: (typeof ATTRIBUTE_KEYS)[number]) {
   const a = line.attributes[key];
+  const pendingFinish = key === 'finish' && lineNeedsFinishVocab(line);
+  const display = a.normalized ?? (pendingFinish && a.raw ? a.raw : null);
   return (
     <span className="attr-cell">
-      <span className={`attr-value${a.normalized === null ? ' empty' : ''}`}>{a.normalized ?? '—'}</span>
+      <span className={`attr-value${display === null ? ' empty' : ''}${pendingFinish ? ' pending' : ''}`}>
+        {display ?? '—'}
+      </span>
       {a.normalized !== null && isMarked(a.provenance) && (
         <span className="attr-mark" title={`${a.provenance}: ${a.rule ?? ''}`}>●</span>
+      )}
+      {pendingFinish && (
+        <span className="attr-mark pending" title="Acabado en la fila, no reconocido por el catálogo">?</span>
       )}
     </span>
   );
@@ -43,9 +52,10 @@ export function QueueScreen({
   const [reasonFilter, setReasonFilter] = useState<ReasonCode | 'todos'>('todos');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
+  const [finishVocabLine, setFinishVocabLine] = useState<string | null>(null);
 
   const counts = useMemo(() => {
-    const c = { todas: lines.length, resuelta: 0, ingenieria: 0, comprador: 0 };
+    const c = { todas: lines.length, resuelta: 0, ingenieria: 0, comprador: 0, 'fuera-familia': 0 };
     for (const l of lines) c[queueOf(l)]++;
     return c;
   }, [lines]);
@@ -102,10 +112,11 @@ export function QueueScreen({
   const selectableIds = bySearchAndReason.filter((l) => !confirmed.has(l.id)).map((l) => l.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
 
-  const exportCsv = (which: 'resueltas' | 'ingenieria' | 'comprador') => {
+  const exportCsv = (which: 'resueltas' | 'ingenieria' | 'comprador' | 'fuera-familia') => {
     const source =
       which === 'resueltas' ? lines.filter((l) => queueOf(l) === 'resuelta' || confirmed.has(l.id))
       : which === 'ingenieria' ? lines.filter((l) => queueOf(l) === 'ingenieria')
+      : which === 'fuera-familia' ? lines.filter((l) => queueOf(l) === 'fuera-familia')
       : lines.filter((l) => queueOf(l) === 'comprador' && !confirmed.has(l.id));
     downloadCsv(`mto_${which}.csv`, linesToCsv(source));
   };
@@ -126,6 +137,12 @@ export function QueueScreen({
           <button className={`tab${tab === 'comprador' ? ' active' : ''}`} onClick={() => { setTab('comprador'); setPage(0); setSelected(new Set()); }}>
             Revisión del comprador <span className="count">{counts.comprador}</span>
           </button>
+          {/* P-9: ni resuelta, ni tuya, ni de ingeniería. Es de quien compra las otras familias. */}
+          {counts['fuera-familia'] > 0 && (
+            <button className={`tab${tab === 'fuera-familia' ? ' active' : ''}`} onClick={() => { setTab('fuera-familia'); setPage(0); setSelected(new Set()); }}>
+              No es tornillería <span className="count">{counts['fuera-familia']}</span>
+            </button>
+          )}
         </div>
         <div className="spacer" />
         <div className="pillgroup" role="group" aria-label="Agrupar por">
@@ -154,6 +171,15 @@ export function QueueScreen({
             </button>
           ))}
         </div>
+      )}
+
+      {tab === 'fuera-familia' && (
+        <p className="queue-note">
+          Estas filas <strong>no son tornillería</strong>: una brida, una junta, un tubo. No les falta
+          ningún dato —el MTO está bien— simplemente no son de esta familia, así que no se les inventan
+          los siete atributos ni se devuelven a ingeniería. Salen aparte para quien compre su familia, y
+          no cuentan en los porcentajes de arriba.
+        </p>
       )}
 
       {showCheckboxes && selected.size > 0 && (
@@ -202,35 +228,61 @@ export function QueueScreen({
               <span className="grouphead-meta">{g.lines.length} línea{g.lines.length === 1 ? '' : 's'}</span>
             </div>
             {g.lines.map((l) => (
-              <div
-                key={l.id}
-                className={`linerow${selected.has(l.id) ? ' selected' : ''}`}
-                onClick={() => onOpenTrace(l.id)}
-              >
-                <span className="cell-check" onClick={(e) => e.stopPropagation()}>
-                  {showCheckboxes && !confirmed.has(l.id) && (
-                    <input type="checkbox" checked={selected.has(l.id)} onChange={() => toggleSelect(l.id)} />
-                  )}
-                </span>
-                <span className="cell-id mono">{l.id}</span>
-                {attrCell(l, 'name')}
-                {attrCell(l, 'material')}
-                {attrCell(l, 'quality')}
-                {attrCell(l, 'measure')}
-                {attrCell(l, 'length')}
-                {attrCell(l, 'standard')}
-                {attrCell(l, 'finish')}
-                <span className="qty-cell">
-                  {l.quantity ?? '—'}
-                  {l.quantity !== null && (l.quantityProvenance === 'inferred' || l.quantityProvenance === 'extrapolated') && (
-                    <span className="attr-mark" title={`cantidad ${l.quantityProvenance}`}>●</span>
-                  )}
-                </span>
-                <span className="cell-reason">
-                  <StatusBadge line={l} confirmed={confirmed.has(l.id)} />
-                  {l.reasons[0] && <span className="reason-text" title={l.reasons.map((r) => r.message).join(' · ')}>{l.reasons[0].message}</span>}
-                  {l.reasons.length > 1 && <span className="reason-more">+{l.reasons.length - 1} motivo(s) más</span>}
-                </span>
+              <div key={l.id} className="line-block">
+                <div
+                  className={`linerow${selected.has(l.id) ? ' selected' : ''}${finishVocabLine === l.id ? ' vocab-open' : ''}`}
+                  onClick={() => onOpenTrace(l.id)}
+                >
+                  <span className="cell-check" onClick={(e) => e.stopPropagation()}>
+                    {showCheckboxes && !confirmed.has(l.id) && (
+                      <input type="checkbox" checked={selected.has(l.id)} onChange={() => toggleSelect(l.id)} />
+                    )}
+                  </span>
+                  <span className="cell-id mono">{l.id}</span>
+                  {attrCell(l, 'name')}
+                  {attrCell(l, 'material')}
+                  {attrCell(l, 'quality')}
+                  {attrCell(l, 'measure')}
+                  {attrCell(l, 'length')}
+                  {attrCell(l, 'standard')}
+                  {attrCell(l, 'finish')}
+                  <span className="qty-cell">
+                    {l.quantity ?? '—'}
+                    {l.quantity !== null && (l.quantityProvenance === 'inferred' || l.quantityProvenance === 'extrapolated') && (
+                      <span className="attr-mark" title={`cantidad ${l.quantityProvenance}`}>●</span>
+                    )}
+                  </span>
+                  <span className="cell-reason" onClick={(e) => e.stopPropagation()}>
+                    <StatusBadge line={l} confirmed={confirmed.has(l.id)} />
+                    {l.reasons[0] && (
+                      <span className="reason-text" title={l.reasons.map((r) => r.message).join(' · ')}>
+                        {l.reasons[0].message}
+                      </span>
+                    )}
+                    {l.reasons.length > 1 && (
+                      <span className="reason-more">+{l.reasons.length - 1} motivo(s) más</span>
+                    )}
+                    {lineNeedsFinishVocab(l) && (
+                      <button
+                        type="button"
+                        className={`wf-btn small line-vocab-btn${finishVocabLine === l.id ? ' on' : ''}`}
+                        onClick={() => setFinishVocabLine((cur) => (cur === l.id ? null : l.id))}
+                      >
+                        {finishVocabLine === l.id ? 'Cerrar vocabulario' : 'Acabado → vocabulario'}
+                      </button>
+                    )}
+                  </span>
+                </div>
+                {finishVocabLine === l.id && lineNeedsFinishVocab(l) && l.attributes.finish.raw && (
+                  <div className="linerow-vocab" onClick={(e) => e.stopPropagation()}>
+                    <FinishVocabAddPanel
+                      defaultAlias={l.attributes.finish.raw}
+                      source="UI comprador (línea)"
+                      onDone={() => setFinishVocabLine(null)}
+                      onCancel={() => setFinishVocabLine(null)}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -247,6 +299,9 @@ export function QueueScreen({
 
       <div className="toolbar">
         <span className="spacer" />
+        {counts['fuera-familia'] > 0 && (
+          <button className="wf-btn" onClick={() => exportCsv('fuera-familia')}>Exportar otras familias (CSV)</button>
+        )}
         <button className="wf-btn" onClick={() => exportCsv('ingenieria')}>Exportar a ingeniería (CSV)</button>
         <button className="wf-btn" onClick={() => exportCsv('comprador')}>Exportar revisión pendiente (CSV)</button>
         <button className="wf-btn primary" onClick={() => exportCsv('resueltas')}>Exportar RFQ · resueltas (CSV)</button>

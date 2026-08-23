@@ -7,6 +7,7 @@
 import { createLlm, eurPerUsd, LlmError } from '../../../src/lib/llm.ts';
 import { processMto } from '../../../src/pipeline/index.ts';
 import type { ProcessEvent, ProcessSummary } from '../../lib/api-types.ts';
+import { saveProcessedMto } from '../../lib/mto-history-db.ts';
 
 export const runtime = 'nodejs';
 export const maxDuration = 800;
@@ -27,7 +28,7 @@ export async function POST(req: Request): Promise<Response> {
       try {
         const llm = createLlm();
         const out = await processMto(llm, buffer, {
-          concurrency: Number(process.env.CONCURRENCY ?? 6),
+          concurrency: Number(process.env.CONCURRENCY ?? 12),
           onProgress: (done, total) => send({ type: 'progress', done, total }),
         });
 
@@ -54,12 +55,14 @@ export async function POST(req: Request): Promise<Response> {
               }))),
             outOfFamilyRows: out.outOfFamilyRows,
             policyBacklog: out.policyBacklog,
+            policyOverrides: out.policyOverrides,
             gapRows: [...new Set(out.gaps.map((g) => g.rowRef))],
             tierUsage: out.tierUsage,
             critic: {
               rowsRun: out.critic.rowsRun,
               rowsEligible: out.critic.rowsEligible,
               downgraded: out.critic.downgraded.length,
+              failures: out.critic.failures,
             },
           },
           metrics: {
@@ -70,6 +73,14 @@ export async function POST(req: Request): Promise<Response> {
             pricesConfigured: llm.stats.pricesConfigured && fx > 0,
           },
         };
+        // Guardar el histórico nunca debe tumbar un procesamiento que ya salió bien: se avisa por
+        // consola y se manda el resultado igual. El comprador no pierde su MTO porque el histórico
+        // tropiece.
+        try {
+          saveProcessedMto(result);
+        } catch (e) {
+          console.error('No se pudo guardar el MTO en el histórico:', e);
+        }
         send({ type: 'done', result });
       } catch (e) {
         const message =

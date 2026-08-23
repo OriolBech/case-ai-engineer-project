@@ -9,7 +9,8 @@ import { createLlm, eurPerUsd } from '../src/lib/llm.ts';
 import { processMto } from '../src/pipeline/index.ts';
 import { loadGold, evaluate, type EvalReport } from '../src/eval/harness.ts';
 import { allTiers } from '../src/lib/tiers.ts';
-import { describeOverrides } from '../src/rules/policies.ts';
+import { describeOverrides, policiesFromEnv } from '../src/rules/policies.ts';
+import { thresholds } from '../src/lib/confidence.ts';
 
 installErrorHandler();
 loadEnv();
@@ -23,6 +24,8 @@ const label =
   : tiers.main.model;
 const model = label;
 const wantReport = args.includes('--report');
+const wantSave = args.includes('--save');
+const saveLabel = args.find((a) => a.startsWith('--label='))?.slice('--label='.length) ?? null;
 
 const llm = createLlm();
 const criticRouting = (args.find((a) => a.startsWith('--critic='))?.split('=')[1] ?? 'multi_element') as
@@ -144,4 +147,53 @@ if (wantReport) {
   const path = `eval/reports/${model.replace(/[ /]/g, '_')}.json`;
   writeFileSync(path, JSON.stringify({ report: r, cost: llm.stats, eurPerRow } satisfies { report: EvalReport; cost: unknown; eurPerRow: number }, null, 2));
   console.log(`\n-> ${path}`);
+}
+
+// SPEC-010: `--save` persiste EXACTAMENTE el mismo informe que ya produce este script. Sin el flag,
+// el comportamiento no cambia en nada — es la primera línea del contrato de la spec.
+if (wantSave) {
+  const { saveRun } = await import('../src/eval/history/store.ts');
+  const { datasetFingerprint, policyFingerprint, vocabularyFingerprint, configurationFingerprint } =
+    await import('../src/eval/history/fingerprint.ts');
+  const { getGitState } = await import('../src/eval/history/git.ts');
+
+  const { policies } = policiesFromEnv();
+  const pFingerprint = policyFingerprint(policies);
+  const vFingerprint = vocabularyFingerprint();
+  const cFingerprint = configurationFingerprint({
+    tiers, routing, criticRouting, thresholds: thresholds(), policyFingerprint: pFingerprint, vocabularyFingerprint: vFingerprint,
+  });
+  const git = getGitState();
+  // El nivel que de verdad resuelve la mayoría de líneas es 'main' salvo que el routing fuerce cheap.
+  const provider = routing === 'always_cheap' ? tiers.cheap.provider : tiers.main.provider;
+
+  const runId = saveRun({
+    label: saveLabel,
+    dataset: {
+      name: 'gold',
+      fingerprint: datasetFingerprint('data/input/MTO_tornilleria.xlsx', 'data/gold/gold.jsonl'),
+      rows: out.rowsIngested,
+      goldLines: r.goldLines,
+    },
+    system: {
+      gitCommit: git.commit,
+      dirty: git.dirty,
+      model,
+      provider,
+      routing,
+      criticRouting,
+      policyFingerprint: pFingerprint,
+      policyOverrides: out.policyOverrides,
+      configurationFingerprint: cFingerprint,
+    },
+    report: r,
+    cost: {
+      eur: llm.stats.pricesConfigured ? llm.stats.costUsd / fx : null,
+      pricesConfigured: llm.stats.pricesConfigured,
+    },
+    latencyMs: llm.stats.latencyMsTotal,
+  });
+  console.log(`\n-> guardado en el histórico de evaluación: ${runId}${saveLabel ? ` (${saveLabel})` : ''}`);
+  console.log('   pnpm run eval:history                            para verlo listado');
+  console.log(`   pnpm run eval:compare -- <otro-run-id> ${runId}   para compararlo`);
 }

@@ -19,6 +19,8 @@
     "cost": "node scripts/cost.ts",
     "run": "node scripts/run.ts",
     "eval": "node scripts/eval.ts",
+    "eval:history": "node scripts/eval-history.ts",
+    "eval:compare": "node scripts/eval-compare.ts",
     "providers:check": "node scripts/providers-check.ts",
     "critic:off": "CRITIC=off node scripts/eval.ts",
     "sweep": "node scripts/sweep-models.ts",
@@ -27,7 +29,9 @@
     "gaps": "node scripts/gaps.ts",
     "inspect": "node scripts/inspect-rows.ts",
     "split:repeat": "node scripts/split-repeat.ts",
-    "vocab": "node scripts/vocab.ts"
+    "vocab": "node scripts/vocab.ts",
+    "finish:vocab": "node scripts/finish-vocab.ts",
+    "vocab:fixtures": "node scripts/vocab-fixtures.ts"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

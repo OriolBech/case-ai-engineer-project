@@ -11,26 +11,111 @@
  *   ¿De qué no está seguro el sistema?       → lo apoyado en una regla, no en el papel
  *   ¿Qué no ha sabido decidir nadie todavía?  → las decisiones que faltan, en castellano
  *
- * LA DECISIÓN QUE LO ORDENA TODO. Sobre un MTO nuevo, sin una hoja de respuestas, el sistema **no
- * puede saber si ha acertado**. Podría enseñar un "85% resuelto" enorme y quedarse tan ancho, y eso
- * es exactamente el sistema que no queremos: uno que resuelve todo y se equivoca en uno de cada
- * siete compra material equivocado con la confianza de una máquina. Así que el porcentaje grande no
- * es el titular; el titular es **qué hay que mirar**.
+ * LA DECISIÓN QUE LO ORDENA TODO. Sobre un MTO nuevo, sin una hoja de respuestas para ese fichero
+ * concreto, el sistema tiene confianza (de dónde sale cada valor: literal, tabla, suposición) pero
+ * **no tiene acierto verificado** — la confianza está calibrada sobre los ficheros de prueba, no
+ * sobre éste. Podría enseñar un "85% resuelto" enorme y quedarse tan ancho, y eso es exactamente el
+ * sistema que no queremos: uno que resuelve todo y se equivoca en uno de cada siete compra material
+ * equivocado con la confianza de una máquina. Así que el porcentaje grande no es el titular; el
+ * titular es **qué hay que mirar**.
  */
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { ProcessSummary } from '../lib/api-types.ts';
 import {
-  ATTR_LABEL, extrapolate, formatEur, formatSeconds, isWeak, queueOf,
-  reasonCounts, resolvedByWeakestProvenance, weakestAttributeCounts,
+  ATTR_LABEL, extrapolate, formatEur, formatSeconds, inScope, isWeak, queueOf,
+  reasonCounts, resolvedByWeakestProvenance, weakestAttributeCounts, type Queue,
 } from '../lib/derive.ts';
 import type { Provenance } from '../../src/pipeline/types.ts';
 import type { ATTRIBUTE_KEYS } from '../../src/pipeline/types.ts';
+import { FinishVocabAddPanel } from './FinishVocabAddPanel.tsx';
 
 interface Props {
   result: ProcessSummary;
   onClose: () => void;
+}
+
+/**
+ * Alta rápida en el vocabulario de material desde un caso concreto del backlog.
+ *
+ * El caso ya trae `candidate` con el id y el patrón sugeridos (`src/pipeline/coverage.ts`); lo único
+ * que le falta a la decisión es el material y quién la toma. Nada de escribir JSON a mano: es
+ * exactamente el bucle de aprendizaje de `docs/12-system-behind-the-rules.md` §4, con un
+ * formulario de tres campos en vez de una llamada a `pnpm run vocab add`.
+ */
+function VocabQuickAdd({ candidate, value }: { candidate: Record<string, unknown>; value: string }) {
+  const [open, setOpen] = useState(false);
+  const [material, setMaterial] = useState<'AC' | 'INOX'>('AC');
+  const [rationale, setRationale] = useState('');
+  const [decidedBy, setDecidedBy] = useState('');
+  const [state, setState] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setState('saving');
+    setError(null);
+    try {
+      const when = candidate.when as { qualityGroup?: string; qualityPattern?: string } | undefined;
+      const matchKind = when?.qualityGroup ? 'qualityGroup' : 'qualityPattern';
+      const matchValue = when?.qualityGroup ?? when?.qualityPattern ?? value;
+      const res = await fetch('/api/vocabulary', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id: candidate.id,
+          matchKind,
+          matchValue,
+          material,
+          rationale,
+          decidedBy,
+          source: 'UI comprador (backlog)',
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setState('done');
+    } catch (e2) {
+      setError(e2 instanceof Error ? e2.message : String(e2));
+      setState('error');
+    }
+  };
+
+  if (state === 'done') {
+    return <p className="kpi-help vocab-quickadd-done">Añadido al vocabulario. Se aplicará al resto de MTOs.</p>;
+  }
+  if (!open) {
+    return (
+      <button className="wf-btn small" onClick={() => setOpen(true)}>
+        Añadir al vocabulario
+      </button>
+    );
+  }
+  return (
+    <form className="vocab-quickadd" onSubmit={submit}>
+      <select value={material} onChange={(e) => setMaterial(e.target.value as 'AC' | 'INOX')}>
+        <option value="AC">AC (acero)</option>
+        <option value="INOX">INOX (inoxidable)</option>
+      </select>
+      <input
+        value={rationale}
+        onChange={(e) => setRationale(e.target.value)}
+        placeholder="motivo (por qué es este material)"
+        required
+      />
+      <input
+        value={decidedBy}
+        onChange={(e) => setDecidedBy(e.target.value)}
+        placeholder="tu nombre"
+        required
+      />
+      <button className="wf-btn primary small" type="submit" disabled={state === 'saving'}>
+        {state === 'saving' ? 'Guardando…' : 'Confirmar'}
+      </button>
+      {error && <span className="vocab-quickadd-error">{error}</span>}
+    </form>
+  );
 }
 
 /**
@@ -73,6 +158,14 @@ const REASON_TEXT: Record<string, string> = {
   UNMAPPED_VALUE: 'Un valor que las tablas no saben interpretar de forma única',
 };
 
+/** A quién le toca cada motivo. La cuarta no es una cola de nadie de esta casa: es de otra familia. */
+const QUEUE_OWNER: Record<Queue, string> = {
+  resuelta: 'nadie',
+  ingenieria: 'ingeniería',
+  comprador: 'tú',
+  'fuera-familia': 'otra familia',
+};
+
 function Bar({ value, total, tone }: { value: number; total: number; tone: 'ok' | 'warn' }) {
   const p = total ? (100 * value) / total : 0;
   return (
@@ -86,13 +179,18 @@ export function KpiPanel({ result, onClose }: Props) {
   const { lines, diagnostics: d, metrics } = result;
 
   const v = useMemo(() => {
+    // El denominador de todo lo que sigue. Una brida no es una línea resuelta ni una pendiente:
+    // es una fila de otra familia, y meterla en el reparto haría que un MTO con más bridas
+    // pareciera un sistema peor. Se cuenta aparte, en su propia celda. Ver P-9.
+    const scoped = inScope(lines);
+    const outOfFamily = lines.filter((l) => queueOf(l) === 'fuera-familia');
     const resolved = lines.filter((l) => queueOf(l) === 'resuelta');
     const buyer = lines.filter((l) => queueOf(l) === 'comprador');
     const engineering = lines.filter((l) => queueOf(l) === 'ingenieria');
     const buckets = resolvedByWeakestProvenance(lines).filter((b) => b.lines.length > 0);
     const toLook = buckets.filter((b) => TRUST[b.provenance].look);
     return {
-      resolved, buyer, engineering, buckets, toLook,
+      scoped, outOfFamily, resolved, buyer, engineering, buckets, toLook,
       toLookCount: toLook.reduce((a, b) => a + b.lines.length, 0),
       weakAttrs: weakestAttributeCounts(lines),
       reasons: reasonCounts(lines),
@@ -110,7 +208,8 @@ export function KpiPanel({ result, onClose }: Props) {
           <div>
             <h2>Cómo ha ido</h2>
             <p className="kpi-sub">
-              {result.fileName} · {result.rowsIngested} filas del Excel · {lines.length} materiales distintos
+              {result.fileName} · {result.rowsIngested} filas del Excel · {v.scoped.length} materiales de tornillería
+              {v.outOfFamily.length > 0 && ` · ${v.outOfFamily.length} de otras familias, aparte`}
             </p>
           </div>
           <button className="wf-btn small" onClick={onClose}>Cerrar</button>
@@ -127,6 +226,37 @@ export function KpiPanel({ result, onClose }: Props) {
             Están en tu cola marcadas, así que no se pierde ninguna — pero conviene volver a pasar el
             fichero antes de dar los números por buenos.
             <ul>{d.failedRows.slice(0, 5).map((f) => <li key={f.rowRef}>Fila {f.rowRef} del Excel</li>)}</ul>
+          </div>
+        )}
+
+        {/* Esta ejecución no usa las reglas por defecto. Lo primero de todo, porque cambia el
+            significado de cada cifra que viene debajo. */}
+        {d.policyOverrides.length > 0 && (
+          <div className="kpi-alarm soft">
+            <strong>Esta ejecución no usa las reglas por defecto.</strong>{' '}
+            Alguien ha cambiado {d.policyOverrides.length === 1 ? 'una decisión' : `${d.policyOverrides.length} decisiones`}{' '}
+            del proyecto, así que los números de abajo no son los de siempre y no se pueden comparar
+            con los de otro día.
+            <ul>
+              {d.policyOverrides.map((o) => (
+                <li key={o.env}><code>{o.env}</code>: {o.fallback} → <strong>{o.value}</strong></li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* La segunda lectura no corrió en algunas filas. No es un detalle técnico: son líneas
+            que salen con una comprobación menos, y decirlo es más barato que no decirlo. */}
+        {d.critic.failures.length > 0 && (
+          <div className="kpi-alarm soft">
+            <strong>
+              {d.critic.failures.length === 1
+                ? 'Una fila se ha quedado sin la segunda lectura automática.'
+                : `${d.critic.failures.length} filas se han quedado sin la segunda lectura automática.`}
+            </strong>{' '}
+            Sus líneas están en la cola con todo lo demás, pero han pasado una comprobación menos que
+            el resto. Si vas a confirmar alguna, empieza por éstas.
+            <ul>{d.critic.failures.slice(0, 5).map((f) => <li key={f.row}>Fila {f.row} del Excel</li>)}</ul>
           </div>
         )}
 
@@ -228,7 +358,10 @@ export function KpiPanel({ result, onClose }: Props) {
             <div className="kpi-cell">
               <span className="kpi-num">{d.outOfFamilyRows.length}</span>
               <span className="kpi-cap">filas que no son tornillería</span>
-              <span className="kpi-help">Bridas, juntas, tubos. Se apartan en vez de forzarlas a ser un tornillo.</span>
+              <span className="kpi-help">
+                Bridas, juntas, tubos. Se apartan en vez de forzarlas a ser un tornillo, y no cuentan
+                en las otras tres cifras: ni resueltas, ni tuyas, ni de ingeniería.
+              </span>
             </div>
           </div>
 
@@ -240,9 +373,9 @@ export function KpiPanel({ result, onClose }: Props) {
                   <div className="kpi-row wide" key={r.code}>
                     <span className="kpi-row-label">
                       {REASON_TEXT[r.code] ?? r.message}
-                      <span className="kpi-row-pct"> · {r.queue === 'ingenieria' ? 'ingeniería' : 'tú'}</span>
+                      <span className="kpi-row-pct"> · {QUEUE_OWNER[r.queue]}</span>
                     </span>
-                    <Bar value={r.count} total={lines.length} tone={r.queue === 'ingenieria' ? 'ok' : 'warn'} />
+                    <Bar value={r.count} total={lines.length} tone={r.queue === 'comprador' ? 'warn' : 'ok'} />
                     <span className="kpi-row-value">{r.count}</span>
                   </div>
                 ))}
@@ -278,6 +411,19 @@ export function KpiPanel({ result, onClose }: Props) {
                     <div className="kpi-help">
                       {b.rows.length === 1 ? `Fila ${b.rows[0]}` : `${b.rows.length} filas: ${b.rows.join(', ')}`}
                     </div>
+                    {b.kind === 'UNCOVERED_DERIVATION' && b.candidate && (
+                      <div className="vocab-quickadd-wrap">
+                        <VocabQuickAdd candidate={b.candidate} value={b.value} />
+                      </div>
+                    )}
+                    {b.kind === 'UNKNOWN_VALUE' && b.attribute === 'finish' && (
+                      <FinishVocabAddPanel
+                        defaultAlias={String(b.candidate?.alias ?? b.value)}
+                        defaultFinish={String(b.candidate?.finish ?? 'CINCADO')}
+                        source="UI comprador (backlog)"
+                        collapsible
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -289,9 +435,13 @@ export function KpiPanel({ result, onClose }: Props) {
         <section className="kpi-section kpi-cant">
           <h3>Lo que este resumen no puede decirte</h3>
           <p className="kpi-note">
-            Se dice claro en lugar de callarlo: <strong>sobre un MTO nuevo, el sistema no sabe si ha
-            acertado.</strong> Para saberlo hace falta alguien que haya normalizado ese mismo fichero a
-            mano y comparar. Concretamente, no puede decirte:
+            Se dice claro en lugar de callarlo: en este fichero, <strong>lo que ves es confianza, no
+            acierto verificado.</strong> Las reglas y el modelo te dicen qué tan bien apoyado está cada
+            valor —si viene literal del texto, de una tabla de equivalencias o de una suposición— y con
+            eso deciden qué mandar a revisión. Pero esa confianza está calibrada sobre los ficheros con
+            los que se ha probado el sistema hasta ahora, no sobre este en concreto: para saber si
+            <em> este</em> fichero se ha resuelto bien de verdad hace falta alguien que lo normalice a
+            mano y compare. Concretamente, no puede decirte:
           </p>
           <ul className="kpi-cant-list">
             <li>

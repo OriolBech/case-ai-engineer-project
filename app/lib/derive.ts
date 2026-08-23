@@ -2,17 +2,34 @@
  *  presentation: how a Provenance reads, which queue a line belongs to, how to group and export. */
 import { ATTRIBUTE_KEYS, type OutputLine, type Provenance, type ReasonKind } from '../../src/pipeline/types.ts';
 
-export type Queue = 'resuelta' | 'ingenieria' | 'comprador';
+export type Queue = 'resuelta' | 'ingenieria' | 'comprador' | 'fuera-familia';
 
 /**
- * §SPEC-008: two separate queues by reason kind. A line carrying any MISSING_IN_SOURCE reason
- * goes back to engineering — no buyer action fixes a value that was never written. Everything
- * else unresolved is the buyer's queue.
+ * §SPEC-008: separate queues by reason kind, because each one is a different person's next move.
+ *
+ * OUT_OF_SCOPE goes first and on its own (P-9). A flange is not a fastener whose data is missing,
+ * so it is not engineering's to fix — the row is already right. It belongs to whoever buys the
+ * other families, and putting it in the engineering queue would be sending back work that nobody
+ * asked for, in the queue the case statement says must stay clean. Then MISSING_IN_SOURCE goes
+ * back to engineering — no buyer action fixes a value that was never written. Everything else
+ * unresolved is the buyer's.
  */
 export function queueOf(line: OutputLine): Queue {
   if (line.status === 'RESUELTA') return 'resuelta';
   const kinds = new Set<ReasonKind>(line.reasons.map((r) => r.kind));
+  if (kinds.has('OUT_OF_SCOPE')) return 'fuera-familia';
   return kinds.has('MISSING_IN_SOURCE') ? 'ingenieria' : 'comprador';
+}
+
+/**
+ * The denominator every rate in the buyer's panel is over.
+ *
+ * Out-of-family lines are not in it. They are neither a win nor a failure of a fastener system:
+ * counting them as unresolved would penalise the system for a row it correctly refused to touch,
+ * and counting them as resolved would be a lie. They are reported apart, by count.
+ */
+export function inScope(lines: OutputLine[]): OutputLine[] {
+  return lines.filter((l) => queueOf(l) !== 'fuera-familia');
 }
 
 export const PROVENANCE_LABEL: Record<Provenance, string> = {

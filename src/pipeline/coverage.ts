@@ -19,6 +19,8 @@ import { ATTRIBUTE_KEYS } from './types.ts';
 import { findNames } from '../rules/names.ts';
 import { findStandards } from '../rules/standards.ts';
 import { findFinishes } from '../rules/finish.ts';
+import { resolveFinish } from '../rules/finish-db.ts';
+import { suggestFinishEntryId } from '../rules/finish-vocab-id.ts';
 import { normalizeQuality } from '../rules/quality.ts';
 import { deriveMaterial, isDerived } from '../rules/vocabulary-db.ts';
 
@@ -137,6 +139,56 @@ export function detectGaps(row: MtoRow, lines: OutputLine[]): PolicyGap[] {
       kind: 'UNKNOWN_VALUE', rowRef: row.itemRef, attribute: 'quality', value: q.raw,
       detail: `La calidad "${q.raw}" no está en el catálogo ni encaja con un grado conocido. ` +
         'Se resolvería tal cual por §5, que está escrita pensando en grados ASTM; este valor necesita una decisión.',
+    });
+  }
+
+  // --- finishes the catalogue does not recognise ---------------------------
+  //
+  // La asimetría que esto cierra: calidad, material y norma conservan un valor desconocido (como
+  // `extracted_uncatalogued`, o preservado tal cual) y además lo declaran aquí. El acabado no tenía
+  // ninguna de las dos cosas. §9 declara que la AUSENCIA de acabado es un valor válido que no manda
+  // nada a revisión — y `normalize.ts` marca un acabado no reconocido como `absent`, así que un
+  // acabado nuevo era indistinguible de un acabado que la fila no menciona. Resultado: la línea
+  // salía RESUELTA y nadie se enteraba de que había una palabra ahí.
+  //
+  // No se escanea texto libre buscando "palabras que suenen a acabado": eso fabricaría huecos. Se
+  // lee lo que el extractor YA identificó como acabado (`raw`) y la tabla no supo mapear
+  // (`normalized === null`, `rule: finish:unmapped` en normalize.ts). El trabajo de decidir "esto es
+  // un acabado" ya está hecho; lo que falta es la entrada de catálogo.
+  //
+  // Va al backlog y NO a la cola del comprador, por el mismo motivo que los demás huecos: es una
+  // decisión del proyecto (¿qué es "tropicalizado" y a cuál de los siete equivale, o es un octavo?),
+  // no un dato que el comprador pueda arreglar fila a fila.
+  for (const line of lines) {
+    const f = line.attributes.finish;
+    if (!f.raw || f.normalized !== null) continue;
+    // El hueco es de RECONOCIMIENTO, no de atribución. `normalized: null` con `raw` puesto tiene dos
+    // orígenes distintos y sólo uno es un hueco:
+    //   - la tabla no conoce la palabra (normalize.ts, `rule: finish:unmapped`)  -> hueco
+    //   - P-1 la conoce y se niega a atribuirla a este elemento (validate.ts, `P-1:scope_unstated`)
+    //     -> NO es un hueco: ya lleva FINISH_SCOPE_UNSTATED en la línea y se ve en la cola
+    //
+    // Se pregunta a la tabla en vez de mirar el `rule` para no acoplarse a qué rama lo escribió: la
+    // condición real es "el catálogo no sabe leer esto". Sin este filtro, `zincado`, `zinc plated` y
+    // `ZN` del MTO de referencia entraban como tres decisiones pendientes inventadas — medido, no
+    // supuesto: aparecieron en el backlog la primera vez que se corrió esto sobre el fichero real.
+    const resolution = resolveFinish(f.raw);
+    if (resolution.kind === 'known' || resolution.kind === 'not_a_finish') continue;
+    gaps.push({
+      kind: 'UNKNOWN_VALUE', rowRef: row.itemRef, attribute: 'finish', value: f.raw,
+      detail: `La fila indica el acabado "${f.raw}" y no está en el catálogo de §9 ni entre sus alias. ` +
+        'La línea sale como si no llevara acabado, y un elemento con acabado y el mismo sin acabado son ' +
+        'referencias distintas. Decidir a qué acabado del catálogo equivale, o declararlo uno nuevo.',
+      candidate: {
+        id: suggestFinishEntryId(f.raw),
+        alias: f.raw,
+        kind: 'alias',
+        finish: 'CINCADO',
+        rationale: '',
+        evidence: '',
+        decidedBy: '',
+        source: 'UI comprador (backlog)',
+      },
     });
   }
 

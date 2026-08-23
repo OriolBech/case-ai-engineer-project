@@ -1,0 +1,135 @@
+/**
+ * Histórico de evaluación, en SQLite. Ver specs/SPEC-010-evaluation-history.md.
+ *
+ * Cuatro entidades: ejecución, métrica, resultado de línea y corrección humana. Append-only para
+ * resultados: guardar una ejecución nunca reescribe ni borra una anterior (ver `store.ts`).
+ *
+ * Los JSON persistidos llevan versión de esquema (`toJson`/`fromJson`), y la base entera lleva la
+ * suya en `schema_meta`. Abrir una base escrita con un esquema distinto revienta en vez de
+ * reinterpretarla en silencio: es la misma decisión que ya toma `vocabulary-db.ts` para la siembra.
+ */
+import { DatabaseSync } from 'node:sqlite';
+import { mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+
+const DB_PATH = join('data', 'eval', 'history.sqlite');
+export const SCHEMA_VERSION = 1;
+
+const SCHEMA = `
+CREATE TABLE IF NOT EXISTS schema_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS evaluation_runs (
+  id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  label TEXT,
+  dataset_name TEXT NOT NULL,
+  dataset_fingerprint TEXT NOT NULL,
+  git_commit TEXT,
+  git_dirty INTEGER NOT NULL,
+  model TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  routing TEXT NOT NULL,
+  critic_routing TEXT NOT NULL,
+  policy_fingerprint TEXT NOT NULL,
+  policy_overrides_json TEXT NOT NULL,
+  configuration_fingerprint TEXT NOT NULL,
+  rows INTEGER NOT NULL,
+  gold_lines INTEGER NOT NULL,
+  system_lines INTEGER NOT NULL,
+  latency_ms INTEGER NOT NULL,
+  cost_eur REAL,
+  prices_configured INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_runs_created_at ON evaluation_runs(created_at);
+CREATE INDEX IF NOT EXISTS idx_runs_dataset_fp ON evaluation_runs(dataset_fingerprint);
+
+CREATE TABLE IF NOT EXISTS evaluation_metrics (
+  run_id TEXT NOT NULL REFERENCES evaluation_runs(id),
+  scope TEXT NOT NULL,
+  name TEXT NOT NULL,
+  value REAL NOT NULL,
+  numerator INTEGER,
+  denominator INTEGER,
+  PRIMARY KEY (run_id, scope, name)
+);
+
+CREATE TABLE IF NOT EXISTS evaluation_lines (
+  run_id TEXT NOT NULL REFERENCES evaluation_runs(id),
+  row_ref TEXT NOT NULL,
+  gold_id TEXT,
+  system_id TEXT,
+  payload_json TEXT NOT NULL,
+  PRIMARY KEY (run_id, row_ref, gold_id, system_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lines_run ON evaluation_lines(run_id);
+
+CREATE TABLE IF NOT EXISTS human_corrections (
+  id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  run_id TEXT REFERENCES evaluation_runs(id),
+  row_ref TEXT NOT NULL,
+  line_id TEXT,
+  attribute TEXT NOT NULL,
+  previous_value TEXT,
+  corrected_value TEXT,
+  evidence TEXT NOT NULL,
+  author TEXT NOT NULL,
+  rationale TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'PROMOTED')),
+  promoted_entry_id TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_corrections_status ON human_corrections(status);
+CREATE INDEX IF NOT EXISTS idx_corrections_row ON human_corrections(row_ref, attribute);
+`;
+
+let db: DatabaseSync | null = null;
+
+export function openHistoryDb(opts: { dbPath?: string } = {}): DatabaseSync {
+  if (db) return db;
+  const dbPath = opts.dbPath ?? process.env.EVAL_HISTORY_DB ?? DB_PATH;
+  if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true });
+  db = new DatabaseSync(dbPath);
+  // Igual que vocabulary-db.ts: dos procesos pueden abrir esto a la vez (una ejecución de `pnpm run
+  // eval -- --save` y una consulta de `pnpm run eval:history`), y WAL deja leer mientras otro escribe.
+  if (dbPath !== ':memory:') db.exec('PRAGMA journal_mode = WAL');
+  db.exec('PRAGMA busy_timeout = 5000');
+  db.exec(SCHEMA);
+
+  const meta = db.prepare(`SELECT value FROM schema_meta WHERE key = 'version'`).get() as
+    | { value: string }
+    | undefined;
+  if (!meta) {
+    db.prepare(`INSERT INTO schema_meta (key, value) VALUES ('version', ?)`).run(String(SCHEMA_VERSION));
+  } else if (Number(meta.value) !== SCHEMA_VERSION) {
+    throw new Error(
+      `${dbPath} fue escrita con el esquema v${meta.value}, y este código espera v${SCHEMA_VERSION}. ` +
+        'Falta una migración explícita: no se reinterpreta en silencio.',
+    );
+  }
+  return db;
+}
+
+/** Cierra y olvida. Costura para los tests, igual que en vocabulary-db.ts. */
+export function closeHistoryDb(): void {
+  db?.close();
+  db = null;
+}
+
+/** Envuelve un valor con la versión de su esquema JSON. Ver SPEC-010 §Modelo persistido. */
+export function toJson(value: unknown): string {
+  return JSON.stringify({ v: 1, data: value });
+}
+
+export function fromJson<T>(raw: string): T {
+  const parsed = JSON.parse(raw) as { v: number; data: T };
+  if (parsed.v !== 1) {
+    throw new Error(`JSON persistido con versión de esquema ${parsed.v}, no soportada (esperado 1).`);
+  }
+  return parsed.data;
+}

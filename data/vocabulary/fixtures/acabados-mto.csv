@@ -1,0 +1,22 @@
+id,categoria,descripcion,col_material,col_medida,cant,acabado_extraido,accion_esperada,finish_destino,id_sugerido,evidencia,rationale,notas
+V01,estudio_es,Conjunto tornilleria: tornillo DIN 931 M16x80 8.8 tuerca DIN 934 y 2 arandelas DIN 125 zincado,8.8,M16x80,60,zincado,ya_cubierto,CINCADO,,,Alias del cliente ya en semilla,
+V02,estudio_es,Tornillo DIN 933 M16x60 8.8 tropicalizado,8.8,M16x60,120,tropicalizado,alta_alias,CINCADO,finish-tropicalizado,Pliego MTO rev.3 §4.2,Tratamiento anticorrosion del estudio equivale a cincado electrolitico,Tipico cuando cada estudio nombra su proceso
+V03,estudio_es,Tornillo Allen DIN 912 M10x40 12.9 Delta-Protekt KL 100,12.9,M10x40,80,Delta-Protekt KL 100,alta_alias,GEOMET,finish-delta-protekt-kl100,Ficha NOF Geomet,Recubrimiento base agua sin hidrogeno embrittlement,Marca comercial sobre Geomet
+V04,estudio_es,Tornillo DIN 933 M12x45 8.8 Magni 565,8.8,M12x45,200,Magni 565,alta_alias,GEOMET,finish-magni-565,Catalogo Magni 565,Zinc flake mecanico equivalente a familia Geomet,
+V05,estudio_en,HEX BOLT DIN 931 M16x70 8.8 HOT-DIP,8.8,M16x70,90,HOT-DIP,alta_alias,GALVANIZADO EN CALIENTE,finish-hot-dip,ASTM A153,Forma abreviada inglesa de galvanizado en caliente,
+V06,estudio_en,BOLT DIN 933 M10x40 8.8 MECH GALV Class 55,8.8,M10x40,150,MECH GALV,alta_alias,GALVANIZADO EN CALIENTE,finish-mech-galv,ASTM B695 Class 55,Galvanizado mecanico obra estructural,
+V07,estudio_en,SCREW DIN 912 M8x30 12.9 BLACK OXIDE,12.9,M8x30,300,BLACK OXIDE,ya_cubierto,PAVONADO,,,Alias BLACK (dentro de BLACK OXIDE) ya en semilla,
+V08,variante_marca,Tornillo DIN 933 M16x60 8.8 GEOMET-500B,8.8,M16x60,100,GEOMET-500B,ya_cubierto,GEOMET,,,Variante comercial NOF; no es hueco ni alta,
+V09,variante_marca,Tornillo DIN 933 M10x35 8.8 dacromet 320,8.8,M10x35,50,dacromet 320,ya_cubierto,DACROMET,,,Sufijo de producto sobre marca del catalogo,
+V10,no_acabado,Tornillo DIN 933 M16x60 8.8 segun pliego cliente,8.8,M16x60,40,segun pliego cliente,not_a_finish,,finish-segun-pliego,Pliego rev.3,Texto administrativo: no afirma un acabado concreto,
+V11,no_acabado,BOLT DIN 931 M12x50 8.8 PLAIN,8.8,M12x50,500,PLAIN,not_a_finish,,finish-plain,ASTM A325,PLAIN = sin recubrimiento valido §9,
+V12,no_acabado,Tornillo DIN 933 M10x30 8.8 SELF-COLOUR,8.8,M10x30,200,SELF-COLOUR,not_a_finish,,finish-self-colour,ISO 898-1,Equivalente ingles de sin acabado,
+V13,no_acabado,Tornillo DIN 933 M8x25 8.8 pintado RAL 9005,8.8,M8x25,60,pintado RAL 9005,not_a_finish,,finish-pintado-ral,Pliego pinturas,Pintura liquida no es ninguno de los 7 acabados §9,
+V14,no_acabado,Tuerca DIN 934 M12 8 bruñido,8,M12,180,bruñido,not_a_finish,,finish-brunido,Catalogo proveedor,Acabado estetico mecanico no es recubrimiento anticorrosion,
+V15,ambiguo,Tornillo DIN 933 M10x40 8.8 zinc flake,8.8,M10x40,90,zinc flake,escalar,,,,"Familia generica Geomet/Dacromet: requiere marca o revision humana",
+V16,octavo,Tornillo DIN 933 M12x50 8.8 niquelado,8.8,M12x50,70,niquelado,escalar,,,,"Octavo acabado: fuera de vocabulario autoservicio",
+V17,octavo,Tornillo DIN 933 M16x40 8.8 PTFE xylan 1014,8.8,M16x40,30,PTFE xylan 1014,escalar,,,,"Recubrimiento antifriccion: conversacion con cliente",
+V18,alias_corto,Tornillo DIN 933 M10x40 8.8 HDZ,8.8,M10x40,110,HDZ,alta_alias,GALVANIZADO EN CALIENTE,finish-hdz,Obra EPC habitual,HDZ coloquial hot dip zinc; alias corto,
+V19,set_p1,BOLT DIN 931 M16x70 with NUT DIN 934 and 2 WASHER DIN 125 8.8 mech galv,8.8,M16x70,100,mech galv,alta_alias,GALVANIZADO EN CALIENTE,finish-mech-galv-set,ASTM B695,Acabado a nivel de set; P-1 decide atribucion por elemento,
+V20,estudio_pt,Parafuso sextavado DIN 931 M12x50 8.8 cromato amarelo,8.8,M12x50,95,cromato amarelo,alta_alias,BICROMATADO,finish-cromato-amarelo,Pliego PT-BR §2.1,Termino lusofono para bicromatado,
+V21,trampa_substring,Tornillo DIN 933 M12x50 8.8 zincado amarelo,8.8,M12x50,95,zincado amarelo,trampa_zincado,CINCADO,,,"Gana 'zincado' hasta añadir alias largo zincado amarelo→BICROMATADO",

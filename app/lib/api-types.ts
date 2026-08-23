@@ -31,10 +31,19 @@ export interface RunDiagnostics {
   outOfFamilyRows: string[];
   /** Cases no policy covers: a decision the project owes, NOT the buyer's queue. */
   policyBacklog: PolicyBacklogItem[];
+  /**
+   * Políticas que esta ejecución no tomó por defecto. Vacío en una ejecución normal.
+   * Se enseña en el panel porque un resultado con las reglas cambiadas no es el resultado publicado.
+   */
+  policyOverrides: { policy: string; env: string; value: string; fallback: string }[];
   gapRows: string[];
   /** Which tier produced each analysis, and what the critic did. */
   tierUsage: { main: number; cheap: number; none: number; escalated: number };
-  critic: { rowsRun: number; rowsEligible: number; downgraded: number };
+  /**
+   * Qué hizo el crítico, y qué NO pudo hacer. `failures` no es telemetría: son líneas que salieron
+   * sin la segunda lectura, y el comprador tiene derecho a saber cuáles antes de fiarse de ellas.
+   */
+  critic: { rowsRun: number; rowsEligible: number; downgraded: number; failures: { row: string; reason: string }[] };
 }
 
 export interface ProcessSummary {

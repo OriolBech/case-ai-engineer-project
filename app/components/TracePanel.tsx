@@ -1,3 +1,21 @@
+/**
+ * El panel de traza: por qué cada atributo vale lo que vale, en el texto de la fila.
+ *
+ * QUÉ NO LLEVA, y es una decisión, no un olvido. Tenía un pie con `confianza 0,95` y
+ * `políticas: P-1, P-3`, y las dos cifras se quitaron porque **le restaban al comprador en vez de
+ * sumarle**:
+ *
+ *  - La confianza es un escalar interno calibrado sobre los ficheros de prueba, no sobre éste. En
+ *    una pantalla que existe para justificar un valor concreto, un 0,95 se lee como "acierto del
+ *    95%", que es justo lo que el panel de KPI se esfuerza en decir que NO se puede saber. Y la
+ *    fila 63 lo demuestra: sus dos líneas mal leídas salían con 0,95.
+ *  - La lista de políticas al pie repite, agregada y sin contexto, lo que cada atributo ya dice
+ *    con precisión en su propia regla. Saber que "en esta línea actuó P-1" sin saber en qué campo
+ *    no es trazabilidad, es un código más que descifrar.
+ *
+ * Lo que sí lleva es lo que SPEC-008 pide: el span en el texto original y la regla que produjo cada
+ * atributo, atributo por atributo. Ahí la política aparece donde significa algo.
+ */
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -113,11 +131,6 @@ export function TracePanel({
               );
             })}
           </div>
-        </div>
-
-        <div className="trace-foot">
-          <span>confianza {line.confidence.toFixed(2)}</span>
-          <span>{line.policiesApplied.length ? `políticas: ${line.policiesApplied.join(', ')}` : 'sin políticas aplicadas'}</span>
         </div>
       </div>
     </div>
