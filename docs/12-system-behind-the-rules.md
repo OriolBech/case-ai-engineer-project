@@ -8,7 +8,7 @@
 
 ## 1. The problem, stated plainly
 
-Policies P-1…P-9 are **rules**. And every one of them has a default, and **a default fires
+Policies P-1…P-11 are **rules**. And every one of them has a default, and **a default fires
 silently**.
 
 Faced with a case no policy covers, the pipeline picks the default and **resolves the line**. On
@@ -73,15 +73,54 @@ written with `GR B7` and `GR 2H` in mind. A `45H`, or garbage, **also passes** t
 gets resolved. Now it's distinguished: what fits a known grade gets resolved; what doesn't is a
 gap.
 
+**And the finish, which was the only closed catalog that was failing silently · 2026-08-23**
+
+Of the four attributes with a closed table, three had an outcome for an unknown value and one
+didn't:
+
+| Attribute | Value the table doesn't know |
+|---|---|
+| Quality | kept as `extracted_uncatalogued` **and** flagged here |
+| Material | empty cell **and** flagged (`UNCOVERED_DERIVATION`, with a candidate entry) |
+| Standard | preserved as-is, extracted |
+| Finish | **none of the above** |
+
+Finish had neither of the two outcomes, and the combination was the worst possible case: §9 states
+that the **absence** of a finish is a valid value that sends nothing to review, and `normalize.ts`
+marks an unrecognized finish as `absent`. In other words, a new finish was **indistinguishable from
+a finish the row doesn't mention**: the line came out RESOLVED, with a word in the row that no one
+had read. And §9 says an element with a finish and the same one without a finish are **different**
+part numbers — the failure mode was buying the wrong part number without a single warning anywhere.
+
+Two boundaries this gap does **not** cross, and both cost a false positive before they existed:
+
+- **Recognition, not attribution.** P-1 in `review` mode deliberately leaves the finish's `raw`
+  with `normalized: null` to say *"it's in the row but I'm not attributing it to this element."*
+  The first version read that as "the table doesn't know it" and put `zincado`, `zinc plated`, and
+  `ZN` from the reference MTO into the backlog as three decisions no one actually owes. The table
+  is asked, not the `rule`.
+- **A variant isn't a new value.** `GEOMET-500B` matches `GEOMET` by word boundary and is read as
+  the catalog's finish. Without that boundary the backlog would fill up with commercial suffixes of
+  the seven finishes and would stop pointing at what's actually missing.
+
+Measured on a reference MTO with one row added by hand (`tropicalizado`): 1 gap in the new file,
+**0 in the original**.
+
+The other half remains, and it's the one that decides whether the buyer still needs us: **seeing
+the gap isn't being able to close it.** The material vocabulary is data (SQLite + a log in git,
+extensible from the front end with no deployment); the finish catalog is still TypeScript. Today
+the system can say *"I don't know `tropicalizado`"* and **no one who doesn't touch code can answer
+it.** See §4, "Rules as data, not as code."
+
 ### And it catches something it wasn't designed for · 2026-08-22
 
 The detector doesn't ask *"did the model get it right?"* It asks *"is there anything left over from
 the row that the output doesn't explain?"* That framing turns out to cover a failure that wasn't
 part of the design: **the model's non-determinism**.
 
-While measuring the split with repetitions (`npm run split:repeat`, see `11-benchmarks.md` §5-bis)
+While measuring the split with repetitions (`pnpm run split:repeat`, see `11-benchmarks.md` §5-bis)
 it turned out that hard multi-element rows split badly **≈1 run in 4**. One of those runs collapsed
-row 35 entirely into a single unclassified element. `npm run gaps` flagged it with four gaps: the
+row 35 entirely into a single unclassified element. `pnpm run gaps` flagged it with four gaps: the
 nut, the washer, and their two standards, all unplaced.
 
 In other words: **an unstable split doesn't get delivered silently.** It comes out as a row that
@@ -119,10 +158,13 @@ table arbitrates** — a suffix is kept only if the suffixed designation exists 
 
 Detecting is half of it. The rest is designed and not built, and is stated as such.
 
-**The vocabulary as data, not as code.** Today the tables are TypeScript and the policies are an
-object with flags. A versioned `vocabulary.json`, with `who / when / why` per entry, turns
-"changing a rule" into an auditable data change instead of a deployment. The client can read it; a
-`.ts` file, no.
+**Rules as data, not as code.** Today the name, quality, standard, and finish tables are still
+TypeScript. Material derivation has already moved to SQLite with an append-only log in git, and the
+policy flags already genuinely toggle from the environment (2026-08-22) — but the two things are
+different objects and have to be treated as such: the vocabulary decides **values** and is approved
+with an ambiguity guard; a policy decides **behavior** and is approved with **the KPI delta**. The
+full taxonomy, and the per-issuer scope that policies still lack, is in `03-policies.md` §"What
+kind of object a policy is."
 
 **Fail closed.** A gap should **block** resolution by default, not tag along with it. Today gaps
 are reported alongside a line that's already been resolved by default. That's halfway there: the
@@ -134,10 +176,35 @@ vocabulary. That log already exists in the front-end design; what's missing is c
 correction → proposed entry → decision → rule. With that, the client has the first gold set of
 their history within three weeks, which today doesn't exist anywhere in the company.
 
+**The issuer, stamped on the gap.** Today a `PolicyGap` (`src/pipeline/coverage.ts`) doesn't say
+which firm the row came from, so the decision backlog is **global**. With that, the same gap seen
+across two firms collapses into a single decision, and the system can't tell apart two things that
+have nothing in common:
+
+| What's seen | What it is | Action |
+|---|---|---|
+| A gap that repeats | **A rule is missing** | decide, and it applies to everyone |
+| A gap that repeats **only for one issuer** | **That's how that issuer writes** | a convention, not a rule |
+
+It's the same confusion as in §3 —`UNPLACED_EVIDENCE` doing two jobs— one floor up: the decision
+backlog fills up with things that aren't decisions, but ways of writing.
+
+And it separates two costs that the deferral in `03-policies.md` §"The scope" lumps together.
+**Observing** the convention is one more field on top of the provenance that already exists, and
+it **doesn't split** the KPI: it breaks it down, the global figure stays the aggregate. **Acting**
+on it —policies scoped per issuer— does carry the price written there. Only the second is
+deferred. And when the time comes, the warning is already built: it's the same override mechanism
+that shouts *"these figures are NOT comparable to the published ones,"* with one more dimension.
+
 **The gap rate as a product metric.** It's the figure that makes the promise falsifiable. The first
 MTO from a new firm has a high gap rate; it decays as decisions pile up. That can be measured, and
 the client can be told *"the system is learning your vocabulary, and here's the curve"* instead of
 just being promised it.
+
+With the nuance above: **the curve is per issuer or it's nothing.** A global rate averages
+populations the client itself says are different —*"no two MTOs are alike"*—, and an average over
+different populations doesn't decay from learning, it decays from mixing. It's half of Jeremie's
+sentence that the rest of this document doesn't answer.
 
 **Two more detectors, designed:** combinations never seen (a washer with a hex-bolt standard) and
 row shapes never seen (more than N elements, two primaries, an element with no name).

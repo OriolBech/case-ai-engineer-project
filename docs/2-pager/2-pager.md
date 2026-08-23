@@ -54,8 +54,8 @@ Excel → 1 ingest → 2+3 analyze → 4 normalize → 5 validate → 6 critic �
 | 1 ingest | No | Es I/O, y donde entra un MTO de otro estudio | No hay entrada. 2 bugs sólo visibles con otro formato |
 | **2+3 analyze** | **Sí** | Delimitar el set y **atribuir** cada valor a su elemento es comprensión, no búsqueda | 15 líneas donde hay 30: el 47% de las filas son multi-material |
 | 4 normalize | No | Son 4 tablas cerradas del cliente. Un LLM aquí puede inventar una equivalencia que no está en su tabla | Se paga por un riesgo, sin comprar nada |
-| 5 validate | No | Obligaciones, coherencias y las 9 políticas, con motivo tipado | Desaparece la distinción "falta el dato" / "no estoy seguro" |
-| 6 critic | Sí | Caza la **atribución** mala: una norma en el campo calidad. El verificador de spans no puede verlo, porque el valor sí está en el texto | Vuelven entre 1 y 5 errores silenciosos |
+| 5 validate | No | Obligaciones, coherencias y las 11 políticas, con motivo tipado | Desaparece la distinción "falta el dato" / "no estoy seguro" |
+| 6 critic | Sí | Caza la **atribución** mala: una norma en el campo calidad. El verificador de spans no puede verlo, porque el valor sí está en el texto. A esfuerzo `high` —su propio dial, medido— da **recall 43% / precisión 100%** sobre los errores conocidos | Vuelven hasta 4 errores silenciosos |
 
 **El hallazgo principal no es un modelo: es una frontera.** Tres veces he movido una decisión del
 modelo a una tabla, y las tres cerraron un error real:
@@ -100,7 +100,8 @@ sólo por error silencioso, el peor sale **primero**; hacen falta las cuatro mé
    sin compararse, siendo la única donde un error *multiplica* el pedido. Falta el segundo pase ciego,
    que es la cota inferior de la tasa de error humana.
 3. **Una medida sola no dice nada.** El crítico daba recall 29% en una pasada; en tres da **14%, 43%
-   y 71%** sobre la misma entrada. Estuve a punto de quitar el componente por una muestra.
+   y 71%** sobre la misma entrada. Estuve a punto de quitar el componente por una muestra. La
+   precisión sí se estabilizó al subir su esfuerzo de razonamiento: 100%, medido.
 
 ## 4. La solución objetivo
 
@@ -111,8 +112,8 @@ Ordenada por delta de KPI por hora. Las tres primeras salieron de medir, no de i
 | 1 | **Filtro determinista antes del modelo.** Una fila sin nombre de catálogo no necesita LLM. Hoy se leen las 20.000 filas para saber cuáles son las 4.000 de tornillería | **5× en coste.** 0 falsos negativos en 79 filas |
 | 2 | **Fallar cerrado**: el hueco de política **bloquea** la resolución en lugar de acompañarla | El "100% seguro" pasa a ser estructural, no un aviso |
 | 3 | **Identidad de línea estable**, del contenido y no de la columna `ITEM` (que es opcional) | Desbloquea el **diff entre revisiones**, el mayor ahorro del problema |
-| 4 | **Vocabulario como dato versionado** con quién/cuándo/por qué | Cambiar una regla es un cambio de datos auditable, no un despliegue |
-| 5 | **El front como generador de ground truth**: cada corrección es una etiqueta | El primer gold set real del cliente en 3 semanas. Desbloquea todo lo demás |
+| 4 | **Las reglas como dato**: vocabulario en dos capas (catálogo del cliente, sólo lectura · nuestros alias, editable) y consola de políticas que **enseña el delta de KPI antes de aprobar** | Cambiar una regla es un cambio auditable, no un despliegue. Medida y longitud quedan fuera del vocabulario a propósito: son gramática |
+| 5 | **El front como generador de ground truth**: cada corrección es una etiqueta, y cada sugerencia aprobada una entrada del vocabulario | El primer gold set real del cliente en 3 semanas. Y ataca el **falso no-resuelto**: la fila 63 le pedía a ingeniería una calidad que la fila sí escribía |
 
 ## 5. Qué he decidido no hacer
 
@@ -135,9 +136,9 @@ bloque. Ya pasó dos veces en pequeño: una cabecera no reconocida generó 30 l�
 acción. *Pendiente*: separar en el backlog el hueco de política del split incompleto — hoy salen igual
 y son destinatarios distintos.
 
-**2. Deriva silenciosa: otro estudio escribe distinto y nadie se entera.** Las 9 políticas se
+**2. Deriva silenciosa: otro estudio escribe distinto y nadie se entera.** Las 11 políticas se
 escribieron contra el fichero que me dieron, y **un default se dispara en silencio**. *Detector*:
-`npm run gaps`, determinista, coste 0, sobre el 100% de las filas — no pregunta "¿ha acertado el
+`pnpm run gaps`, determinista, coste 0, sobre el 100% de las filas — no pregunta "¿ha acertado el
 modelo?" sino "¿queda algo de la fila sin explicar?". En su primera ejecución encontró un bug del
 parser de normas que 88 tests no vieron. *Pendiente*: la tasa de huecos como métrica de producto, con
 su curva, que es lo que hace la promesa falsable.
