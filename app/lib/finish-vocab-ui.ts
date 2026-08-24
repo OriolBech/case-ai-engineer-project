@@ -9,17 +9,11 @@ export const FINISH_OPTIONS: { value: string; label: string; hint: string }[] = 
   { value: 'FOSFATADO', label: 'Fosfatado', hint: 'Fosfato de zinc o manganeso' },
 ];
 
-export const DECIDED_BY_KEY = 'sapira-finish-decidedBy';
-
-export function loadDecidedBy(): string {
-  if (typeof window === 'undefined') return '';
-  return window.localStorage.getItem(DECIDED_BY_KEY) ?? '';
-}
-
-export function saveDecidedBy(name: string): void {
-  if (typeof window === 'undefined' || !name.trim()) return;
-  window.localStorage.setItem(DECIDED_BY_KEY, name.trim());
-}
+/**
+ * No hay autenticación: el vocabulario no atribuye decisiones a una persona concreta. Toda alta desde
+ * la UI se firma con este actor genérico, y la vista nunca pide ni muestra un nombre propio.
+ */
+export const VOCAB_ACTOR = 'compras';
 
 /** Línea con acabado extraído que la tabla aún no reconoce. */
 export function lineNeedsFinishVocab(line: {

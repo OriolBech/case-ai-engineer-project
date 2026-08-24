@@ -18,8 +18,7 @@ import { useEffect, useState } from 'react';
 
 const TABS = [
   { href: '/como-funciona', label: 'Cómo funciona' },
-  { href: '/vocabulario', label: 'Material' },
-  { href: '/vocabulario/acabado', label: 'Acabado' },
+  { href: '/vocabulario', label: 'Vocabulario' },
   { href: '/mto-history', label: 'Histórico' },
 ];
 

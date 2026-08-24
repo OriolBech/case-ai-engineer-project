@@ -5,7 +5,8 @@
  * candidato de vocabulario/gold -> regresión -> promoción`. El que NO está permitido es que una
  * predicción del sistema se convierta en corrección por sí sola: por eso no existe ninguna función
  * que cree una `human_correction` a partir de una `evaluation_line` sin pasar por
- * `proposeCorrection`, que exige autor, motivo y evidencia LITERAL de la fila.
+ * `proposeCorrection`, que exige motivo y evidencia LITERAL de la fila. No hay login:
+ * `author` es una etiqueta opcional, no una identidad.
  *
  * Esta primera implementación cubre el modelo y sus restricciones. La promoción real — escribir en
  * `vocabulary-db.ts` o proponer un cambio de gold, y ejecutar antes la batería de regresión — queda
@@ -15,7 +16,8 @@
  */
 import { randomUUID } from 'node:crypto';
 import { openHistoryDb } from './db.ts';
-import { addEntry as addFinishEntry, FINISH_CATALOG, type Finish } from '../../rules/finish-db.ts';
+import { addEntry as addFinishEntry } from '../../rules/finish-db.ts';
+import { fold } from '../../rules/text.ts';
 
 export type CorrectionStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PROMOTED';
 
@@ -43,7 +45,8 @@ export interface NewCorrection {
   previousValue: string | null;
   correctedValue: string | null;
   evidence: string;
-  author: string;
+  /** Etiqueta opcional. Vacío es válido: no hay autenticación en este case. */
+  author?: string;
   rationale: string;
 }
 
@@ -58,7 +61,6 @@ export function proposeCorrection(input: NewCorrection, rowSourceText: string, a
   if (!input.evidence.trim()) {
     throw new Error('Falta evidencia literal. Una corrección sólo puede registrarse sobre la fila original.');
   }
-  if (!input.author.trim()) throw new Error('Falta el autor de la corrección.');
   if (!input.rationale.trim()) throw new Error('Falta el motivo de la corrección.');
 
   const norm = (s: string) => s.normalize('NFKC').replace(/\s+/g, ' ').trim().toUpperCase();
@@ -88,7 +90,7 @@ export function proposeCorrection(input: NewCorrection, rowSourceText: string, a
       input.previousValue,
       input.correctedValue,
       input.evidence,
-      input.author,
+      input.author?.trim() ?? '',
       input.rationale,
     );
   return id;
@@ -109,6 +111,93 @@ function toCorrection(r: Record<string, unknown>): HumanCorrection {
     rationale: r.rationale as string,
     status: r.status as CorrectionStatus,
     promotedEntryId: (r.promoted_entry_id as string | null) ?? null,
+  };
+}
+
+/** Dos valores distintos sobre la misma celda: regla de casa pendiente, no bug del modelo. SPEC-015. */
+export interface ValueConflict {
+  rowRef: string;
+  attribute: string;
+  evidence: string;
+  values: Array<{ value: string | null; at: string; correctionId: string }>;
+  status: 'UNRESOLVED';
+}
+
+const ACTIVE_CONFLICT_STATUSES: readonly CorrectionStatus[] = ['PENDING', 'APPROVED'];
+
+function conflictKey(c: Pick<HumanCorrection, 'rowRef' | 'attribute' | 'evidence'>): string {
+  return `${c.rowRef}\0${c.attribute}\0${c.evidence}`;
+}
+
+function normValue(v: string | null): string {
+  return v?.trim() ?? '';
+}
+
+/**
+ * Detecta correcciones PENDING/APPROVED con el mismo `(rowRef, attribute, evidence)` y valores
+ * distintos. Ninguna se promociona sola; `classifyPromotion(_, true)` devuelve `policy_decision`.
+ */
+export function listValueConflicts(): ValueConflict[] {
+  const active = listCorrections().filter((c) => (ACTIVE_CONFLICT_STATUSES as readonly string[]).includes(c.status));
+  const groups = new Map<string, HumanCorrection[]>();
+  for (const c of active) {
+    const k = conflictKey(c);
+    const g = groups.get(k) ?? [];
+    g.push(c);
+    groups.set(k, g);
+  }
+  const out: ValueConflict[] = [];
+  for (const items of groups.values()) {
+    const distinct = new Set(items.map((c) => normValue(c.correctedValue)));
+    if (distinct.size <= 1) continue;
+    out.push({
+      rowRef: items[0]!.rowRef,
+      attribute: items[0]!.attribute,
+      evidence: items[0]!.evidence,
+      values: items.map((c) => ({ value: c.correctedValue, at: c.createdAt, correctionId: c.id })),
+      status: 'UNRESOLVED',
+    });
+  }
+  return out;
+}
+
+/** True si la corrección participa en un conflicto de valor sin resolver. */
+export function isInValueConflict(correctionId: string): boolean {
+  return listValueConflicts().some((c) => c.values.some((v) => v.correctionId === correctionId));
+}
+
+export interface CorrectionKpi {
+  pending: number;
+  approved: number;
+  promoted: number;
+  rejected: number;
+  conflicts: number;
+  /** conflicts / (conflicts + aprobadas + rechazadas + promovidas). null si aún no hay decisiones. */
+  conflictRate: number | null;
+  promotedVerified: number;
+  promotedWrong: number;
+  silentErrorRate: number | null;
+}
+
+/** KPI propio de correcciones humanas, aparte del pipeline y de las sugerencias. SPEC-015. */
+export function correctionKpi(): CorrectionKpi {
+  const all = listCorrections();
+  const pending = all.filter((c) => c.status === 'PENDING').length;
+  const approved = all.filter((c) => c.status === 'APPROVED').length;
+  const promoted = all.filter((c) => c.status === 'PROMOTED').length;
+  const rejected = all.filter((c) => c.status === 'REJECTED').length;
+  const conflicts = listValueConflicts().length;
+  const decided = conflicts + approved + rejected + promoted;
+  return {
+    pending,
+    approved,
+    promoted,
+    rejected,
+    conflicts,
+    conflictRate: decided ? conflicts / decided : null,
+    promotedVerified: 0,
+    promotedWrong: 0,
+    silentErrorRate: null,
   };
 }
 
@@ -174,18 +263,15 @@ export function promoteCorrection(id: string, regressionPassed: boolean, promote
   if (c.attribute === 'finish') {
     const alias = (c.previousValue ?? c.evidence).trim();
     if (!alias) throw new Error('Falta el alias de acabado a promover.');
-    const target = (c.correctedValue ?? '').trim();
-    const isNotFinish = target.toLowerCase() === 'not_a_finish' || target.toLowerCase() === 'no-acabado';
-    if (!isNotFinish && !FINISH_CATALOG.includes(target as Finish)) {
-      throw new Error(
-        `'${target}' no es uno de los siete acabados de §9. Un octavo acabado no se promueve por autoservicio.`,
-      );
-    }
+    const rawTarget = (c.correctedValue ?? '').trim();
+    const isNotFinish = rawTarget.toLowerCase() === 'not_a_finish' || rawTarget.toLowerCase() === 'no-acabado';
+    const target = isNotFinish ? null : fold(rawTarget);
+    if (!isNotFinish && !target) throw new Error('Falta el acabado canónico a promover.');
     addFinishEntry({
       id: promotedEntryId,
       alias,
       kind: isNotFinish ? 'not_a_finish' : 'alias',
-      finish: isNotFinish ? null : (target as Finish),
+      finish: target,
       source: 'added',
       rationale: c.rationale,
       decidedBy: c.author,

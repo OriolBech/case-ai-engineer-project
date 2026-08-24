@@ -50,17 +50,16 @@ const STAGES = [
   },
   {
     n: 4,
-    title: 'Vocabulario de material',
+    title: 'Vocabulario',
     llm: false,
-    spec: 'src/rules/vocabulary-db.ts',
-    summary: 'Tabla cerrada (SQLite) que deriva AC / INOX a partir de la calidad extraída.',
+    spec: 'SPEC-012',
+    summary: 'Una sola vista: material y acabado editables; nombre, calidad y norma en solo lectura.',
     detail:
-      'El MTO casi nunca escribe el material explícitamente. Esta tabla decide "A4-70 → INOX", ' +
-      '"8.8 → AC", etc. — cerrada (sólo deriva lo que está en la tabla), trazable (cada entrada ' +
-      'lleva quién la decidió, cuándo y con qué argumento) y ampliable sin desplegar código: un ' +
-      'comprador puede añadir un caso nuevo desde la página de Vocabulario. Una calidad que no ' +
-      'cubre ninguna entrada no se resuelve con material vacío en silencio: se apunta como un hueco ' +
-      'de política.',
+      'El MTO casi nunca escribe el material explícitamente. La tabla de material decide "A4-70 → INOX", ' +
+      '"8.8 → AC". La de acabado (SPEC-011) traduce alias al catálogo de §9. Las dos son dato ' +
+      '(SQLite + log en git), trazables y ampliables desde /vocabulario sin desplegar. Un acabado ' +
+      'que la tabla no conoce no se resuelve como "sin acabado": P-12 lo manda a revisión. Nombre, ' +
+      'calidad y norma se listan igual, todavía solo lectura: son el catálogo cerrado del cliente.',
   },
   {
     n: 5,
@@ -79,7 +78,7 @@ const STAGES = [
     title: 'Validación',
     llm: false,
     spec: 'SPEC-005',
-    summary: 'Reglas booleanas: aplica las políticas P-1…P-9 y decide el estado de la línea.',
+    summary: 'Reglas booleanas: aplica las políticas P-1…P-12 y decide el estado de la línea.',
     detail:
       'Comprueba coherencia calidad/tipo, norma y calidad presentes, plausibilidad de unidades, y ' +
       'aplica el resto de políticas de negocio (ver más abajo). Sin modelo, a propósito: son reglas ' +
@@ -107,14 +106,15 @@ const STAGES = [
     title: 'Estado final',
     llm: false,
     spec: 'SPEC-007 / SPEC-008',
-    summary: 'Cada línea sale por uno de cuatro canales — nunca se mezclan.',
+    summary: 'Cada línea sale por uno de tres canales — nunca se mezclan.',
     detail:
-      'RESUELTA → lista para RFQ. REVISION_MANUAL con un dato ausente en el propio Excel → cola de ' +
-      'ingeniería, porque ningún comprador puede rellenar un dato que nunca se escribió. ' +
-      'REVISION_MANUAL por baja confianza con el dato presente → cola del comprador. Y la fila que ' +
-      'no es tornillería (una brida, una junta) → su propia cola, porque no le falta ningún dato ' +
-      'que ingeniería pueda arreglar: es de otra familia, y no cuenta en los porcentajes. Aparte de ' +
-      'las cuatro, sin mezclarse con ninguna: un caso que ninguna política cubre abre un "hueco de ' +
+      'RESUELTA → lista para RFQ. REVISION_MANUAL → una sola cola "En revisión", tanto si falta un ' +
+      'dato en el propio Excel (que acaba siendo de ingeniería, porque ningún comprador rellena un ' +
+      'dato que nunca se escribió) como si es baja confianza con el dato presente: para quien revisa ' +
+      'el MTO son el mismo gesto —mirar una línea sin resolver—, así que se agrupan y se validan en ' +
+      'el mismo sitio. Y la fila que no es tornillería (una brida, una junta) → su propia cola, ' +
+      'porque no le falta ningún dato: es de otra familia, y no cuenta en los porcentajes. Aparte de ' +
+      'las tres, sin mezclarse con ninguna: un caso que ninguna política cubre abre un "hueco de ' +
       'política" — una decisión que el proyecto debe, no un dato que revisar.',
   },
 ];
@@ -152,6 +152,9 @@ const POLICIES = [
   { id: 'P-7', name: 'Calidad ausente', decision: 'El sistema manda a revisión; la persona decide si crea el elemento sin calidad' },
   { id: 'P-8', name: 'Durezas HV fuera de arandela', decision: 'Se resuelve: las reglas restringen 8/10 a tuercas explícitamente y no dicen nada de HV' },
   { id: 'P-9', name: 'Fila que no es tornillería', decision: 'Cola aparte, "no es tornillería, no lo proceso"; nunca se fuerza al catálogo' },
+  { id: 'P-10', name: 'Número desnudo en la medida de un set', decision: 'Se descarta; §2 pone la medida bien formada del hermano' },
+  { id: 'P-11', name: 'Valor que P-10 descarta', decision: 'Si es calidad de catálogo y coherente con el tipo, se recupera' },
+  { id: 'P-12', name: 'Acabado que el vocabulario no reconoce', decision: 'Va a revisión (UNMAPPED_VALUE); no se exporta como si no llevara acabado' },
 ];
 
 export default function ComoFuncionaPage() {

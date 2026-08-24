@@ -2,23 +2,34 @@
  *  presentation: how a Provenance reads, which queue a line belongs to, how to group and export. */
 import { ATTRIBUTE_KEYS, type OutputLine, type Provenance, type ReasonKind } from '../../src/pipeline/types.ts';
 
-export type Queue = 'resuelta' | 'ingenieria' | 'comprador' | 'fuera-familia';
+export type Queue = 'resuelta' | 'revision' | 'fuera-familia';
 
 /**
- * §SPEC-008: separate queues by reason kind, because each one is a different person's next move.
+ * Tres destinos, no cinco. Antes se separaba "vuelve a ingeniería" (dato ausente en el Excel) de
+ * "revisión del comprador" (decisión o normalización): dos personas, dos siguientes pasos. En la
+ * práctica, para quien revisa el MTO era una distinción que obligaba a mirar en dos sitios lo mismo
+ * —una línea sin resolver—, así que se agrupan en una sola cola "En revisión".
  *
- * OUT_OF_SCOPE goes first and on its own (P-9). A flange is not a fastener whose data is missing,
- * so it is not engineering's to fix — the row is already right. It belongs to whoever buys the
- * other families, and putting it in the engineering queue would be sending back work that nobody
- * asked for, in the queue the case statement says must stay clean. Then MISSING_IN_SOURCE goes
- * back to engineering — no buyer action fixes a value that was never written. Everything else
- * unresolved is the buyer's.
+ * Lo único que sigue aparte es OUT_OF_SCOPE (P-9): una brida no es un tornillo al que le falte un
+ * dato, la fila ya está bien, así que no es "revisión" sino "otra familia" —y no cuenta en los
+ * porcentajes—.
  */
 export function queueOf(line: OutputLine): Queue {
   if (line.status === 'RESUELTA') return 'resuelta';
   const kinds = new Set<ReasonKind>(line.reasons.map((r) => r.kind));
   if (kinds.has('OUT_OF_SCOPE')) return 'fuera-familia';
-  return kinds.has('MISSING_IN_SOURCE') ? 'ingenieria' : 'comprador';
+  return 'revision';
+}
+
+/**
+ * La cola efectiva de cara a la UI, contando lo que el humano ya validó en esta sesión.
+ *
+ * Una línea validada, o una sugerencia de vocabulario ya guardada, cuenta como resuelta aunque el
+ * pipeline no la marcase `RESUELTA`: la decisión la ha tomado una persona. Guardar es decidir.
+ */
+export function effectiveQueue(line: OutputLine, validatedIds: ReadonlySet<string>): Queue {
+  if (validatedIds.has(line.id)) return 'resuelta';
+  return queueOf(line);
 }
 
 /**

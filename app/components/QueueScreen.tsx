@@ -3,13 +3,12 @@
 import { useMemo, useState } from 'react';
 import { ATTRIBUTE_KEYS, type OutputLine, type ReasonCode } from '../../src/pipeline/types.ts';
 import {
-  downloadCsv, groupByFamily, groupByRow, isMarked, linesToCsv, queueOf, type RowGroup,
+  downloadCsv, effectiveQueue, groupByFamily, groupByRow, isMarked, linesToCsv, queueOf, type RowGroup,
 } from '../lib/derive.ts';
 import { lineNeedsFinishVocab } from '../lib/finish-vocab-ui.ts';
-import { FinishVocabAddPanel } from './FinishVocabAddPanel.tsx';
 import { StatusBadge } from './StatusBadge.tsx';
 
-type Tab = 'todas' | 'resuelta' | 'ingenieria' | 'comprador' | 'fuera-familia';
+type Tab = 'todas' | 'resuelta' | 'revision' | 'fuera-familia';
 type GroupMode = 'fila' | 'familia';
 
 const PAGE_SIZE = 20;
@@ -37,14 +36,17 @@ export function QueueScreen({
   lines,
   rowsSourceText,
   confirmed,
-  onConfirm,
+  onValidate,
   onOpenTrace,
+  processedMtoId,
 }: {
   lines: OutputLine[];
   rowsSourceText: Map<string, string>;
   confirmed: Set<string>;
-  onConfirm: (ids: string[]) => void;
+  onValidate: (ids: string[]) => void;
   onOpenTrace: (lineId: string) => void;
+  /** Id del MTO en histórico; necesario para registrar exportación RFQ. */
+  processedMtoId?: string | null;
 }) {
   const [tab, setTab] = useState<Tab>('todas');
   const [groupMode, setGroupMode] = useState<GroupMode>('fila');
@@ -52,21 +54,20 @@ export function QueueScreen({
   const [reasonFilter, setReasonFilter] = useState<ReasonCode | 'todos'>('todos');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
-  const [finishVocabLine, setFinishVocabLine] = useState<string | null>(null);
 
   const counts = useMemo(() => {
-    const c = { todas: lines.length, resuelta: 0, ingenieria: 0, comprador: 0, 'fuera-familia': 0 };
-    for (const l of lines) c[queueOf(l)]++;
+    const c = { todas: lines.length, resuelta: 0, revision: 0, 'fuera-familia': 0 };
+    for (const l of lines) c[effectiveQueue(l, confirmed)]++;
     return c;
-  }, [lines]);
+  }, [lines, confirmed]);
 
   const byTab = useMemo(() => {
     if (tab === 'todas') return lines;
-    return lines.filter((l) => queueOf(l) === tab);
-  }, [lines, tab]);
+    return lines.filter((l) => effectiveQueue(l, confirmed) === tab);
+  }, [lines, tab, confirmed]);
 
   const reasonOptions = useMemo(() => {
-    if (tab !== 'comprador' && tab !== 'ingenieria') return [];
+    if (tab !== 'revision') return [];
     const m = new Map<ReasonCode, { message: string; n: number }>();
     for (const l of byTab) for (const r of l.reasons) {
       const e = m.get(r.code) ?? { message: r.message, n: 0 };
@@ -99,7 +100,7 @@ export function QueueScreen({
   const pageClamped = Math.min(page, totalPages - 1);
   const pageGroups = groups.slice(pageClamped * PAGE_SIZE, pageClamped * PAGE_SIZE + PAGE_SIZE);
 
-  const showCheckboxes = tab === 'comprador';
+  const showCheckboxes = tab === 'revision';
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -112,13 +113,19 @@ export function QueueScreen({
   const selectableIds = bySearchAndReason.filter((l) => !confirmed.has(l.id)).map((l) => l.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
 
-  const exportCsv = (which: 'resueltas' | 'ingenieria' | 'comprador' | 'fuera-familia') => {
+  const exportCsv = (which: 'resueltas' | 'revision' | 'fuera-familia') => {
     const source =
-      which === 'resueltas' ? lines.filter((l) => queueOf(l) === 'resuelta' || confirmed.has(l.id))
-      : which === 'ingenieria' ? lines.filter((l) => queueOf(l) === 'ingenieria')
+      which === 'resueltas' ? lines.filter((l) => effectiveQueue(l, confirmed) === 'resuelta')
       : which === 'fuera-familia' ? lines.filter((l) => queueOf(l) === 'fuera-familia')
-      : lines.filter((l) => queueOf(l) === 'comprador' && !confirmed.has(l.id));
+      : lines.filter((l) => effectiveQueue(l, confirmed) === 'revision');
     downloadCsv(`mto_${which}.csv`, linesToCsv(source));
+    if (which === 'resueltas' && processedMtoId && source.length > 0) {
+      void fetch('/api/revisions/rfq-export', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ revisionId: processedMtoId, lineIds: source.map((l) => l.id) }),
+      }).catch(() => { /* el CSV ya bajó; el registro es best-effort */ });
+    }
   };
 
   return (
@@ -131,13 +138,10 @@ export function QueueScreen({
           <button className={`tab${tab === 'resuelta' ? ' active' : ''}`} onClick={() => { setTab('resuelta'); setPage(0); setSelected(new Set()); }}>
             Resueltas <span className="count">{counts.resuelta}</span>
           </button>
-          <button className={`tab${tab === 'ingenieria' ? ' active' : ''}`} onClick={() => { setTab('ingenieria'); setPage(0); setSelected(new Set()); }}>
-            Vuelve a ingeniería <span className="count">{counts.ingenieria}</span>
+          <button className={`tab${tab === 'revision' ? ' active' : ''}`} onClick={() => { setTab('revision'); setPage(0); setSelected(new Set()); }}>
+            En revisión <span className="count">{counts.revision}</span>
           </button>
-          <button className={`tab${tab === 'comprador' ? ' active' : ''}`} onClick={() => { setTab('comprador'); setPage(0); setSelected(new Set()); }}>
-            Revisión del comprador <span className="count">{counts.comprador}</span>
-          </button>
-          {/* P-9: ni resuelta, ni tuya, ni de ingeniería. Es de quien compra las otras familias. */}
+          {/* P-9: ni resuelta ni "en revisión". Es de quien compra las otras familias. */}
           {counts['fuera-familia'] > 0 && (
             <button className={`tab${tab === 'fuera-familia' ? ' active' : ''}`} onClick={() => { setTab('fuera-familia'); setPage(0); setSelected(new Set()); }}>
               No es tornillería <span className="count">{counts['fuera-familia']}</span>
@@ -187,9 +191,9 @@ export function QueueScreen({
           <span className="bulkbar-count"><b>{selected.size}</b> líneas seleccionadas</span>
           <button
             className="wf-btn primary small"
-            onClick={() => { onConfirm([...selected]); setSelected(new Set()); }}
+            onClick={() => { onValidate([...selected]); setSelected(new Set()); }}
           >
-            Confirmar por el comprador
+            Validar seleccionadas
           </button>
           <button className="wf-btn small" onClick={() => setSelected(new Set())}>Deseleccionar</button>
         </div>
@@ -230,7 +234,7 @@ export function QueueScreen({
             {g.lines.map((l) => (
               <div key={l.id} className="line-block">
                 <div
-                  className={`linerow${selected.has(l.id) ? ' selected' : ''}${finishVocabLine === l.id ? ' vocab-open' : ''}`}
+                  className={`linerow${selected.has(l.id) ? ' selected' : ''}`}
                   onClick={() => onOpenTrace(l.id)}
                 >
                   <span className="cell-check" onClick={(e) => e.stopPropagation()}>
@@ -252,7 +256,7 @@ export function QueueScreen({
                       <span className="attr-mark" title={`cantidad ${l.quantityProvenance}`}>●</span>
                     )}
                   </span>
-                  <span className="cell-reason" onClick={(e) => e.stopPropagation()}>
+                  <span className="cell-reason">
                     <StatusBadge line={l} confirmed={confirmed.has(l.id)} />
                     {l.reasons[0] && (
                       <span className="reason-text" title={l.reasons.map((r) => r.message).join(' · ')}>
@@ -263,26 +267,10 @@ export function QueueScreen({
                       <span className="reason-more">+{l.reasons.length - 1} motivo(s) más</span>
                     )}
                     {lineNeedsFinishVocab(l) && (
-                      <button
-                        type="button"
-                        className={`wf-btn small line-vocab-btn${finishVocabLine === l.id ? ' on' : ''}`}
-                        onClick={() => setFinishVocabLine((cur) => (cur === l.id ? null : l.id))}
-                      >
-                        {finishVocabLine === l.id ? 'Cerrar vocabulario' : 'Acabado → vocabulario'}
-                      </button>
+                      <span className="reason-hint">Clic para decidir el acabado</span>
                     )}
                   </span>
                 </div>
-                {finishVocabLine === l.id && lineNeedsFinishVocab(l) && l.attributes.finish.raw && (
-                  <div className="linerow-vocab" onClick={(e) => e.stopPropagation()}>
-                    <FinishVocabAddPanel
-                      defaultAlias={l.attributes.finish.raw}
-                      source="UI comprador (línea)"
-                      onDone={() => setFinishVocabLine(null)}
-                      onCancel={() => setFinishVocabLine(null)}
-                    />
-                  </div>
-                )}
               </div>
             ))}
           </div>
@@ -302,8 +290,7 @@ export function QueueScreen({
         {counts['fuera-familia'] > 0 && (
           <button className="wf-btn" onClick={() => exportCsv('fuera-familia')}>Exportar otras familias (CSV)</button>
         )}
-        <button className="wf-btn" onClick={() => exportCsv('ingenieria')}>Exportar a ingeniería (CSV)</button>
-        <button className="wf-btn" onClick={() => exportCsv('comprador')}>Exportar revisión pendiente (CSV)</button>
+        <button className="wf-btn" onClick={() => exportCsv('revision')}>Exportar en revisión (CSV)</button>
         <button className="wf-btn primary" onClick={() => exportCsv('resueltas')}>Exportar RFQ · resueltas (CSV)</button>
       </div>
     </div>

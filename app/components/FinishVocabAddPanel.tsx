@@ -1,21 +1,30 @@
 'use client';
 
 /**
- * Formulario compartido para dar de alta un alias de acabado desde la UI de compras.
- * Permite retocar alias, catálogo, motivo y evidencia antes de guardar.
+ * Captura ágil de acabado desde la cola o el backlog, sobre la fachada única `/api/vocabulary`.
+ *
+ * No bloquea: una entrada que dispararía una guarda (alias corto, ambigüedad, regresión) se guarda
+ * igual y sus avisos se pintan en ámbar. Solo lo estructuralmente imposible (id repetido, alias sin
+ * acabado) devuelve error. El enlace "más espacio" abre la vista única del vocabulario prefiltrada en acabado.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { suggestFinishEntryId } from '../../src/rules/finish-vocab-id.ts';
-import {
-  FINISH_OPTIONS, loadDecidedBy, saveDecidedBy,
-} from '../lib/finish-vocab-ui.ts';
+import { VOCAB_ACTOR } from '../lib/finish-vocab-ui.ts';
+import type { VocabResolution } from '../../src/rules/vocab-model.ts';
+import type { SuggestionPatch } from './App.tsx';
+import { FinishDecisionFields, type FinishDecision } from './FinishDecisionFields.tsx';
 
 export interface FinishVocabAddPanelProps {
   defaultAlias: string;
   defaultFinish?: string;
+  /** Catálogo dinámico (semilla + añadidos). Si falta, se pide al montar. */
+  finishCatalog?: string[];
+  /** Contexto de dónde sale (línea, backlog…): se guarda como evidencia si no se escribe otra. */
   source?: string;
   /** Empieza colapsado con un botón (p. ej. panel KPI). */
   collapsible?: boolean;
+  /** Re-aplica la decisión en caliente a las líneas del MTO abierto y las da por resueltas. */
+  onApplied?: (p: SuggestionPatch) => void;
   onDone?: (alias: string) => void;
   onCancel?: () => void;
 }
@@ -23,27 +32,47 @@ export interface FinishVocabAddPanelProps {
 export function FinishVocabAddPanel({
   defaultAlias,
   defaultFinish = 'CINCADO',
+  finishCatalog: finishCatalogProp,
   source = 'UI comprador',
   collapsible = false,
+  onApplied,
   onDone,
   onCancel,
 }: FinishVocabAddPanelProps) {
   const [open, setOpen] = useState(!collapsible);
   const [alias, setAlias] = useState(defaultAlias);
-  const [kind, setKind] = useState<'alias' | 'not_a_finish'>('alias');
-  const [finish, setFinish] = useState(defaultFinish);
+  const [decision, setDecision] = useState<FinishDecision>('catalog');
+  const [catalogFinish, setCatalogFinish] = useState(defaultFinish);
+  const [newFinishName, setNewFinishName] = useState('');
+  const [finishCatalog, setFinishCatalog] = useState<string[]>(finishCatalogProp ?? []);
   const [rationale, setRationale] = useState('');
   const [evidence, setEvidence] = useState('');
-  const [decidedBy, setDecidedBy] = useState(() => loadDecidedBy());
   const [allowShort, setAllowShort] = useState(defaultAlias.trim().length < 3);
   const [state, setState] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [preview, setPreview] = useState<string | null>(null);
 
   useEffect(() => { setAlias(defaultAlias); }, [defaultAlias]);
 
+  useEffect(() => {
+    if (finishCatalogProp?.length) setFinishCatalog(finishCatalogProp);
+  }, [finishCatalogProp]);
+
+  useEffect(() => {
+    if (finishCatalogProp?.length || !open) return;
+    (async () => {
+      try {
+        const res = await fetch('/api/vocabulary');
+        const body = await res.json();
+        if (res.ok && Array.isArray(body.finishCatalog)) setFinishCatalog(body.finishCatalog);
+      } catch { /* catálogo local de respaldo */ }
+    })();
+  }, [finishCatalogProp, open]);
+
   const suggestedId = useMemo(() => suggestFinishEntryId(alias), [alias]);
   const short = alias.trim().length > 0 && alias.trim().length < 3;
+  const newNameMissing = decision === 'new' && !newFinishName.trim();
 
   useEffect(() => {
     const text = alias.trim();
@@ -53,18 +82,14 @@ export function FinishVocabAddPanel({
     }
     const t = window.setTimeout(async () => {
       try {
-        const res = await fetch('/api/finish-vocabulary', {
+        const res = await fetch('/api/vocabulary', {
           method: 'PUT',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ alias: text }),
+          body: JSON.stringify({ attribute: 'finish', text }),
         });
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
-        const r = body.resolution;
-        if (r.kind === 'known') setPreview(`Ya resuelve a ${r.finish}.`);
-        else if (r.kind === 'not_a_finish') setPreview('Ya declarado como no acabado.');
-        else if (r.kind === 'ambiguous') setPreview('Ambiguo: hay varias entradas.');
-        else setPreview('Todavía desconocido — al guardar aplicará a todos los MTO.');
+        setPreview((body.resolution as VocabResolution).detail);
       } catch {
         setPreview(null);
       }
@@ -74,39 +99,54 @@ export function FinishVocabAddPanel({
 
   const submit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newNameMissing) return;
     setState('saving');
     setError(null);
+    setWarnings([]);
+    const kind = decision === 'not_a_finish' ? 'not_a_finish' : 'alias';
+    const value = decision === 'not_a_finish' ? null : decision === 'new' ? newFinishName.trim() : catalogFinish;
     try {
-      saveDecidedBy(decidedBy);
-      const res = await fetch('/api/finish-vocabulary', {
+      const res = await fetch('/api/vocabulary', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          alias: alias.trim(),
+          attribute: 'finish',
+          match: alias.trim(),
           kind,
-          finish: kind === 'alias' ? finish : null,
+          value,
           rationale: rationale.trim(),
-          evidence: evidence.trim(),
-          decidedBy: decidedBy.trim(),
-          source,
+          evidence: evidence.trim() || source,
+          decidedBy: VOCAB_ACTOR,
           allowShortAlias: allowShort || alias.trim().length < 3,
         }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      if (Array.isArray(body.finishCatalog)) setFinishCatalog(body.finishCatalog);
+      setWarnings(body.warnings ?? []);
       setState('done');
+      onApplied?.({ attribute: 'finish', match: alias.trim(), value });
       onDone?.(alias.trim());
     } catch (e2) {
       setError(e2 instanceof Error ? e2.message : String(e2));
       setState('error');
     }
-  }, [alias, kind, finish, rationale, evidence, decidedBy, allowShort, source, onDone]);
+  }, [alias, decision, catalogFinish, newFinishName, rationale, evidence, allowShort, source, onApplied, onDone, newNameMissing]);
 
   if (state === 'done') {
     return (
-      <p className="kpi-help vocab-quickadd-done">
-        Guardado. «{alias.trim()}» se aplicará igual en todos los MTO futuros.
-      </p>
+      <div className="vocab-quickadd-wrap">
+        <p className="kpi-help vocab-quickadd-done">
+          Guardado. «{alias.trim()}» se ha aplicado a las líneas de este MTO y se usará igual en los
+          MTO futuros.
+        </p>
+        {warnings.length > 0 && (
+          <div className="vocab-warning">
+            <strong>Se ha guardado igual, pero ojo:</strong>
+            <ul>{warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -118,9 +158,9 @@ export function FinishVocabAddPanel({
         </button>
         <a
           className="kpi-help vocab-quickadd-link"
-          href={`/vocabulario/acabado?alias=${encodeURIComponent(defaultAlias)}`}
+          href={`/vocabulario?attr=finish&alias=${encodeURIComponent(defaultAlias)}`}
         >
-          Abrir formulario completo
+          Abrir vocabulario
         </a>
       </div>
     );
@@ -144,63 +184,32 @@ export function FinishVocabAddPanel({
         {preview && <span className="kpi-help">{preview}</span>}
       </label>
 
-      <label>
-        Decisión
-        <select
-          value={kind}
-          onChange={(e) => setKind(e.target.value as 'alias' | 'not_a_finish')}
-        >
-          <option value="alias">Equivale a un acabado del catálogo</option>
-          <option value="not_a_finish">No es un acabado</option>
-        </select>
-      </label>
-
-      {kind === 'alias' && (
-        <label>
-          Acabado del catálogo
-          <select value={finish} onChange={(e) => setFinish(e.target.value)}>
-            {FINISH_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          <span className="kpi-help">{FINISH_OPTIONS.find((o) => o.value === finish)?.hint}</span>
-        </label>
-      )}
-
-      {kind === 'not_a_finish' && (
-        <p className="kpi-note">
-          Recubrimientos fuera de los siete (niquelado, PTFE, pintura…) no se dan de alta aquí: hay
-          que escalar al cliente.
-        </p>
-      )}
+      <FinishDecisionFields
+        decision={decision}
+        onDecisionChange={setDecision}
+        catalogValue={catalogFinish}
+        onCatalogValueChange={setCatalogFinish}
+        newFinishName={newFinishName}
+        onNewFinishNameChange={setNewFinishName}
+        finishCatalog={finishCatalog}
+        aliasText={alias}
+      />
 
       <label>
-        Motivo
+        Motivo <span className="vocab-optional">(opcional)</span>
         <input
           value={rationale}
           onChange={(e) => setRationale(e.target.value)}
           placeholder="por qué este texto es ese acabado"
-          required
         />
       </label>
 
       <label>
-        Evidencia
+        Evidencia <span className="vocab-optional">(opcional)</span>
         <input
           value={evidence}
           onChange={(e) => setEvidence(e.target.value)}
           placeholder="pliego §, norma, mail del proveedor…"
-          required
-        />
-      </label>
-
-      <label>
-        Tu nombre
-        <input
-          value={decidedBy}
-          onChange={(e) => setDecidedBy(e.target.value)}
-          placeholder="quién firma la decisión"
-          required
         />
       </label>
 
@@ -219,7 +228,7 @@ export function FinishVocabAddPanel({
         <button
           className="wf-btn primary small"
           type="submit"
-          disabled={state === 'saving' || (short && !allowShort)}
+          disabled={state === 'saving' || (short && !allowShort) || newNameMissing}
         >
           {state === 'saving' ? 'Guardando…' : 'Guardar decisión'}
         </button>
@@ -237,7 +246,7 @@ export function FinishVocabAddPanel({
         )}
         <a
           className="kpi-help vocab-quickadd-link"
-          href={`/vocabulario/acabado?alias=${encodeURIComponent(alias.trim() || defaultAlias)}`}
+          href={`/vocabulario?attr=finish&alias=${encodeURIComponent(alias.trim() || defaultAlias)}`}
         >
           Más espacio en vocabulario →
         </a>

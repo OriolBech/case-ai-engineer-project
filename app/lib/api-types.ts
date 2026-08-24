@@ -64,5 +64,5 @@ export interface ProcessSummary {
 
 export type ProcessEvent =
   | { type: 'progress'; done: number; total: number }
-  | { type: 'done'; result: ProcessSummary }
+  | { type: 'done'; result: ProcessSummary; processedMtoId?: string }
   | { type: 'error'; message: string };

@@ -2,14 +2,40 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ProcessEvent, ProcessSummary } from '../lib/api-types.ts';
-import { formatEur, formatSeconds, queueOf } from '../lib/derive.ts';
+import type { OutputLine, Provenance } from '../../src/pipeline/types.ts';
+import { effectiveQueue, formatEur, formatSeconds } from '../lib/derive.ts';
+import { postCorrection } from '../lib/corrections-client.ts';
 import { UploadScreen, type UploadProgress } from './UploadScreen.tsx';
 import { QueueScreen } from './QueueScreen.tsx';
 import { TracePanel } from './TracePanel.tsx';
 import { KpiPanel } from './KpiPanel.tsx';
 import { AppTopbar } from './AppTopbar.tsx';
+import { VocabularyView } from './VocabularyView.tsx';
 
 type Phase = 'upload' | 'processing' | 'ready';
+
+/** Una sugerencia de vocabulario aceptada y re-aplicada en caliente a una línea del MTO abierto. */
+interface AppliedPatch {
+  key: 'finish' | 'material';
+  value: string | null;
+  provenance: Provenance;
+}
+
+/** Normaliza para casar el texto del alta con el `raw` de la línea, sin acentos ni mayúsculas. */
+function norm(s: string): string {
+  return s.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/** El atributo cuyo `raw` dispara cada sugerencia: acabado por el suyo, material por la calidad. */
+function rawFor(line: OutputLine, key: 'finish' | 'material'): string | null {
+  return key === 'material' ? line.attributes.quality.raw : line.attributes.finish.raw;
+}
+
+export interface SuggestionPatch {
+  attribute: 'finish' | 'material';
+  match: string;
+  value: string | null;
+}
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('upload');
@@ -20,12 +46,33 @@ export function App() {
   const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
   const [traceLineId, setTraceLineId] = useState<string | null>(null);
   const [showKpis, setShowKpis] = useState(false);
+  const [showVocab, setShowVocab] = useState(false);
+  // Sugerencias aceptadas y re-aplicadas en caliente. `applied` sobrescribe el valor de la línea.
+  // Guardar la decisión es darla por buena: esas líneas cuentan como resueltas en esta sesión.
+  const [applied, setApplied] = useState<Map<string, AppliedPatch>>(new Map());
+  const [processedMtoId, setProcessedMtoId] = useState<string | null>(null);
 
   const rowsSourceText = useMemo(() => {
     const m = new Map<string, string>();
     if (result) for (const r of result.rows) m.set(r.itemRef, r.sourceText);
     return m;
   }, [result]);
+
+  // Las líneas tal como se pintan: con las sugerencias aceptadas ya aplicadas encima del resultado
+  // original del pipeline. El `result` crudo no se muta; el parche vive solo en esta sesión.
+  const displayLines = useMemo<OutputLine[]>(() => {
+    if (!result) return [];
+    if (applied.size === 0) return result.lines;
+    return result.lines.map((l) => {
+      const p = applied.get(l.id);
+      if (!p) return l;
+      const a = l.attributes[p.key];
+      const patched = { ...a, normalized: p.value, provenance: p.provenance, rule: 'vocab:aplicado' };
+      // Cast: `finish` está tipado con la unión `Finish`; el valor viene de FINISH_OPTIONS, así que
+      // es un `Finish` válido, pero TS no lo sabe con una clave calculada. Parche solo de pintado.
+      return { ...l, attributes: { ...l.attributes, [p.key]: patched } } as OutputLine;
+    });
+  }, [result, applied]);
 
   // Reabre un MTO desde `/mto-history`: ?mto=<id> en la URL trae el mismo `ProcessSummary` que ya
   // se enseñó en su momento, guardado por `app/api/process/route.ts` en cada procesamiento. Cero UI
@@ -34,6 +81,7 @@ export function App() {
     const id = new URLSearchParams(window.location.search).get('mto');
     if (!id) return;
     setPhase('processing');
+    setProcessedMtoId(id);
     (async () => {
       try {
         const res = await fetch(`/api/mto-history?id=${encodeURIComponent(id)}`);
@@ -78,7 +126,11 @@ export function App() {
           if (!line.trim()) continue;
           const ev = JSON.parse(line) as ProcessEvent;
           if (ev.type === 'progress') setProgress({ done: ev.done, total: ev.total });
-          else if (ev.type === 'done') { setResult(ev.result); setPhase('ready'); }
+          else if (ev.type === 'done') {
+            setResult(ev.result);
+            if (ev.processedMtoId) setProcessedMtoId(ev.processedMtoId);
+            setPhase('ready');
+          }
           else if (ev.type === 'error') throw new Error(ev.message);
         }
       }
@@ -95,13 +147,112 @@ export function App() {
     setProgress(null);
     setError(null);
     setConfirmed(new Set());
+    setApplied(new Map());
     setTraceLineId(null);
+    setProcessedMtoId(null);
     window.history.replaceState(null, '', '/');
   }, []);
 
-  const confirmLines = useCallback((ids: string[]) => {
+  // Validar = una persona da por buena la línea. Pasa a resuelta. También lo hace aceptar una
+  // sugerencia de vocabulario: guardar es decidir, no hay un segundo paso.
+  const validateLines = useCallback(async (ids: string[]) => {
+    const corrErrors: string[] = [];
+    if (result) {
+      for (const id of ids) {
+        const orig = result.lines.find((l) => l.id === id);
+        if (!orig) continue;
+        const sourceText = rowsSourceText.get(orig.rowRef);
+        if (!sourceText) continue;
+        const patch = applied.get(id);
+        if (patch) continue;
+        const display = displayLines.find((l) => l.id === id) ?? orig;
+        for (const key of ['finish', 'material'] as const) {
+          const prev = orig.attributes[key].normalized;
+          const next = display.attributes[key].normalized;
+          if (prev === next) continue;
+          const evidence = rawFor(orig, key) ?? orig.attributes[key].raw;
+          if (!evidence) continue;
+          try {
+            await postCorrection({
+              rowRef: orig.rowRef,
+              lineId: orig.id,
+              attribute: key,
+              previousValue: prev,
+              correctedValue: next,
+              evidence,
+              rationale: 'Corregido en cola',
+              rowSourceText: sourceText,
+            });
+          } catch (e) {
+            corrErrors.push(e instanceof Error ? e.message : String(e));
+          }
+        }
+      }
+    }
+    if (corrErrors.length) setError(corrErrors.join(' · '));
     setConfirmed((prev) => new Set([...prev, ...ids]));
-  }, []);
+  }, [result, rowsSourceText, applied, displayLines]);
+
+  const recordPatchCorrection = useCallback(
+    async (line: OutputLine, patch: AppliedPatch, match: string) => {
+      const sourceText = rowsSourceText.get(line.rowRef);
+      if (!sourceText) throw new Error(`No hay texto de fila para ${line.rowRef}.`);
+      const evidence = rawFor(line, patch.key) ?? line.attributes[patch.key].raw ?? match;
+      if (!evidence) throw new Error(`Falta evidencia literal en la línea ${line.id}.`);
+      await postCorrection({
+        rowRef: line.rowRef,
+        lineId: line.id,
+        attribute: patch.key,
+        previousValue: line.attributes[patch.key].normalized,
+        correctedValue: patch.value,
+        evidence,
+        rationale: 'Corregido en cola',
+        rowSourceText: sourceText,
+      });
+    },
+    [rowsSourceText],
+  );
+
+  // Aceptar una sugerencia: re-aplica el vocabulario en caliente a las líneas del MTO abierto cuyo
+  // texto coincide, y las da por resueltas en esta sesión.
+  const applySuggestion = useCallback(async (p: SuggestionPatch) => {
+    if (!result) return;
+    if (p.attribute === 'material' && !p.value) return;
+    const value = p.value;
+    const provenance: Provenance =
+      p.attribute === 'material' ? 'derived' : value === null ? 'absent' : 'table_normalized';
+    const needle = norm(p.match);
+    const ids: string[] = [];
+    const lines: OutputLine[] = [];
+    for (const l of result.lines) {
+      if (l.attributes[p.attribute].normalized !== null) continue;
+      const raw = rawFor(l, p.attribute);
+      if (raw && norm(raw) === needle) {
+        ids.push(l.id);
+        lines.push(l);
+      }
+    }
+    if (ids.length === 0) return;
+    const patch: AppliedPatch = { key: p.attribute, value, provenance };
+    const corrErrors: string[] = [];
+    for (const l of lines) {
+      try {
+        await recordPatchCorrection(l, patch, p.match);
+      } catch (e) {
+        corrErrors.push(e instanceof Error ? e.message : String(e));
+      }
+    }
+    if (corrErrors.length) {
+      setError(corrErrors.join(' · '));
+      return;
+    }
+    setApplied((prev) => {
+      const n = new Map(prev);
+      for (const id of ids) n.set(id, patch);
+      return n;
+    });
+    setConfirmed((prev) => new Set([...prev, ...ids]));
+  }, [result, recordPatchCorrection]);
 
   if (phase !== 'ready' || !result) {
     return (
@@ -115,9 +266,9 @@ export function App() {
     );
   }
 
-  const resolvedCount = result.lines.filter((l) => queueOf(l) === 'resuelta' || confirmed.has(l.id)).length;
-  const pctResolved = result.lines.length ? Math.round((100 * resolvedCount) / result.lines.length) : 0;
-  const traceLine = traceLineId ? result.lines.find((l) => l.id === traceLineId) ?? null : null;
+  const resolvedCount = displayLines.filter((l) => effectiveQueue(l, confirmed) === 'resuelta').length;
+  const pctResolved = displayLines.length ? Math.round((100 * resolvedCount) / displayLines.length) : 0;
+  const traceLine = traceLineId ? displayLines.find((l) => l.id === traceLineId) ?? null : null;
   const allCached = result.metrics.llmCalls > 0 && result.metrics.cacheHits === result.metrics.llmCalls;
 
   return (
@@ -125,6 +276,7 @@ export function App() {
       <AppTopbar
         right={
           <>
+            <button className="wf-btn small" onClick={() => setShowVocab(true)}>Vocabulario</button>
             <button className="wf-btn small" onClick={() => setShowKpis(true)}>Cómo ha ido</button>
             <button className="wf-btn dark small" onClick={reset}>Nuevo MTO</button>
           </>
@@ -151,20 +303,36 @@ export function App() {
       </div>
 
       <QueueScreen
-        lines={result.lines}
+        lines={displayLines}
         rowsSourceText={rowsSourceText}
         confirmed={confirmed}
-        onConfirm={confirmLines}
+        onValidate={validateLines}
         onOpenTrace={setTraceLineId}
+        processedMtoId={processedMtoId}
       />
 
-      {showKpis && <KpiPanel result={result} onClose={() => setShowKpis(false)} />}
+      {showKpis && <KpiPanel result={result} onSuggestionApplied={applySuggestion} onClose={() => setShowKpis(false)} />}
+
+      {showVocab && (
+        <div className="vocab-drawer" role="dialog" aria-modal="true" aria-label="Vocabulario común">
+          <div className="vocab-drawer-backdrop" onClick={() => setShowVocab(false)} />
+          <div className="vocab-drawer-panel">
+            <div className="vocab-drawer-head">
+              <button className="wf-btn small" onClick={() => setShowVocab(false)}>Cerrar</button>
+            </div>
+            <div className="vocab-drawer-body">
+              <VocabularyView embedded onApplied={applySuggestion} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {traceLine && (
         <TracePanel
           line={traceLine}
           sourceText={rowsSourceText.get(traceLine.rowRef) ?? null}
           onClose={() => setTraceLineId(null)}
+          onApplied={applySuggestion}
         />
       )}
     </div>

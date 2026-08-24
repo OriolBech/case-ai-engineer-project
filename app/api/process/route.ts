@@ -77,11 +77,12 @@ export async function POST(req: Request): Promise<Response> {
         // consola y se manda el resultado igual. El comprador no pierde su MTO porque el histórico
         // tropiece.
         try {
-          saveProcessedMto(result);
+          const processedMtoId = saveProcessedMto(result);
+          send({ type: 'done', result, processedMtoId });
         } catch (e) {
           console.error('No se pudo guardar el MTO en el histórico:', e);
+          send({ type: 'done', result });
         }
-        send({ type: 'done', result });
       } catch (e) {
         const message =
           e instanceof LlmError ? e.message.split('\n')[0]

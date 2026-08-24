@@ -30,9 +30,12 @@ import {
 import type { Provenance } from '../../src/pipeline/types.ts';
 import type { ATTRIBUTE_KEYS } from '../../src/pipeline/types.ts';
 import { FinishVocabAddPanel } from './FinishVocabAddPanel.tsx';
+import { VOCAB_ACTOR } from '../lib/finish-vocab-ui.ts';
+import type { SuggestionPatch } from './App.tsx';
 
 interface Props {
   result: ProcessSummary;
+  onSuggestionApplied?: (p: SuggestionPatch) => void;
   onClose: () => void;
 }
 
@@ -44,18 +47,27 @@ interface Props {
  * exactamente el bucle de aprendizaje de `docs/12-system-behind-the-rules.md` §4, con un
  * formulario de tres campos en vez de una llamada a `pnpm run vocab add`.
  */
-function VocabQuickAdd({ candidate, value }: { candidate: Record<string, unknown>; value: string }) {
+function VocabQuickAdd({
+  candidate,
+  value,
+  onApplied,
+}: {
+  candidate: Record<string, unknown>;
+  value: string;
+  onApplied?: (p: SuggestionPatch) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [material, setMaterial] = useState<'AC' | 'INOX'>('AC');
   const [rationale, setRationale] = useState('');
-  const [decidedBy, setDecidedBy] = useState('');
   const [state, setState] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setState('saving');
     setError(null);
+    setWarnings([]);
     try {
       const when = candidate.when as { qualityGroup?: string; qualityPattern?: string } | undefined;
       const matchKind = when?.qualityGroup ? 'qualityGroup' : 'qualityPattern';
@@ -64,18 +76,21 @@ function VocabQuickAdd({ candidate, value }: { candidate: Record<string, unknown
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
+          attribute: 'material',
           id: candidate.id,
           matchKind,
-          matchValue,
-          material,
+          match: matchValue,
+          value: material,
           rationale,
-          decidedBy,
-          source: 'UI comprador (backlog)',
+          decidedBy: VOCAB_ACTOR,
+          evidence: 'UI comprador (backlog)',
         }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setWarnings(body.warnings ?? []);
       setState('done');
+      onApplied?.({ attribute: 'material', match: matchValue, value: material });
     } catch (e2) {
       setError(e2 instanceof Error ? e2.message : String(e2));
       setState('error');
@@ -83,7 +98,19 @@ function VocabQuickAdd({ candidate, value }: { candidate: Record<string, unknown
   };
 
   if (state === 'done') {
-    return <p className="kpi-help vocab-quickadd-done">Añadido al vocabulario. Se aplicará al resto de MTOs.</p>;
+    return (
+      <div className="vocab-quickadd-wrap">
+        <p className="kpi-help vocab-quickadd-done">
+          Añadido. Las líneas de este MTO quedan resueltas; se aplicará igual al resto de MTOs.
+        </p>
+        {warnings.length > 0 && (
+          <div className="vocab-warning">
+            <strong>Se ha guardado igual, pero ojo:</strong>
+            <ul>{warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+          </div>
+        )}
+      </div>
+    );
   }
   if (!open) {
     return (
@@ -101,14 +128,7 @@ function VocabQuickAdd({ candidate, value }: { candidate: Record<string, unknown
       <input
         value={rationale}
         onChange={(e) => setRationale(e.target.value)}
-        placeholder="motivo (por qué es este material)"
-        required
-      />
-      <input
-        value={decidedBy}
-        onChange={(e) => setDecidedBy(e.target.value)}
-        placeholder="tu nombre"
-        required
+        placeholder="motivo (opcional)"
       />
       <button className="wf-btn primary small" type="submit" disabled={state === 'saving'}>
         {state === 'saving' ? 'Guardando…' : 'Confirmar'}
@@ -158,11 +178,10 @@ const REASON_TEXT: Record<string, string> = {
   UNMAPPED_VALUE: 'Un valor que las tablas no saben interpretar de forma única',
 };
 
-/** A quién le toca cada motivo. La cuarta no es una cola de nadie de esta casa: es de otra familia. */
+/** Cómo se lee cada cola en el desglose de motivos. "Otra familia" no es trabajo de esta casa. */
 const QUEUE_OWNER: Record<Queue, string> = {
-  resuelta: 'nadie',
-  ingenieria: 'ingeniería',
-  comprador: 'tú',
+  resuelta: 'resuelto',
+  revision: 'en revisión',
   'fuera-familia': 'otra familia',
 };
 
@@ -175,7 +194,7 @@ function Bar({ value, total, tone }: { value: number; total: number; tone: 'ok' 
   );
 }
 
-export function KpiPanel({ result, onClose }: Props) {
+export function KpiPanel({ result, onSuggestionApplied, onClose }: Props) {
   const { lines, diagnostics: d, metrics } = result;
 
   const v = useMemo(() => {
@@ -185,12 +204,11 @@ export function KpiPanel({ result, onClose }: Props) {
     const scoped = inScope(lines);
     const outOfFamily = lines.filter((l) => queueOf(l) === 'fuera-familia');
     const resolved = lines.filter((l) => queueOf(l) === 'resuelta');
-    const buyer = lines.filter((l) => queueOf(l) === 'comprador');
-    const engineering = lines.filter((l) => queueOf(l) === 'ingenieria');
+    const review = lines.filter((l) => queueOf(l) === 'revision');
     const buckets = resolvedByWeakestProvenance(lines).filter((b) => b.lines.length > 0);
     const toLook = buckets.filter((b) => TRUST[b.provenance].look);
     return {
-      scoped, outOfFamily, resolved, buyer, engineering, buckets, toLook,
+      scoped, outOfFamily, resolved, review, buckets, toLook,
       toLookCount: toLook.reduce((a, b) => a + b.lines.length, 0),
       weakAttrs: weakestAttributeCounts(lines),
       reasons: reasonCounts(lines),
@@ -346,21 +364,19 @@ export function KpiPanel({ result, onClose }: Props) {
               <span className="kpi-help">Con los siete datos y la cantidad. A 90 s por línea, unas {v.minutesSaved} min de trabajo manual.</span>
             </div>
             <div className="kpi-cell">
-              <span className="kpi-num">{v.buyer.length}</span>
-              <span className="kpi-cap">para que las mires tú</span>
-              <span className="kpi-help">El dato está o se puede decidir, pero el sistema no se compromete.</span>
-            </div>
-            <div className="kpi-cell">
-              <span className="kpi-num">{v.engineering.length}</span>
-              <span className="kpi-cap">para devolver a ingeniería</span>
-              <span className="kpi-help">Falta un dato en el MTO. Ni tú ni el sistema podéis inventarlo: hay que pedirlo.</span>
+              <span className="kpi-num">{v.review.length}</span>
+              <span className="kpi-cap">en revisión</span>
+              <span className="kpi-help">
+                El sistema no se compromete: o falta un dato en el MTO, o hay que decidir cómo
+                normalizarlo. Se revisan aquí y se validan.
+              </span>
             </div>
             <div className="kpi-cell">
               <span className="kpi-num">{d.outOfFamilyRows.length}</span>
               <span className="kpi-cap">filas que no son tornillería</span>
               <span className="kpi-help">
                 Bridas, juntas, tubos. Se apartan en vez de forzarlas a ser un tornillo, y no cuentan
-                en las otras tres cifras: ni resueltas, ni tuyas, ni de ingeniería.
+                en las otras dos cifras: ni resueltas, ni en revisión.
               </span>
             </div>
           </div>
@@ -375,7 +391,7 @@ export function KpiPanel({ result, onClose }: Props) {
                       {REASON_TEXT[r.code] ?? r.message}
                       <span className="kpi-row-pct"> · {QUEUE_OWNER[r.queue]}</span>
                     </span>
-                    <Bar value={r.count} total={lines.length} tone={r.queue === 'comprador' ? 'warn' : 'ok'} />
+                    <Bar value={r.count} total={lines.length} tone={r.queue === 'revision' ? 'warn' : 'ok'} />
                     <span className="kpi-row-value">{r.count}</span>
                   </div>
                 ))}
@@ -413,7 +429,7 @@ export function KpiPanel({ result, onClose }: Props) {
                     </div>
                     {b.kind === 'UNCOVERED_DERIVATION' && b.candidate && (
                       <div className="vocab-quickadd-wrap">
-                        <VocabQuickAdd candidate={b.candidate} value={b.value} />
+                        <VocabQuickAdd candidate={b.candidate} value={b.value} onApplied={onSuggestionApplied} />
                       </div>
                     )}
                     {b.kind === 'UNKNOWN_VALUE' && b.attribute === 'finish' && (
@@ -422,6 +438,7 @@ export function KpiPanel({ result, onClose }: Props) {
                         defaultFinish={String(b.candidate?.finish ?? 'CINCADO')}
                         source="UI comprador (backlog)"
                         collapsible
+                        onApplied={onSuggestionApplied}
                       />
                     )}
                   </li>

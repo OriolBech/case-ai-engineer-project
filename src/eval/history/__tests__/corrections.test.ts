@@ -8,7 +8,9 @@ import { mkdtempSync, rmSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { closeHistoryDb } from '../db.ts';
-import { approveCorrection, getCorrection, promoteCorrection, proposeCorrection, rejectCorrection, type NewCorrection } from '../corrections.ts';
+import { approveCorrection, getCorrection, listValueConflicts, promoteCorrection, proposeCorrection, rejectCorrection, type NewCorrection } from '../corrections.ts';
+import { orchestratePromotion } from '../promote.ts';
+import { classifyPromotion } from '../../../domain/ports.ts';
 import { closeFinishDb } from '../../../rules/finish-db.ts';
 
 let dir: string;
@@ -47,8 +49,10 @@ describe('evidencia literal', () => {
     assert.throws(() => proposeCorrection(NEW, 'PERNO GENERICO M10X50', '2026-08-23'), /literalmente/);
   });
 
-  test('se rechaza sin autor', () => {
-    assert.throws(() => proposeCorrection({ ...NEW, author: '' }, 'A4-70', '2026-08-23'), /autor/);
+  test('sin autor también se registra: no hay login', () => {
+    const id = proposeCorrection({ ...NEW, author: '' }, 'A4-70', '2026-08-23');
+    assert.equal(getCorrection(id)?.status, 'PENDING');
+    assert.equal(getCorrection(id)?.author, '');
   });
 
   test('se rechaza sin motivo', () => {
@@ -132,5 +136,43 @@ describe('correcciones contradictorias', () => {
     approveCorrection(id1);
     assert.equal(getCorrection(id1)?.status, 'APPROVED');
     assert.equal(getCorrection(id2)?.status, 'PENDING', 'la contradictoria no cambia sola');
+  });
+
+  test('mismo span y valores distintos → un ValueConflict y classifyPromotion conflict', () => {
+    proposeCorrection(NEW, 'A4-70', '2026-08-23');
+    proposeCorrection({ ...NEW, correctedValue: 'AC' }, 'A4-70', '2026-08-23');
+    const conflicts = listValueConflicts();
+    assert.equal(conflicts.length, 1);
+    assert.equal(conflicts[0]?.values.length, 2);
+    assert.equal(classifyPromotion('material', true).kind, 'policy_decision');
+    assert.equal(classifyPromotion('material', true).why, 'value_conflict');
+  });
+
+  test('ninguna corrección en conflicto se promociona', () => {
+    const id1 = proposeCorrection(NEW, 'A4-70', '2026-08-23');
+    proposeCorrection({ ...NEW, correctedValue: 'AC' }, 'A4-70', '2026-08-23');
+    approveCorrection(id1);
+    assert.throws(() => orchestratePromotion(id1, { regressionPassed: true, promotedEntryId: 'x' }), /conflicto/);
+    assert.equal(getCorrection(id1)?.status, 'APPROVED');
+  });
+});
+
+describe('destino de promoción por atributo', () => {
+  test('medida y longitud no van a vocabulario', () => {
+    assert.equal(classifyPromotion('measure', false).kind, 'not_promotable');
+    assert.equal(classifyPromotion('length', false).kind, 'not_promotable');
+    const id = proposeCorrection(
+      { ...NEW, attribute: 'measure', previousValue: 'M10', correctedValue: 'M12', evidence: 'M10' },
+      'PERNO M10',
+      '2026-08-23',
+    );
+    approveCorrection(id);
+    assert.throws(() => orchestratePromotion(id, { regressionPassed: true, promotedEntryId: 'x' }), /grammar|not_promotable/);
+  });
+
+  test('orquestador exige regresión explícita', () => {
+    const id = proposeCorrection(NEW, 'A4-70', '2026-08-23');
+    approveCorrection(id);
+    assert.throws(() => orchestratePromotion(id, { regressionPassed: false, promotedEntryId: 'x' }), /regresión|eval/);
   });
 });

@@ -21,6 +21,9 @@
 import { useMemo, useState } from 'react';
 import { ATTRIBUTE_KEYS, type Attributes, type OutputLine } from '../../src/pipeline/types.ts';
 import { ATTR_LABEL, PROVENANCE_LABEL, isWeak } from '../lib/derive.ts';
+import { lineNeedsFinishVocab } from '../lib/finish-vocab-ui.ts';
+import type { SuggestionPatch } from './App.tsx';
+import { FinishVocabAddPanel } from './FinishVocabAddPanel.tsx';
 
 type AttrKey = (typeof ATTRIBUTE_KEYS)[number];
 
@@ -51,10 +54,12 @@ export function TracePanel({
   line,
   sourceText,
   onClose,
+  onApplied,
 }: {
   line: OutputLine;
   sourceText: string | null;
   onClose: () => void;
+  onApplied?: (p: SuggestionPatch) => void;
 }) {
   const [active, setActive] = useState<AttrKey | null>(null);
   const segments = useMemo(
@@ -101,6 +106,17 @@ export function TracePanel({
                   <span>{r.message}</span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {lineNeedsFinishVocab(line) && line.attributes.finish.raw && (
+            <div className="trace-finish-vocab">
+              <FinishVocabAddPanel
+                defaultAlias={line.attributes.finish.raw}
+                source="UI comprador (traza)"
+                collapsible={false}
+                onApplied={onApplied}
+              />
             </div>
           )}
 
