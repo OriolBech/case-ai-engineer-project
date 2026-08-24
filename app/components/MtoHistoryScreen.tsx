@@ -6,8 +6,10 @@
  * "Ver" no abre nada nuevo aquí: enlaza a `/?mto=<id>`, y es `App.tsx` quien, al detectar ese
  * parámetro, pide `/api/mto-history?id=...` e hidrata el mismo `result` que ya usa para un
  * procesamiento en caliente. Cero UI duplicada — QueueScreen, KpiPanel y TracePanel son los mismos.
+ *
+ * Comparar revisiones (SPEC-014): selecciona dos filas y abre `/mto-history/compare`.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppTopbar } from './AppTopbar.tsx';
 
 interface ProcessedMtoSummary {
@@ -31,6 +33,32 @@ function formatDate(iso: string): string {
 export function MtoHistoryScreen() {
   const [items, setItems] = useState<ProcessedMtoSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else if (next.size < 2) next.add(id);
+      else {
+        const [first] = next;
+        next.delete(first);
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const compareHref = useMemo(() => {
+    if (selected.size !== 2) return null;
+    const [a, b] = [...selected];
+    const sorted = items?.filter((it) => selected.has(it.id)).sort(
+      (x, y) => new Date(x.createdAt).getTime() - new Date(y.createdAt).getTime(),
+    );
+    const previous = sorted?.[0]?.id ?? a;
+    const current = sorted?.[1]?.id ?? b;
+    return `/mto-history/compare?previous=${encodeURIComponent(previous)}&current=${encodeURIComponent(current)}`;
+  }, [selected, items]);
 
   const reload = useCallback(async () => {
     setError(null);
@@ -58,9 +86,12 @@ export function MtoHistoryScreen() {
               Cada fila es un Excel subido desde la pantalla principal. No es una evaluación contra
               respuestas conocidas — para eso está el <a href="/eval-history">histórico de
               evaluación</a> — es lo que la app ya te enseñó al procesarlo, guardado para reabrirlo
-              sin volver a subir el fichero.
+              sin volver a subir el fichero. Marca dos filas para comparar revisiones del mismo MTO.
             </p>
           </div>
+          {compareHref && (
+            <a className="wf-btn primary small" href={compareHref}>Comparar revisiones</a>
+          )}
         </header>
 
         {error && <p className="kpi-verdict">{error}</p>}
@@ -76,6 +107,7 @@ export function MtoHistoryScreen() {
               <table className="vocab-table">
                 <thead>
                   <tr>
+                    <th aria-label="Seleccionar" />
                     <th>Fichero</th>
                     <th>Fecha</th>
                     <th>Filas / líneas</th>
@@ -90,6 +122,14 @@ export function MtoHistoryScreen() {
                     const pct = it.linesCount ? Math.round((100 * it.resolvedCount) / it.linesCount) : 0;
                     return (
                       <tr key={it.id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selected.has(it.id)}
+                            onChange={() => toggleSelect(it.id)}
+                            aria-label={`Seleccionar ${it.fileName}`}
+                          />
+                        </td>
                         <td>{it.fileName}</td>
                         <td>{formatDate(it.createdAt)}</td>
                         <td>{it.rowsIngested} filas · {it.linesCount} líneas</td>

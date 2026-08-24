@@ -17,6 +17,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { toIdentifiables } from '../../src/domain/from-output.ts';
+import { getRevisionStore } from '../../src/revisions/sqlite-store.ts';
+import { projectIdFromFileName } from '../../src/revisions/project-id.ts';
 import type { ProcessSummary } from './api-types.ts';
 
 const DB_PATH = join('data', 'processing', 'history.sqlite');
@@ -100,6 +103,16 @@ export function saveProcessedMto(summary: ProcessSummary): string {
       summary.metrics.llmCalls,
       JSON.stringify(summary),
     );
+  try {
+    getRevisionStore().save({
+      projectId: projectIdFromFileName(summary.fileName),
+      revisionId: id,
+      at: new Date().toISOString(),
+      lines: toIdentifiables(summary.lines),
+    });
+  } catch (e) {
+    console.error('No se pudo guardar snapshot de revisión:', e);
+  }
   return id;
 }
 
