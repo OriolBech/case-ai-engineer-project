@@ -23,6 +23,7 @@ import { validateRow } from '../validate.ts';
 import { detectGaps, policyBacklog } from '../coverage.ts';
 import { normalizeElement, type NormalizedElement } from '../normalize.ts';
 import { DEFAULT_POLICIES } from '../../rules/policies.ts';
+import { queueOf } from '../../../app/lib/derive.ts';
 import type { Analysis } from '../analyze.ts';
 import type { MtoRow } from '../types.ts';
 
@@ -142,32 +143,34 @@ describe('reconocimiento, no atribución · la frontera con P-1', () => {
 });
 
 describe('P-12 · acabado desconocido', () => {
-  test('con resolve (default) la línea sigue RESUELTA sin motivo', () => {
+  test('con review (default) la línea lleva UNMAPPED_VALUE y va a revisión', () => {
+    // Exportarla como RESUELTA sería comprar la referencia sin acabado; §9 dice que esa y la que
+    // sí lo lleva son piezas distintas. La cola "En revisión" es el canal del comprador.
     const r = row('7', 'Tornillo DIN 933 M16x60, 8.8, tropicalizado');
     const lines = validateRow(analysis('7', 1), [bolt('tropicalizado')], r);
+    assert.equal(lines[0].status, 'REVISION_MANUAL');
+    assert.ok(lines[0].reasons.some((x) => x.code === 'UNMAPPED_VALUE'));
+    assert.equal(queueOf(lines[0]), 'revision');
+  });
+
+  test('con resolve la línea sigue RESUELTA sin motivo', () => {
+    const r = row('7', 'Tornillo DIN 933 M16x60, 8.8, tropicalizado');
+    const lines = validateRow(analysis('7', 1), [bolt('tropicalizado')], r, {
+      policies: { ...DEFAULT_POLICIES, unknownFinish: 'resolve' },
+    });
     assert.equal(lines[0].status, 'RESUELTA');
     assert.equal(lines[0].reasons.length, 0);
   });
-
-  test('con review la línea lleva UNMAPPED_VALUE', () => {
-    const r = row('7', 'Tornillo DIN 933 M16x60, 8.8, tropicalizado');
-    const lines = validateRow(analysis('7', 1), [bolt('tropicalizado')], r, {
-      policies: { ...DEFAULT_POLICIES, unknownFinish: 'review' },
-    });
-    assert.ok(lines[0].reasons.some((x) => x.code === 'UNMAPPED_VALUE'));
-  });
 });
 
-describe('el hueco es del proyecto, no del comprador', () => {
-  test('no manda la línea a revisión: el canal es el backlog, no la cola', () => {
-    // Misma decisión que los otros huecos (ver la cabecera de coverage.ts): un hueco es un problema
-    // de reglas, no de datos. Mandarlo a la cola del comprador le daría algo que él no puede
-    // arreglar fila a fila — y lo que hay que decidir se decide UNA vez, no una por línea.
+describe('el hueco sigue en el backlog (una decisión, no una por fila)', () => {
+  test('la línea va a revisión Y el hueco queda en el backlog', () => {
+    // Los dos canales: el comprador no exporta un RFQ con la referencia equivocada, y el alta de
+    // vocabulario se decide una vez para todas las filas que traen el mismo acabado.
     const r = row('7', 'Tornillo DIN 933 M16x60, 8.8, tropicalizado');
     const lines = validateRow(analysis('7', 1), [bolt('tropicalizado')], r);
 
-    assert.equal(lines[0].status, 'RESUELTA');
-    assert.equal(lines[0].reasons.length, 0, 'ningún motivo de revisión por el acabado desconocido');
+    assert.equal(lines[0].status, 'REVISION_MANUAL');
     assert.equal(detectGaps(r, lines).filter((g) => g.attribute === 'finish').length, 1);
   });
 

@@ -52,9 +52,11 @@ export interface Policies {
    */
   rejectedMeasureAsQuality: 'if_catalog_and_coherent' | 'off';
   /**
-   * P-12. A finish the vocabulary does not recognise. Default `resolve` preserves the published KPI
-   * (the line resolves as if it had no finish; the gap stays in the backlog). `review` surfaces it
-   * as UNMAPPED_VALUE. See specs/SPEC-011-finish-vocabulary.md.
+   * P-12. A finish the vocabulary does not recognise. Default `review`: §9 says an item with a
+   * finish and the same item without one are different references, so an unknown finish must not
+   * ship as RESUELTA (the buyer would export an RFQ with the wrong part). The gap still lands in
+   * the backlog so the vocabulary decision is taken once, not once per row. `resolve` is the
+   * published-KPI ablation (line resolves as if it had no finish). See specs/SPEC-011-finish-vocabulary.md.
    */
   unknownFinish: 'review' | 'resolve';
 }
@@ -75,7 +77,7 @@ export const DEFAULT_POLICIES: Policies = {
   outOfFamily: 'review',
   bareMeasureInSet: 'reject',
   rejectedMeasureAsQuality: 'if_catalog_and_coherent',
-  unknownFinish: 'resolve',
+  unknownFinish: 'review',
 };
 
 // ---------------------------------------------------------------------------

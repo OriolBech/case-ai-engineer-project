@@ -6,6 +6,7 @@
 
 import { ingest } from './ingest.ts';
 import { analyzeRows, type Analysis, type ModelRouting } from './analyze.ts';
+import { analyzeRowBaseline } from './baseline.ts';
 import { normalizeElement } from './normalize.ts';
 import { validateRow } from './validate.ts';
 import { scoreLine, thresholds, route, type Routing } from '../lib/confidence.ts';
@@ -21,6 +22,14 @@ export interface ProcessOptions {
   concurrency?: number;
   routing?: ModelRouting;
   criticRouting?: CriticRouting;
+  /**
+   * Which reader produces the analyses. `'llm'` is the system (default). `'baseline'` is the
+   * deterministic tables-only extractor of SPEC-003's ablation (src/pipeline/baseline.ts): no model,
+   * no cost, and the critic is forced off because it too is an LLM stage. It is the number that
+   * answers "you only pay the model for the delta over what tables resolve" — see
+   * `pnpm run eval -- --ablate=extract`.
+   */
+  extractor?: 'llm' | 'baseline';
   onProgress?: (done: number, total: number) => void;
 }
 
@@ -64,11 +73,19 @@ export async function processMto(
   const { rows, skipped } = await ingest(file);
 
   let done = 0;
-  const analyses = await analyzeRows(llm, rows, {
-    concurrency: opts.concurrency,
-    routing: opts.routing,
-    onRow: () => opts.onProgress?.(++done, rows.length),
-  });
+  const extractor = opts.extractor ?? 'llm';
+  const analyses =
+    extractor === 'baseline'
+      ? rows.map((row) => {
+          const a = analyzeRowBaseline(row);
+          opts.onProgress?.(++done, rows.length);
+          return a;
+        })
+      : await analyzeRows(llm, rows, {
+          concurrency: opts.concurrency,
+          routing: opts.routing,
+          onRow: () => opts.onProgress?.(++done, rows.length),
+        });
 
   // Un único punto de resolución para toda la ejecución: así ningún llamador puede olvidarse de
   // pasarlas —que es exactamente lo que pasaba— y las 12 filas del blind set corren con lo que diga
@@ -78,7 +95,9 @@ export async function processMto(
     : policiesFromEnv();
 
   const t = thresholds();
-  const criticRouting = opts.criticRouting ?? 'multi_element';
+  // The critic is an LLM stage: under the extract ablation there is no model, so it is off no matter
+  // what the caller asked, and the run stays free and offline.
+  const criticRouting = extractor === 'baseline' ? 'off' : opts.criticRouting ?? 'multi_element';
   const lines: OutputLine[] = [];
   const routing: Record<string, Routing> = {};
   const criticStats = {

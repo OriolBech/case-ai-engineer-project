@@ -64,11 +64,11 @@ describe('políticas desde el entorno', () => {
       POLICY_OUT_OF_FAMILY: 'silent_skip',
       POLICY_BARE_MEASURE_IN_SET: 'keep',
       POLICY_REJECTED_MEASURE_AS_QUALITY: 'off',
-      POLICY_UNKNOWN_FINISH: 'review',
+      POLICY_UNKNOWN_FINISH: 'resolve',
     };
     const { policies, overrides } = policiesFromEnv(env);
     assert.equal(overrides.length, Object.keys(env).length);
-    assert.equal(policies.unknownFinish, 'review');
+    assert.equal(policies.unknownFinish, 'resolve');
   });
 
   test('el resumen es legible para una cabecera de script', () => {

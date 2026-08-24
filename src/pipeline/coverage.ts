@@ -156,9 +156,9 @@ export function detectGaps(row: MtoRow, lines: OutputLine[]): PolicyGap[] {
   // (`normalized === null`, `rule: finish:unmapped` en normalize.ts). El trabajo de decidir "esto es
   // un acabado" ya está hecho; lo que falta es la entrada de catálogo.
   //
-  // Va al backlog y NO a la cola del comprador, por el mismo motivo que los demás huecos: es una
-  // decisión del proyecto (¿qué es "tropicalizado" y a cuál de los siete equivale, o es un octavo?),
-  // no un dato que el comprador pueda arreglar fila a fila.
+  // El hueco va al backlog (una decisión de vocabulario, no una por fila). La línea, con el default
+  // de P-12, va además a En revisión: exportarla como RESUELTA sería comprar la referencia sin
+  // acabado, y §9 dice que esa y la que sí lo lleva son piezas distintas.
   for (const line of lines) {
     const f = line.attributes.finish;
     if (!f.raw || f.normalized !== null) continue;

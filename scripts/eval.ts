@@ -5,7 +5,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { loadEnv } from '../src/lib/env.ts';
 import { installErrorHandler } from '../src/lib/cli.ts';
-import { createLlm, eurPerUsd } from '../src/lib/llm.ts';
+import { createLlm, eurPerUsd, Llm } from '../src/lib/llm.ts';
 import { processMto } from '../src/pipeline/index.ts';
 import { loadGold, evaluate, type EvalReport } from '../src/eval/harness.ts';
 import { allTiers } from '../src/lib/tiers.ts';
@@ -17,9 +17,14 @@ loadEnv();
 const args = process.argv.slice(2);
 const routing = (args.find((a) => a.startsWith('--routing='))?.split('=')[1] ?? 'always_main') as
   'always_main' | 'always_cheap' | 'mixed';
+// --ablate=<stage>. 'extract' swaps the LLM reader for the deterministic baseline (SPEC-003) and
+// forces the critic off: it is the number that quantifies what the model buys over tables alone.
+const ablate = args.find((a) => a.startsWith('--ablate='))?.split('=')[1] ?? null;
+const extractor = ablate === 'extract' ? 'baseline' : 'llm';
 const tiers = allTiers();
 const label =
-  routing === 'mixed' ? `mixto ${tiers.main.model} / ${tiers.cheap.model}`
+  extractor === 'baseline' ? 'baseline determinista (sin LLM · ablación extract)'
+  : routing === 'mixed' ? `mixto ${tiers.main.model} / ${tiers.cheap.model}`
   : routing === 'always_cheap' ? tiers.cheap.model
   : tiers.main.model;
 const model = label;
@@ -27,13 +32,21 @@ const wantReport = args.includes('--report');
 const wantSave = args.includes('--save');
 const saveLabel = args.find((a) => a.startsWith('--label='))?.slice('--label='.length) ?? null;
 
-const llm = createLlm();
-const criticRouting = (args.find((a) => a.startsWith('--critic='))?.split('=')[1] ?? 'multi_element') as
-  'multi_element' | 'all' | 'off';
+// The baseline calls no model, so it must run without credentials: an ablation you can only run
+// with an API key is one nobody runs. An empty-provider Llm reports zero cost and throws only if a
+// call is ever attempted — which the baseline path never does.
+const llm = extractor === 'baseline' ? new Llm(new Map(), null, tiers) : createLlm();
+const criticRouting = (
+  ablate === 'critic' ? 'off' : args.find((a) => a.startsWith('--critic='))?.split('=')[1] ?? 'multi_element'
+) as 'multi_element' | 'all' | 'off';
+if (ablate && ablate !== 'extract' && ablate !== 'critic') {
+  console.log(`\n!! --ablate=${ablate} no está implementado. Disponibles: extract, critic.`);
+}
 const out = await processMto(llm, 'data/input/MTO_tornilleria.xlsx', {
   concurrency: Number(process.env.CONCURRENCY ?? 8),
   routing,
   criticRouting,
+  extractor,
 });
 // Una fila que falló en el proveedor produce una línea PROCESSING_FAILED, y todas las métricas
 // bajan sin que ninguna diga por qué. Ya se leyó una vez como una regresión del prompt cuando eran
