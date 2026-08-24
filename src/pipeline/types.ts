@@ -18,14 +18,7 @@ export type ItemName = 'TORNILLO' | 'TUERCA' | 'ARANDELA' | 'VARILLA ROSCADA' | 
 export const LENGTH_EXEMPT: readonly ItemName[] = ['TUERCA', 'ARANDELA'];
 
 /** §9. Absence of a finish is a valid value and never sends a line to review. */
-export type Finish =
-  | 'GEOMET'
-  | 'DACROMET'
-  | 'GALVANIZADO EN CALIENTE'
-  | 'CINCADO'
-  | 'PAVONADO'
-  | 'FOSFATADO'
-  | 'BICROMATADO';
+export type Finish = string;
 
 /** §5. Two values of the same group are equivalent. Different groups are NOT. */
 export type QualityGroup =

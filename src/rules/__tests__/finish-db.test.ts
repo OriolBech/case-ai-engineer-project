@@ -7,9 +7,10 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync, copyFileSync } from '
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  addEntry, closeFinishDb, listChanges, listEntries, openFinishDb, resolveFinish, retireEntry,
+  addEntry, closeFinishDb, listCatalog, listChanges, listEntries, openFinishDb, resolveFinish, retireEntry,
   assertNoRegressionForTest,
 } from '../finish-db.ts';
+import { addVocab, retireVocab } from '../vocab.ts';
 
 let dir: string;
 
@@ -92,11 +93,16 @@ describe('guardas de addEntry', () => {
     }, '2026-08-23'), /gold set|ambigua|ya lleva/);
   });
 
-  test('octavo acabado → escalado, no autoservicio', () => {
-    assert.throws(() => addEntry({
-      id: 'finish-octavo', alias: 'tropicalizado', kind: 'alias', finish: 'TROPICALIZADO' as never,
-      rationale: 'r', decidedBy: 'p', source: 'added', evidence: 'e',
-    }, '2026-08-23'), /octavo acabado|siete acabados/);
+  test('acabado nuevo fuera de la semilla → alta permitida y resolveFinish known', () => {
+    assert.equal(resolveFinish('niquelado').kind, 'unknown');
+    addEntry({
+      id: 'finish-niquelado', alias: 'niquelado', kind: 'alias', finish: 'NIQUELADO',
+      rationale: 'recubrimiento real del pliego', decidedBy: 'p', source: 'added', evidence: 'e',
+    }, '2026-08-23', undefined, { skipGoldCheck: true });
+    const r = resolveFinish('niquelado');
+    assert.equal(r.kind, 'known');
+    if (r.kind === 'known') assert.equal(r.finish, 'NIQUELADO');
+    assert.ok(listCatalog().includes('NIQUELADO'));
   });
 });
 
@@ -146,5 +152,43 @@ describe('ampliable · log y reconstrucción', () => {
     const row = listEntries({ includeRetired: true }).find((e) => e.id === 'seed-cincado-zn');
     assert.equal(row?.retiredAt, '2026-08-24');
     assert.ok(listChanges().some((c) => c.action === 'retire'));
+  });
+});
+
+describe('retirar y volver a añadir (flujo del front)', () => {
+  const alta = {
+    attribute: 'finish' as const,
+    match: 'tropicalizado',
+    value: 'CINCADO',
+    rationale: 'según pliego',
+    decidedBy: 'compras',
+    evidence: 'pliego',
+  };
+
+  test('el mismo alias se puede dar de alta otra vez tras retirarlo', () => {
+    const first = addVocab(alta, { force: true });
+    assert.equal(first.ok, true);
+    assert.equal(resolveFinish('tropicalizado').kind, 'known');
+
+    retireVocab('finish', 'finish-tropicalizado', 'me equivoqué', 'compras');
+    assert.equal(resolveFinish('tropicalizado').kind, 'unknown');
+
+    const again = addVocab(alta, { force: true });
+    assert.ok(again.ok, again.error ?? 'unexpected failure');
+    const r = resolveFinish('tropicalizado');
+    assert.equal(r.kind, 'known');
+    if (r.kind === 'known') assert.equal(r.finish, 'CINCADO');
+
+    const rows = listEntries({ includeRetired: true }).filter((e) => e.alias === 'tropicalizado');
+    assert.equal(rows.length, 2);
+    assert.ok(rows.some((e) => e.id === 'finish-tropicalizado' && e.retiredAt));
+    assert.ok(rows.some((e) => e.id === 'finish-tropicalizado-2' && !e.retiredAt));
+  });
+
+  test('sin retirar, el id derivado sigue bloqueando el alta', () => {
+    assert.equal(addVocab(alta, { force: true }).ok, true);
+    const dup = addVocab(alta, { force: true });
+    assert.equal(dup.ok, false);
+    assert.match(dup.error ?? '', /Ya existe/);
   });
 });

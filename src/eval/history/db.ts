@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS human_corrections (
   previous_value TEXT,
   corrected_value TEXT,
   evidence TEXT NOT NULL,
-  author TEXT NOT NULL,
+  author TEXT NOT NULL DEFAULT '',
   rationale TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'PROMOTED')),
   promoted_entry_id TEXT
@@ -86,6 +86,43 @@ CREATE TABLE IF NOT EXISTS human_corrections (
 
 CREATE INDEX IF NOT EXISTS idx_corrections_status ON human_corrections(status);
 CREATE INDEX IF NOT EXISTS idx_corrections_row ON human_corrections(row_ref, attribute);
+
+-- Sugerencias de vocabulario. Espeja el contrato del front (app/components/App.tsx 'SuggestionPatch'
+-- = { attribute, match, value }) para que enchufar front <-> persistencia sea trivial, y añade el
+-- ciclo de vida y el KPI que la UI en sesión no persiste. Ver src/eval/history/suggestions.ts.
+CREATE TABLE IF NOT EXISTS vocab_suggestions (
+  id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  run_id TEXT REFERENCES evaluation_runs(id),
+  row_ref TEXT NOT NULL,
+  line_id TEXT,
+  -- Mismo alcance que el front: hoy sólo acabado y material tienen sugerencia en la UI.
+  attribute TEXT NOT NULL CHECK (attribute IN ('finish', 'material')),
+  -- 'SuggestionPatch.match': el raw que dispara la sugerencia (el propio del acabado, o la calidad
+  -- para el material). Es texto LITERAL de la fila, así que hace también de evidencia: una sugerencia
+  -- cuyo match no está en la fila es una invención con un formulario de consentimiento delante.
+  match_text TEXT NOT NULL,
+  -- 'SuggestionPatch.value': el valor de catálogo propuesto. No nulo una vez registrada.
+  value TEXT NOT NULL,
+  -- De dónde sale el valor. 'free_llm' NO existe a propósito: una sugerencia sale de una tabla
+  -- cerrada o del texto de la fila, nunca de una llamada libre al modelo. El CHECK lo hace estructural.
+  origin TEXT NOT NULL CHECK (origin IN ('closed_table', 'row_evidence')),
+  -- El ciclo del front: SHOWN -> (aceptar) ACCEPTED -> (validar) VALIDATED, o SHOWN -> (descartar)
+  -- REJECTED. ACCEPTED = aplicada y "Por validar" (fail-closed, no salta sola a resuelta).
+  status TEXT NOT NULL CHECK (status IN ('SHOWN', 'ACCEPTED', 'VALIDATED', 'REJECTED')),
+  decided_by TEXT,   -- quién aceptó o descartó
+  decided_at TEXT,
+  validated_by TEXT, -- quién validó la línea con la sugerencia ya aplicada
+  validated_at TEXT,
+  -- Error silencioso de lo aprobado: lo rellena una comprobación CIEGA posterior (gold/audit/QA), que
+  -- NO es la validación del comprador —esa puede ser un sello sin mirar—. Es la cifra que más pesa.
+  verified TEXT CHECK (verified IN ('correct', 'wrong')),
+  verified_by TEXT,
+  verified_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_suggestions_status ON vocab_suggestions(status);
+CREATE INDEX IF NOT EXISTS idx_suggestions_attr ON vocab_suggestions(attribute);
 `;
 
 let db: DatabaseSync | null = null;

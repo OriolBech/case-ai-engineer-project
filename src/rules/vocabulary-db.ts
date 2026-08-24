@@ -379,21 +379,29 @@ export interface NewEntry {
  *   - una entrada que haría ambigua una calidad que hoy resuelve, porque eso convierte líneas
  *     resueltas en revisiones sin que nadie lo haya pedido.
  */
-export function addEntry(e: NewEntry, at: string, logPath = process.env.VOCAB_LOG ?? LOG_PATH): void {
+export function addEntry(
+  e: NewEntry,
+  at: string,
+  logPath = process.env.VOCAB_LOG ?? LOG_PATH,
+  opts: { force?: boolean } = {},
+): { warnings: string[] } {
   const conn = openVocabularyDb();
   const exists = conn.prepare(`SELECT id FROM entry WHERE id = ?`).get(e.id);
   if (exists) throw new Error(`Ya existe una entrada con id '${e.id}'. Los ids son la traza de una compra: no se reutilizan.`);
 
+  const warnings: string[] = [];
   const clash = listEntries().find(
     (x) => x.matchKind === e.matchKind && x.matchValue === e.matchValue && x.material !== e.material,
   );
   if (clash) {
-    throw new Error(
+    warnings.push(
       `'${e.matchValue}' ya deriva a ${clash.material} por la entrada '${clash.id}'. ` +
       `Añadir ${e.material} la haría ambigua y mandaría a revisión todas sus líneas. ` +
       `Retira '${clash.id}' con su motivo si la decisión ha cambiado.`,
     );
   }
+  // Ruta normal: la ambigüedad corta el alta, con el mismo mensaje de siempre. Con `force`, no.
+  if (warnings.length && !opts.force) throw new Error(warnings[0]);
 
   const ev: LogEvent = {
     action: 'add', at, by: e.decidedBy, detail: e.rationale,
@@ -402,6 +410,7 @@ export function addEntry(e: NewEntry, at: string, logPath = process.env.VOCAB_LO
   mkdirSync(dirname(logPath), { recursive: true });
   appendFileSync(logPath, `${JSON.stringify(ev)}\n`, 'utf8');
   applyLog(conn, logPath);
+  return { warnings };
 }
 
 /** Retira una entrada. No se borra: el histórico es el argumento de por qué se compró lo que se compró. */

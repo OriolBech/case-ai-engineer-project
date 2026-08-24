@@ -77,20 +77,24 @@ export interface ChangeRow {
 export interface AddFinishOptions {
   allowShortAlias?: boolean;
   skipGoldCheck?: boolean;
+  /**
+   * Guarda de política que dispararía → aviso en vez de excepción, y el alta se escribe igual.
+   * La decisión de bloquear o no es de quien llama (para la demo, no se bloquea). Los invariantes
+   * duros (id repetido, alias sin acabado) NO se saltan ni con esto.
+   */
+  force?: boolean;
 }
 
 const SEED_PATH = join('data', 'vocabulary', 'finish-alias.json');
 const LOG_PATH = join('data', 'vocabulary', 'finish-alias.log.jsonl');
 const DB_PATH = join('data', 'vocabulary', 'finish-alias.sqlite');
 
-const FINISH_CHECK = FINISH_CATALOG.map((f) => `'${f.replace(/'/g, "''")}'`).join(',');
-
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS entry (
   id          TEXT PRIMARY KEY,
   alias       TEXT NOT NULL,
   kind        TEXT NOT NULL CHECK (kind IN ('alias','not_a_finish')),
-  finish      TEXT CHECK (finish IS NULL OR finish IN (${FINISH_CHECK})),
+  finish      TEXT,
   source      TEXT NOT NULL CHECK (source IN ('client','added')),
   rationale   TEXT NOT NULL,
   decided_by  TEXT NOT NULL,
@@ -141,6 +145,14 @@ export function openFinishDb(opts: { dbPath?: string; seedPath?: string; logPath
   db = new DatabaseSync(dbPath);
   if (dbPath !== ':memory:') db.exec('PRAGMA journal_mode = WAL');
   db.exec('PRAGMA busy_timeout = 5000');
+
+  const version = (db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version;
+  if (version < 2) {
+    db.exec('DROP TABLE IF EXISTS entry');
+    db.exec('DROP TABLE IF EXISTS change');
+    db.exec('PRAGMA user_version = 2');
+  }
+
   db.exec(SCHEMA);
   seed(db, seedPath);
   applyLog(db, logPath);
@@ -241,6 +253,16 @@ export function listEntries(opts: { includeRetired?: boolean } = {}): FinishAlia
     ? `SELECT * FROM entry ORDER BY decided_at, id`
     : `SELECT * FROM entry WHERE retired_at IS NULL ORDER BY decided_at, id`;
   return (conn.prepare(sql).all() as Record<string, unknown>[]).map(toRow);
+}
+
+/** Los 7 de semilla §9 más acabados añadidos por compras (alias vivos distintos de la semilla), ordenados. */
+export function listCatalog(): string[] {
+  const seedSet = new Set<string>(FINISH_CATALOG);
+  const extras = new Set<string>();
+  for (const e of listEntries()) {
+    if (e.kind === 'alias' && e.finish && !seedSet.has(e.finish)) extras.add(e.finish);
+  }
+  return [...FINISH_CATALOG, ...[...extras].sort()];
 }
 
 export function listChanges(limit = 100): ChangeRow[] {
@@ -348,26 +370,46 @@ export function findFinishes(text: string): FinishHit[] {
   }));
 }
 
-function assertValidNewEntry(e: NewFinishAlias, opts: AddFinishOptions): void {
+/** Invariantes duros: una entrada que los rompe no puede existir en la base, ni con `force`. */
+function assertStructural(e: NewFinishAlias): void {
   if (e.kind === 'alias') {
-    if (!e.finish) throw new Error(`Un alias debe llevar uno de los 7 acabados de §9, no null.`);
-    if (!FINISH_CATALOG.includes(e.finish)) {
-      throw new Error(
-        `'${e.finish}' no es uno de los siete acabados de §9. Un octavo acabado no se da de alta por ` +
-        'autoservicio: es una conversación con el cliente y una migración de SPEC-010, no una entrada de vocabulario.',
-      );
-    }
+    if (!e.finish?.trim()) throw new Error('Un alias debe llevar un acabado canónico, no null ni vacío.');
   } else if (e.finish !== null) {
-    throw new Error(`not_a_finish debe llevar finish=null.`);
+    throw new Error('not_a_finish debe llevar finish=null.');
   }
+}
 
+function canonicalFinish(e: NewFinishAlias): NewFinishAlias {
+  if (e.kind === 'not_a_finish') return { ...e, finish: null };
+  return { ...e, finish: e.finish ? fold(e.finish.trim()) : null };
+}
+
+/**
+ * Las guardas de política, como lista de avisos en vez de excepción.
+ *
+ * Alias corto, ambigüedad, regresión de la tabla y regresión del gold. En la ruta normal la primera
+ * corta el alta —con el mismo mensaje de siempre— y en la de `force` no corta ninguna: se devuelven
+ * como avisos y el alta se escribe igual. La política de bloqueo vive en quien llama, no aquí.
+ */
+function guardWarnings(e: NewFinishAlias, live: FinishAliasRow[], at: string, opts: AddFinishOptions): string[] {
+  const w: string[] = [];
   if (e.alias.trim().length < 3 && !opts.allowShortAlias) {
-    throw new Error(
+    w.push(
       `El alias '${e.alias}' tiene menos de 3 caracteres. Los alias cortos (ZN, ZP, BL) son del cliente ` +
       'y van con límite de palabra justamente para no convertir un BL cualquiera en PAVONADO. ' +
       'Confirma con allowShortAlias si es deliberado.',
     );
   }
+  try { assertNoAmbiguity(e, live); } catch (err) { w.push(err instanceof Error ? err.message : String(err)); }
+  try { assertNoRegression(e, live); } catch (err) { w.push(err instanceof Error ? err.message : String(err)); }
+  if (!opts.skipGoldCheck) {
+    try {
+      assertGoldUnchanged([...live, { ...e, decidedAt: at, retiredAt: null, retiredWhy: null }]);
+    } catch (err) {
+      w.push(err instanceof Error ? err.message : String(err));
+    }
+  }
+  return w;
 }
 
 function assertNoAmbiguity(e: NewFinishAlias, live: FinishAliasRow[]): void {
@@ -459,24 +501,26 @@ export function addEntry(
   at: string,
   logPath = process.env.VOCAB_FINISH_LOG ?? LOG_PATH,
   opts: AddFinishOptions = {},
-): void {
-  assertValidNewEntry(e, opts);
+): { warnings: string[] } {
+  const entry = canonicalFinish(e);
+  assertStructural(entry);
   const conn = openFinishDb();
-  const exists = conn.prepare(`SELECT id FROM entry WHERE id = ?`).get(e.id);
-  if (exists) throw new Error(`Ya existe una entrada con id '${e.id}'. Los ids son la traza de una compra: no se reutilizan.`);
+  const exists = conn.prepare(`SELECT id FROM entry WHERE id = ?`).get(entry.id);
+  if (exists) throw new Error(`Ya existe una entrada con id '${entry.id}'. Los ids son la traza de una compra: no se reutilizan.`);
 
   const live = listEntries();
-  assertNoAmbiguity(e, live);
-  assertNoRegression(e, live);
-  if (!opts.skipGoldCheck) assertGoldUnchanged([...live, { ...e, decidedAt: at, retiredAt: null, retiredWhy: null }]);
+  const warnings = guardWarnings(entry, live, at, opts);
+  // Ruta normal: la primera guarda corta el alta, con el mismo mensaje de siempre. Con `force`, no.
+  if (warnings.length && !opts.force) throw new Error(warnings[0]);
 
   const ev: LogEvent = {
-    action: 'add', at, by: e.decidedBy, detail: e.rationale,
-    entry: { ...e, decidedAt: at },
+    action: 'add', at, by: entry.decidedBy, detail: entry.rationale,
+    entry: { ...entry, decidedAt: at },
   };
   mkdirSync(dirname(logPath), { recursive: true });
   appendFileSync(logPath, `${JSON.stringify(ev)}\n`, 'utf8');
   applyLog(conn, logPath);
+  return { warnings };
 }
 
 export function retireEntry(
