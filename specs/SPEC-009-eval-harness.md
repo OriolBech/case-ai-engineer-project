@@ -1,68 +1,80 @@
-# SPEC-009 · Evaluation harness
+# What I've decided not to do
 
-| | |
-|---|---|
-| **Files** | `src/eval/` |
-| **LLM** | No |
-| **Status** | 🚧 |
+> Status: ✅. Feeds section 5 of the 2-pager. *"A case without this section is a case where nothing
+> was decided."* Each entry: what, why not, what it would have cost, and what it would have bought.
 
-## Purpose
+| What | Why not | Cost avoided | What it would have bought |
+|---|---|---|---|
+| Fine-tuning or massive few-shot on the 15 rows | Judgment is tested against a blind set of 12 new rows: tuning against the given data is explicitly useless | ~2 h | Nothing, or an inflated KPI |
+| LLM in normalization | These are 4 closed, exhaustive tables. It's exactly the judgment error the case penalizes | — | Nothing, and it costs money on top |
+| Other families besides fasteners | The scope is deliberately small: they want depth | — | Surface area |
+| Deployment / Docker / CI | The brief explicitly says deployment isn't needed | ~1 h | Nothing evaluable |
+| Authentication and multi-user in the front end | The demo's user is a single buyer | ~1.5 h | Nothing evaluable |
 
-To produce, with a single command, every number the 2-pager and the session require. It's existed
-since day 2, because from that point on every change gets measured instead of guessed at.
+## The ones that were hard to decide · added while measuring
 
-## Contract
+The ones above were decided on day 0 and none of them hurt. These were decided with a measurement
+in hand, and they're the ones that teach something.
 
-```bash
-pnpm run eval                      # gold set, console summary
-pnpm run eval -- --report          # full report to eval/reports/<date>.md
-pnpm run eval -- --set=synthetic   # robustness set
-pnpm run eval -- --ablate=critic   # ablation of one stage
-pnpm run eval -- --sweep-threshold # KPI curve against the threshold
-```
+### Removing the critic
 
-## What it measures
+**It came close to being cut.** The written stopping criterion was: tighten the prompt → if
+precision doesn't get above 70%, switch models → if that doesn't work either, remove it. With 29%
+recall and 33% precision, and **31.8% queue noise**, the decision seemed made.
 
-Exact definitions in `docs/02-kpi.md`.
+**Why it stays.** The noise wasn't coming from the model: it was given the **normalized** output
+and asked to refute it against the **raw** text, with no way to tell the client's own tables apart
+from an error. It flagged `DIN931` → `ISO 4014` as if it were an invention. Given the provenance of
+each value, precision goes from **33% to 90%**.
 
-1. `silent_error_rate` — primary.
-2. `useful_autonomy` — secondary. Denominator: lines **belonging to the family** (see 8).
-3. `split_fidelity` — reported separately, never averaged in.
-4. `queue_noise`. Same denominator as 2.
-5. **Per-attribute breakdown** of the four above. Required by the brief: *"los agregados esconden
-   dónde falla el sistema"*.
-6. `€/row` and the extrapolation to `4,000 rows × 25 reviews`.
-7. `latency/1,000 lines`.
-8. `out_of_scope` — P-9, reported separately and never averaged in. The lines the gold set
-   declares as belonging to another family are excluded from the denominators in 2 and 4:
-   counting them would make the metric move with however many flanges the MTO happens to bring.
-   That exclusion is decided by **the gold set, never by the system**, and the two kinds of
-   disagreement are named separately (`missed`, `falsePositives`) because they don't cost the
-   same.
+**And what nearly made it leave with a false claim**: every critic figure was from **a single
+pass**. Three repetitions on the same input give recall of **14%, 43%, and 71%**. The documented
+29% was one sample, and a 0% I measured myself that same afternoon was too. It came close to
+removing a component that, on its best pass, eliminates 5 of 7 silent errors.
 
-## Gold set format
+### Implementing the union of N critic passes
 
-`data/gold/gold.jsonl` — one expected output line per record, with:
-- the 7 expected attributes,
-- **the quantity**, which is the eighth gradable cell,
-- `certainty: "certain" | "policy_dependent"` **per cell**,
-- the expected reason if it goes to review.
+I have it measured —union of three: recall 71%, precision 83%, **$0.0045 per MTO**— and **I
+haven't implemented it**. It's safe by construction, because the critic can only downgrade, so
+every extra pass only adds catches.
 
-`policy_dependent` cells are excluded from the main metrics and reported as a sensitivity
-analysis. A KPI that mixes the two isn't defensible in front of a client.
+**Why not**: the union figure is **arithmetic over three measured passes**, not a run of the
+function. Adding it before delivery would mean shipping code whose number I haven't actually
+measured, which is exactly the error this document already records three times. It goes as a line
+in `07-target-solution.md` with its cost.
 
-**On quantity.** It isn't one of the seven catalog attributes and doesn't enter the breakdown
-alongside them, but it does count toward silent error: it's the only field where getting it wrong
-**multiplies** the order. The gold set has labeled it from day one (21 certain cells, 9
-policy-dependent), and the harness **wasn't comparing it**: the cell loop only walked the seven
-attributes. A line with 10,000 bolts where the MTO asked for 100 came out perfect. Fixed; the
-certain-cells denominator goes from 190/210 to **211/240**, and every measurement taken before
-that fix was blind to quantity.
+### The deterministic filter before the model
 
-## Acceptance criteria
+A 5× cost reduction, measured at **0 false negatives and 0 false positives on 79 rows**, not
+implemented. It changes the semantics of P-9 —the out-of-family verdict would move from the model
+to a table in 80% of cases— and that's a product decision with its own measurement, not a
+last-minute patch. The cost of not doing it is bounded and stated: 48 € per site instead of ~10 €.
 
-- [ ] The report includes the literal list of failed lines, with expected vs. obtained and the
-      trace. This is what the brief asks to be shown: *"las filas que se te han caído"*.
-- [ ] `--ablate` works for split, extract, normalize, critic.
-- [ ] Reproducible: two consecutive runs produce the same report except for latency.
-- [ ] Runs in < 2 min on the gold set (otherwise it doesn't get used).
+### The third question to the client
+
+There were three slots and I used two (finish scope, implicit multiplicity) plus the material one.
+The candidate was the unit for imperial lengths (P-4), and **I didn't spend it**: there's a
+defensible unilateral criterion —a physical plausibility range applied outright— and what the
+range doesn't separate out **doesn't get resolved wrong**, it falls to review with
+`LENGTH_UNIT_IMPLAUSIBLE`. Measured impact: **3 cells out of 240**.
+
+Asking something that's already decided, measured, and bounded spends a slot and signals a failure
+to decide. The slot is kept for a real blocker.
+
+### Repeating the 8-model sweep with the eight cells
+
+The sweep in `11-benchmarks.md` §2 was measured over **seven** cells, before quantity was graded.
+Repeating it costs ~0.12 € and I haven't done it: the conclusion it supports —price doesn't
+predict quality— is decided by **split fidelity**, which doesn't depend on quantity. What I've
+done is **flag the table** with what's missing from it, instead of letting it be read as if it
+were on the same basis as the rest.
+
+### A complete "no-LLM" mode
+
+The deterministic baseline exists (`findNames`, `findStandards`, `findFinishes`) and is used for
+routing, for gap detection, and for deciding the name, the designation length, and the
+multiplicity. **I haven't closed it off as a complete execution mode.**
+
+Why: without a model there's no set segmentation, and 47% of the rows in the given MTO describe
+more than one material. A no-LLM mode would give 15 lines where there are 30. As an *ablation* to
+demonstrate what the model buys, it's worthwhile; as a production mode, no.

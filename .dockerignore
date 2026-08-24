@@ -1,0 +1,16 @@
+# Contexto de build: no mandar artefactos locales ni secretos.
+.git
+.gitignore
+.next
+node_modules
+out
+.env
+.env.local
+**/*.tsbuildinfo
+**/*.log
+.DS_Store
+
+# Caché LLM y SQLite se reconstruyen o viven en el volumen ./data
+data/output
+**/*.sqlite
+**/*.sqlite-*

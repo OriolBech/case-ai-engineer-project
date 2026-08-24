@@ -5,6 +5,7 @@
 Un MTO trae hasta 20.000 filas, un 15–25% de tornillería, y hasta 25 revisiones. Una fila puede
 describir **varios materiales** (`STUD BOLT … W/2 HEX. NUT … 2 WASHER`) y los escribe cada estudio de
 ingeniería a su manera. A 90 s/fila eso son **100 h por revisión** y **2.500 h por obra**: ~87.500 €.
+Con autonomía útil al 50% son **~43.800 €/obra** de lectura que ya no toca nadie — sin el error caro.
 
 **Los dos errores no cuestan lo mismo, y eso decide todo el diseño.** Una revisión innecesaria cuesta
 90 s = **0,875 €**. Un error silencioso —una línea resuelta con un atributo mal— para un frente de
@@ -54,7 +55,7 @@ Excel → 1 ingest → 2+3 analyze → 4 normalize → 5 validate → 6 critic �
 | 1 ingest | No | Es I/O, y donde entra un MTO de otro estudio | No hay entrada. 2 bugs sólo visibles con otro formato |
 | **2+3 analyze** | **Sí** | Delimitar el set y **atribuir** cada valor a su elemento es comprensión, no búsqueda | 15 líneas donde hay 30: el 47% de las filas son multi-material |
 | 4 normalize | No | Son 4 tablas cerradas del cliente. Un LLM aquí puede inventar una equivalencia que no está en su tabla | Se paga por un riesgo, sin comprar nada |
-| 5 validate | No | Obligaciones, coherencias y las 11 políticas, con motivo tipado | Desaparece la distinción "falta el dato" / "no estoy seguro" |
+| 5 validate | No | Obligaciones, coherencias y las 12 políticas, con motivo tipado | Desaparece la distinción "falta el dato" / "no estoy seguro" |
 | 6 critic | Sí | Caza la **atribución** mala: una norma en el campo calidad. El verificador de spans no puede verlo, porque el valor sí está en el texto. A esfuerzo `high` —su propio dial, medido— da **recall 43% / precisión 100%** sobre los errores conocidos | Vuelven hasta 4 errores silenciosos |
 
 **El hallazgo principal no es un modelo: es una frontera.** Tres veces he movido una decisión del
@@ -68,6 +69,10 @@ modelo a una tabla, y las tres cerraron un error real:
 
 Puesto en dinero: la frontera bien puesta en el nombre mueve el coste defendible de **8.750 € a 48 €
 por obra**, porque permite usar un modelo abierto que cuesta 176× menos en salida sin perder calidad.
+
+Fuera del pipeline, y **sin LLM**: identidad de línea por los 7 atributos canónicos y diff entre
+revisiones (`src/domain`, SPEC-014). Insertar una fila en la rev. 12 no convierte el tornillo de
+abajo en alta+baja. Matching al maestro sucio **no vive aquí**.
 
 ## 3. Resultados, y dónde falla
 
@@ -110,10 +115,10 @@ Ordenada por delta de KPI por hora. Las tres primeras salieron de medir, no de i
 | # | Qué | Delta |
 |---|---|---|
 | 1 | **Filtro determinista antes del modelo.** Una fila sin nombre de catálogo no necesita LLM. Hoy se leen las 20.000 filas para saber cuáles son las 4.000 de tornillería | **5× en coste.** 0 falsos negativos en 79 filas |
-| 2 | **Fallar cerrado**: el hueco de política **bloquea** la resolución en lugar de acompañarla | El "100% seguro" pasa a ser estructural, no un aviso |
-| 3 | **Identidad de línea estable**, del contenido y no de la columna `ITEM` (que es opcional) | Desbloquea el **diff entre revisiones**, el mayor ahorro del problema |
-| 4 | **Las reglas como dato**: vocabulario en dos capas (catálogo del cliente, sólo lectura · nuestros alias, editable) y consola de políticas que **enseña el delta de KPI antes de aprobar** | Cambiar una regla es un cambio auditable, no un despliegue. Medida y longitud quedan fuera del vocabulario a propósito: son gramática |
-| 5 | **El front como generador de ground truth**: cada corrección es una etiqueta, y cada sugerencia aprobada una entrada del vocabulario | El primer gold set real del cliente en 3 semanas. Y ataca el **falso no-resuelto**: la fila 63 le pedía a ingeniería una calidad que la fila sí escribía |
+| 2 | **Fallar cerrado (parcialmente hecho)**: P-12 ya **bloquea** un acabado desconocido; el resto de huecos aún se reportan junto a una línea que puede haber salido resuelta | El "100% seguro" pasa a ser estructural, no un aviso |
+| 3 | **Identidad estable + diff entre revisiones** (SPEC-014). Hecho: store SQLite, diff 0 LLM, UI en Histórico (nuevo / desaparecido / cantidad / ambiguo). “Exportado a RFQ” solo si RESUELTA y se exportó de verdad | El ahorro del enunciado que **no entra** en el KPI de extracción: no recomprar lo de la rev. 9 |
+| 4 | **Las reglas como dato (parcialmente hecho)**: dos capas. Catálogo del cliente se lista, no se edita; material y acabado ya son alias en `/vocabulario`. Falta consola de políticas con **delta de KPI antes de aprobar** | Cambiar un alias ya no es un despliegue. Medida y longitud fuera: son gramática |
+| 5 | **Aprender de correcciones, sin RL** (SPEC-015). Captura con evidencia literal ya existe. Falta que la cola escriba, que dos valores distintos sobre la misma celda salgan a vocabulario, y promoción solo tras eval | El gold que el cliente no tiene. Dos valores ≠ bug del modelo; es la regla que la casa no escribió |
 
 ## 5. Qué he decidido no hacer
 
@@ -121,6 +126,7 @@ Ordenada por delta de KPI por hora. Las tres primeras salieron de medir, no de i
 |---|---|
 | LLM en la normalización | 4 tablas cerradas y exhaustivas. Es el error de criterio que el case penaliza |
 | Fine-tuning sobre las 15 filas | El juicio va contra un blind set. Ajustar contra los datos dados infla el KPI y no compra nada |
+| **RL / auto-promover correcciones** | El patrón ya está: vocabulario como dato, con firma. Un modelo que cambia con cada corrección rompe la traza y la asimetría del crítico |
 | **Implementar la unión de N pasadas del crítico** | La tengo medida (recall 71%, precisión 83%, $0,0045/MTO) pero es **aritmética sobre tres pasadas**, no una ejecución. Entregar código cuyo número no he medido es el error que este proyecto ya pagó tres veces |
 | **El filtro determinista** (5× en coste) | Mueve el veredicto de fuera-de-familia del modelo a una tabla: cambia P-9 y merece su medida, no un parche |
 | **Gastar la tercera pregunta al cliente** | La candidata (unidad de longitudes imperiales) tiene criterio unilateral defendible, y lo que el rango no separa cae a revisión en vez de resolverse mal. Impacto: 3 celdas de 240 |
@@ -136,16 +142,17 @@ bloque. Ya pasó dos veces en pequeño: una cabecera no reconocida generó 30 l�
 acción. *Pendiente*: separar en el backlog el hueco de política del split incompleto — hoy salen igual
 y son destinatarios distintos.
 
-**2. Deriva silenciosa: otro estudio escribe distinto y nadie se entera.** Las 11 políticas se
+**2. Deriva silenciosa: otro estudio escribe distinto y nadie se entera.** Las 12 políticas se
 escribieron contra el fichero que me dieron, y **un default se dispara en silencio**. *Detector*:
 `pnpm run gaps`, determinista, coste 0, sobre el 100% de las filas — no pregunta "¿ha acertado el
 modelo?" sino "¿queda algo de la fila sin explicar?". En su primera ejecución encontró un bug del
-parser de normas que 88 tests no vieron. *Pendiente*: la tasa de huecos como métrica de producto, con
-su curva, que es lo que hace la promesa falsable.
+parser de normas que 88 tests no vieron. Cerrar un hueco de material o acabado ya es un alta en
+`/vocabulario`, no un despliegue. *Pendiente*: la tasa de huecos como métrica de producto, con su
+curva, que es lo que hace la promesa falsable.
 
-**3. No hay una verdad contra la que medir, porque dos compradores no normalizan igual.** No rompe el
-sistema: rompe la capacidad de **saber** si funciona, y hace indetectables los otros dos. Mi propio
-gold ya tiene el síntoma. *Pendiente*: el segundo pase ciego. Y que las discrepancias entre
-compradores se traten como **decisiones de vocabulario**, no como bugs del modelo: dos personas que
-corrigen la misma celda de dos formas no son un problema de precisión, son una regla que la casa nunca
-escribió.
+**3. Maestro sucio, dos compradores, tasa humana no medida — y no son problemas míos que “arregle”
+un modelo.** El maestro no se matchea (SPEC-014 no lo toca). Dos correcciones contradictorias no se
+promedian ni se promocionan (SPEC-015: van al backlog de vocabulario). La tasa humana no se preguntó
+al cliente: se acota con el segundo pase ciego (aún pendiente) y, en producción, con `conflictos /
+decididas`. El 0% de error silencioso de hoy es contra **mis** 30 líneas; lo que se defiende es el
+compromiso 2 — lo no cubierto sale señalado.

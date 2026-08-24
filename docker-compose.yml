@@ -1,0 +1,42 @@
+# Arranque sin Node ni pnpm en el host:
+#   cp .env.example .env.local   # y pega las API keys
+#   docker compose up --build    # http://localhost:3000
+#
+# CLI dentro del contenedor (tests, eval, audit):
+#   docker compose exec app pnpm test
+#   docker compose exec app pnpm run eval
+# Si el servicio no está arriba:
+#   docker compose run --rm app pnpm test
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.example
+      - path: .env.local
+        required: false
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    volumes:
+      # Gold, seeds, logs de vocabulario, SQLite, caché LLM y salidas del eval.
+      # El código va en la imagen: tras un git pull, `docker compose up --build`.
+      - ./data:/app/data
+    init: true
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 45s
