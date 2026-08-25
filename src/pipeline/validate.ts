@@ -321,12 +321,34 @@ function buildLine(el: NormalizedElement, ctx: Ctx): OutputLine {
       });
       policies.add('P-3');
     }
-    // 'uncovered' NO añade motivo aquí: lo recoge coverage.ts como hueco de política, que es un canal
-    // distinto —una decisión que el proyecto debe, no un dato que el comprador pueda arreglar.
-    // 'deliberate' es una ausencia válida y declarada: no es un hueco ni una revisión.
+    else if (d.why.reason === 'uncovered' && P.uncoveredMaterial === 'review') {
+      // P-13. Antes esto NO añadía motivo: el hueco se lo llevaba coverage.ts al backlog y la línea
+      // salía RESUELTA con el material vacío. El canal era correcto —una decisión que el proyecto
+      // debe, no un dato que el comprador pueda arreglar— y la conclusión no: de "no es su trabajo
+      // decidirlo" no se sigue "puede exportarse al RFQ sin saber si es acero o inoxidable". Son dos
+      // cosas distintas, y confundirlas es el default disparándose en silencio que este fichero
+      // existe para evitar. Lo que se contestó al cliente en la Q3 lo dice entero: "cualquier
+      // calidad NO CUBIERTA o no unívoca irá a revisión" — se aplicaba la segunda mitad y no la
+      // primera. El hueco sigue yendo al backlog: cambia el estado de la línea, no el canal.
+      reasons.push({
+        code: 'UNMAPPED_VALUE',
+        kind: 'LOW_CONFIDENCE',
+        message: `Ninguna entrada del vocabulario cubre la calidad ${quality.raw}, así que no se sabe `
+          + 'si esta pieza es acero o inoxidable. Está pendiente de decidir.',
+        attribute: 'material',
+      });
+      policies.add('P-13');
+    } else if (d.why.reason === 'deliberate') {
+      // Ausencia decidida, no hueco: la tabla declara esta calidad no derivable CON SU MOTIVO (una
+      // dureza HV describe el tratamiento, no el metal base). Se marca la regla para que la traza
+      // pueda distinguirla de "nadie lo ha mirado todavía", que es lo que el comprador necesita
+      // saber cuando ve el material vacío y ninguna decisión pendiente.
+      material = { ...material, rule: 'P-3:no-derivable' };
+      policies.add('P-3');
+    }
   }
-  // §5's only written review rule is the quality one; an absent material never blocks. §9 sets the
-  // precedent: an empty attribute can be a valid, resolved value.
+  // §9 sets the precedent that an empty attribute can be a valid, resolved value — but only when the
+  // absence is DECIDED. An absence nobody has decided on goes to review under P-13, above.
 
   // --- finish (P-1) -------------------------------------------------------
   let finish = el.finish;

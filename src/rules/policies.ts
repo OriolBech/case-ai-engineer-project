@@ -59,6 +59,23 @@ export interface Policies {
    * published-KPI ablation (line resolves as if it had no finish). See specs/SPEC-011-finish-vocabulary.md.
    */
   unknownFinish: 'review' | 'resolve';
+  /**
+   * P-13. A quality **no vocabulary entry covers**, so the material could not be derived.
+   *
+   * Not a new question: it is the second half of the answer already given to the client for Q3 —
+   * *"cualquier calidad no cubierta o no unívoca irá a revisión"* (`src/rules/vocabulary-db.ts`).
+   * The validator applied the "no unívoca" half and not the "no cubierta" one, so a line with an
+   * empty material shipped as RESUELTA and was exported to the RFQ. Measured on
+   * `MTO_sugerencias.xlsx`: 6 of 42 lines, every one of them a quality nobody had decided on.
+   *
+   * The gap still goes to the policy backlog — it is a decision the project owes, taken once, not
+   * once per row (SPEC-011 sets the precedent for finish with P-12). What changes is the line's
+   * STATUS: those are two different channels, and confusing them is what let the default fire
+   * silently. `resolve` is the ablation that restores the previous behaviour so its delta stays
+   * measurable. A `deliberate` absence (`200HV`: hardness does not name a base metal) is a decided,
+   * valid absence and is NOT affected by this policy.
+   */
+  uncoveredMaterial: 'review' | 'resolve';
 }
 
 /**
@@ -78,6 +95,7 @@ export const DEFAULT_POLICIES: Policies = {
   bareMeasureInSet: 'reject',
   rejectedMeasureAsQuality: 'if_catalog_and_coherent',
   unknownFinish: 'review',
+  uncoveredMaterial: 'review',
 };
 
 // ---------------------------------------------------------------------------
@@ -121,6 +139,7 @@ const SPEC: { [K in keyof Policies]: PolicySpec } = {
   bareMeasureInSet: { env: 'POLICY_BARE_MEASURE_IN_SET', values: ['reject', 'keep'] },
   rejectedMeasureAsQuality: { env: 'POLICY_REJECTED_MEASURE_AS_QUALITY', values: ['if_catalog_and_coherent', 'off'] },
   unknownFinish: { env: 'POLICY_UNKNOWN_FINISH', values: ['review', 'resolve'] },
+  uncoveredMaterial: { env: 'POLICY_UNCOVERED_MATERIAL', values: ['review', 'resolve'] },
 };
 
 export interface PolicyOverride {

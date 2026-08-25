@@ -6,7 +6,7 @@
 | **Stage** | 5 |
 | **LLM** | **No** |
 | **Status** | 🚧 |
-| **Policies** | P-1 … P-12 |
+| **Policies** | P-1 … P-13 |
 
 ## Purpose
 
@@ -52,7 +52,7 @@ from the bolt.
 | Length | Yes, **except** on `TUERCA` (nut) and `ARANDELA` (washer) |
 | Quality | Yes → `QUALITY_MISSING` (the only review rule written into the rules) |
 | Standard | Per policy P-5 → `STANDARD_MISSING` |
-| Material | Per policy P-3 |
+| Material | Per policies P-3 and P-13: an absence **decided** by the vocabulary resolves; one nobody has decided on goes to review |
 | Finish | **No.** Blank is valid |
 
 ### 4. Coherence checks
@@ -64,14 +64,22 @@ from the bolt.
 ### 5. Policies applied here
 P-1 finish on a set · P-2 multiplicity · P-3 derived material · P-4 length unit ·
 P-5 missing standard · P-6 quality/type incoherence · P-8 HV · P-9 out of family · P-10 bare
-size · P-11 discarded value · **P-12 unrecognized finish**. Each one reads its flag and **records
-on the line which policy produced it**.
+size · P-11 discarded value · **P-12 unrecognized finish** · **P-13 uncovered material**. Each one
+reads its flag and **records on the line which policy produced it**.
 
 **P-12.** A finish with a `raw` value and no `normalized` value (`finish:unmapped` or
 `finish:ambiguous`) applies `POLICY_UNKNOWN_FINISH`. Default `review`: reason
 `UNMAPPED_VALUE`, the line is not exported as an RFQ.
 `resolve` is the ablation used for the published KPI (the line resolves as if it carried no
 finish; the gap stays in the backlog). See SPEC-011.
+
+**P-13.** A quality no material-vocabulary entry covers applies `POLICY_UNCOVERED_MATERIAL`.
+Default `review`: reason `UNMAPPED_VALUE` on the `material` attribute, the line is not exported as
+an RFQ. This is the *not covered* half of the answer to the client's Q3 (`docs/03-policies.md`);
+the *not unique* half was already implemented as a review. The gap keeps going to the policy
+backlog — the status of the line and the channel of the decision are two different things.
+A `deliberate` absence (the vocabulary declares the quality not derivable, with its reason) is a
+valid resolved value and carries `rule: "P-3:no-derivable"` so the trace can say so.
 
 ### 6. Quantities
 `quantity = quantityRow × multiplicity`. If `multiplicitySource = "not_stated"`, P-2 applies and

@@ -53,10 +53,14 @@ export const PROVENANCE_LABEL: Record<Provenance, string> = {
   inferred: 'inferido',
   absent: 'ausente',
   not_applicable: 'no aplica',
+  human_corrected: 'corregido a mano',
 };
 
 /** Provenances the spec calls out as needing a visible mark: anything that is not a literal hit. */
 const MARKED: ReadonlySet<Provenance> = new Set([
+  // `human_corrected` se marca por lo contrario que las demás: no porque haya que desconfiar, sino
+  // porque el valor ya no es lo que dice el MTO y quien lo lea tiene derecho a saberlo.
+  'human_corrected',
   'extrapolated', 'derived', 'inferred', 'extracted_uncatalogued',
 ]);
 
@@ -181,6 +185,10 @@ export function downloadCsv(fileName: string, csv: string): void {
 
 /** De fuerte a débil. Mismo orden que PROVENANCE_SCORE en src/lib/confidence.ts. */
 export const PROVENANCE_ORDER: readonly Provenance[] = [
+  // Lo corregido a mano encabeza la lista: alguien miró esa fila, y ninguna lectura automática
+  // supera eso. Va aquí y no fuera del orden porque `weakestProvenance` recorre la línea entera y un
+  // valor sin rango contaría como el más fuerte por accidente, que es lo mismo pero por casualidad.
+  'human_corrected',
   'exact_catalog', 'table_normalized', 'extracted', 'extracted_uncatalogued',
   'extrapolated', 'derived', 'inferred', 'absent',
 ];

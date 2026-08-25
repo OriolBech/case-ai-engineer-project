@@ -128,6 +128,7 @@ in: number 1 was the material (P-3), number 2 the finish (P-1). The third slot i
 | P-10 | Bare number in a set's measure field | ❌ our own call | `POLICY_BARE_MEASURE_IN_SET` |
 | P-11 | What to do with the value P-10 discards | ❌ our own call | `POLICY_REJECTED_MEASURE_AS_QUALITY` |
 | P-12 | A finish the vocabulary doesn't recognize | ❌ our own call | `POLICY_UNKNOWN_FINISH` |
+| P-13 | A quality the material vocabulary doesn't cover | ✅ email 001 #3 · **answered** | `POLICY_UNCOVERED_MATERIAL` |
 
 ---
 
@@ -183,8 +184,14 @@ grade or the standard. The rules say to extract what's present and give no deriv
 
 **Decision (default).** Derive `AC`/`INOX` from the quality grade (`A2*`/`A4*`/`304`/`316`/`18-8`
 → `INOX`; `8.8`/`10.9`/`12.9`/`GRADE *`/`8`/`10` → `AC`), with `provenance: "derived"` and a trace
-to the value that justifies it. **It doesn't block resolution.** ASTM grades (`B7`, `2H`) → `AC`
-via the standard.
+to the value that justifies it. ASTM grades (`B7`, `2H`) → `AC` via the standard.
+
+**It doesn't block resolution — when there is a decision behind the value.** A derived material
+resolves, and so does an absence the vocabulary declares *not derivable* with its reason (`200HV`:
+a hardness names the surface treatment, not the base metal). That declaration used to be reachable
+only by editing the seed and deploying; it is now the third option on the line's own panel
+(SPEC-012 §6), which is what makes it a decision the buyer can take rather than a ticket. A quality **nobody has decided on**
+does block: that is P-13, and it is the other half of the same answer to the client.
 
 **Alternative.** `POLICY_MATERIAL_DERIVATION=off` → missing material sends it to review. Expected
 effect: autonomy falls to ~0%, which shows why the question mattered.
@@ -432,6 +439,48 @@ delta.
 **Volume.** 0/15 rows of the given MTO. In the synthetic suggestions MTO
 (`pnpm run mto:synthetic`): 6 finish-only rows plus 1 combined (finish + material). The token
 lives in the `ACABADO` column, not mixed into `DESCRIPCION`.
+
+---
+
+## P-13 · A quality the material vocabulary doesn't cover
+
+**Problem.** Not a new question — the missing half of an answer already given. Q3 of `email-001`
+was answered like this, and `src/rules/vocabulary-db.ts` quotes it at the top of the file:
+
+> Derive only known deterministic equivalences, marked as derived. Any quality **not covered or
+> not unique** will go to review.
+
+The validator implemented the *not unique* half — two entries in conflict send the line to review —
+and not the *not covered* one. A quality no entry covered left the material empty, the gap went to
+the policy backlog, and **the line came out RESOLVED**: it was exported in the RFQ CSV without
+anyone knowing whether the part was steel or stainless.
+
+The reasoning that produced it had a good half: a policy gap is **not** the buyer's row-by-row
+work, so it goes to the backlog and not to their queue. The bad half is the jump from there to
+*"therefore the line can be called resolved"*. Where a decision is taken and what state the line
+ships in are two different channels, and merging them is exactly the silent default that
+`policies.ts` exists to prevent. P-12 had already set the precedent for finish.
+
+**Decision (default).** `POLICY_UNCOVERED_MATERIAL=review` → reason `UNMAPPED_VALUE` on the
+`material` attribute, the line goes to review and isn't exported as an RFQ. The
+`UNCOVERED_DERIVATION` gap **still** goes to the backlog: one decision per quality, not one per
+row. What changed is the line's status, not the channel.
+
+**Alternative.** `=resolve` → the previous behavior, kept so its delta stays measurable.
+
+**Not affected: a decided absence.** `deriveMaterial` distinguishes three reasons and each is owed
+a different outcome — `uncovered` (nobody decided) → review; `ambiguous` (the table owes a
+disambiguation) → review, as before; `deliberate` (declared not derivable, with its reason) → a
+valid, resolved absence. The line now carries `rule: "P-3:no-derivable"` on the attribute so the
+trace can tell "decided" from "nobody looked at it", which is the distinction the buyer needs when
+they see an empty material.
+
+**Volume.** **0/15 rows** of the given MTO: its seven distinct qualities all derive, so the default
+**does not move the published figures** (gold, measured after the change: 0.0% silent error, 50.0%
+useful autonomy, 100% split — identical to `docs/05-results.md`). Where it shows up is the
+synthetic MTO (`pnpm run mto:synthetic`): **6 of 42 lines** shipped RESOLVED with an empty
+material — `GR L7`, `GR B8`, `GR 12H`, `GR B8M` (×2), `GR 660` — and now go to review. Resolved
+lines there go 24 → 18.
 
 ---
 

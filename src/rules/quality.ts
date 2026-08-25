@@ -15,26 +15,9 @@
 import { fold } from './text.ts';
 import type { QualityGroup, ItemName } from '../pipeline/types.ts';
 import { resolveGenericAlias } from './generic-alias-db.ts';
+import { QUALITY_GROUPS } from './quality-groups.ts';
 
-/** Verbatim from §5's equivalence table. */
-export const QUALITY_GROUPS: ReadonlyMap<QualityGroup, readonly string[]> = new Map([
-  ['G1', ['A2', 'A2-70', '18-8', '304']],
-  ['G2', ['A2-80']],
-  ['G3', ['A4', 'A4-70', '316']],
-  ['G4', ['A4-80']],
-  // §5's value list writes GRADE 5 / GRADE 8; its group table adds GRADO 5 / GRADO 8.
-  // Both are kept — the group table is the operative one.
-  ['G5', ['8.8', 'GRADE 5', 'GRADO 5']],
-  ['G6', ['10.9', 'GRADE 8', 'GRADO 8']],
-  ['G7', ['12.9']],
-  ['G8', ['8']],
-  ['G9', ['10']],
-  ['G10', ['100HV']],
-  ['G11', ['140HV']],
-  ['G12', ['160HV']],
-  ['G13', ['200HV']],
-  ['G14', ['300HV']],
-]);
+export { QUALITY_GROUPS };
 
 /** §5: `8` and `10` apply to nuts only — the one type restriction the rules state explicitly. */
 export const NUT_ONLY_GROUPS: readonly QualityGroup[] = ['G8', 'G9'];
@@ -114,6 +97,15 @@ export function normalizeQuality(raw: string): QualityResult {
 }
 
 /** Same group => equivalent. Different or unknown group => not equivalent. Never fuzzy. */
+/**
+ * Equivalencia **de capa 1 solamente**, y hoy no la usa nadie del pipeline.
+ *
+ * La aclaración no es pedante: `normalizeQuality` no consulta la capa 2 (`quality-db`), así que dos
+ * calidades que un comprador declaró equivalentes salen de aquí como distintas — y desde que existen
+ * los grupos propios (`V-…`), también dos calidades nuevas del mismo grupo. Quien necesite la
+ * equivalencia real tiene que comparar `resolveQuality(x).group` con `resolveQuality(y).group`; esta
+ * función se queda porque describe §5 y porque el ciclo de imports impide que consulte la otra capa.
+ */
 export function areEquivalent(x: string, y: string): boolean {
   const gx = normalizeQuality(x).group;
   const gy = normalizeQuality(y).group;

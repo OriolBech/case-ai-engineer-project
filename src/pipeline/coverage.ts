@@ -21,6 +21,7 @@ import { findStandards } from '../rules/standards.ts';
 import { findFinishes } from '../rules/finish.ts';
 import { resolveFinish } from '../rules/finish-db.ts';
 import { suggestFinishEntryId } from '../rules/finish-vocab-id.ts';
+import { exactQualityPattern } from '../rules/quality-pattern.ts';
 import { resolveQuality } from '../rules/quality-db.ts';
 import { deriveMaterial, isDerived } from '../rules/vocabulary-db.ts';
 
@@ -232,7 +233,7 @@ export function detectGaps(row: MtoRow, lines: OutputLine[]): PolicyGap[] {
         'Decidir si es AC o INOX, o declararla no derivable con su motivo.',
       candidate: {
         id: `TODO-${q.raw.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-        when: { qualityPattern: `^${q.raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$` },
+        when: { qualityPattern: exactQualityPattern(q.raw) },
         material: 'AC | INOX',
         rationale: 'PENDIENTE',
         decidedBy: 'PENDIENTE',

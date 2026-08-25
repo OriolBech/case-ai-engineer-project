@@ -11,7 +11,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test 'src/**/*.test.ts'",
+    "test": "node --test 'src/**/*.test.ts' 'app/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "rules:audit": "node src/rules/audit.ts",
     "check": "pnpm run typecheck && pnpm test",

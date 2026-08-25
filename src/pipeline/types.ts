@@ -20,10 +20,32 @@ export const LENGTH_EXEMPT: readonly ItemName[] = ['TUERCA', 'ARANDELA'];
 /** §9. Absence of a finish is a valid value and never sends a line to review. */
 export type Finish = string;
 
-/** §5. Two values of the same group are equivalent. Different groups are NOT. */
-export type QualityGroup =
+/**
+ * §5. Two values of the same group are equivalent. Different groups are NOT.
+ *
+ * The client's fourteen. This is **layer 1**: their document, not ours, and nothing in this codebase
+ * edits it.
+ */
+export type ClientQualityGroup =
   | 'G1' | 'G2' | 'G3' | 'G4' | 'G5' | 'G6' | 'G7'
   | 'G8' | 'G9' | 'G10' | 'G11' | 'G12' | 'G13' | 'G14';
+
+/**
+ * A group **we** declared, because the value equals nothing in §5.
+ *
+ * Why this exists. A quality outside §5 used to have exactly one exit in the UI: pick one of the
+ * fourteen. For `GR 660` — a nickel-base alloy that is not interchangeable with any of them — that
+ * exit is *declaring an equivalence that is false*, and a false equivalence is a worse breach of the
+ * group invariant than a new group is: it means someone can be shipped `8.8` where `GR 660` was
+ * specified. Finish already had "declare a new one" and material has "not derivable"; this is the
+ * same third exit for quality.
+ *
+ * The `V-` prefix (vocabulario) is load-bearing: a group of ours must never be mistakable for one of
+ * §5, in the trace, in the logs, or in a table listing both. Layer 1 stays exactly fourteen.
+ */
+export type OwnQualityGroup = `V-${string}`;
+
+export type QualityGroup = ClientQualityGroup | OwnQualityGroup;
 
 export type UnitSystem = 'imperial' | 'metric';
 
@@ -53,7 +75,16 @@ export type Provenance =
   /** Not present in the MTO. Nothing a model can fix: goes back to engineering. */
   | 'absent'
   /** The attribute does not apply: length on a nut or a washer (§7). Not a gap. */
-  | 'not_applicable';
+  | 'not_applicable'
+  /**
+   * A person overwrote what the system read — SPEC-015. It is its own provenance rather than a flag
+   * on top of the old one, and that is the point: a value typed by a buyer must never be readable as
+   * something the MTO said. It is the most trustworthy source in this list (someone looked at the
+   * row) and the one the system can least explain, which is exactly why it has to be visible.
+   *
+   * The pipeline never emits it: it exists only in the session patch and in the corrections log.
+   */
+  | 'human_corrected';
 
 /** Byte offsets into MtoRow.sourceText. Every non-null value must have one. */
 export interface Span {

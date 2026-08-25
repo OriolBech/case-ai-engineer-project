@@ -25,6 +25,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fold } from './text.ts';
 import { QUALITY_GROUPS, normalizeQuality, type QualityResult } from './quality.ts';
+import { isKnownGroupShape, isOwnGroup } from './quality-groups.ts';
 import type { QualityGroup } from '../pipeline/types.ts';
 import { loadGold } from '../eval/harness.ts';
 
@@ -289,10 +290,16 @@ export interface AddQualityOptions {
 /** Invariantes duros: una entrada que los rompe no puede existir, ni con `force`. */
 function assertStructural(e: NewQualityAlias): void {
   if (!e.alias.trim()) throw new Error('Falta el token de calidad que dispara la entrada.');
-  if (!QUALITY_GROUPS.has(e.group)) {
+  // Dos capas, y la frontera es el prefijo. Los catorce de §5 son del cliente y no se tocan; un
+  // `V-…` es nuestro, y existe porque la alternativa era peor: sin él, una calidad que no equivale a
+  // ninguna de las catorce sólo podía darse de alta declarando una equivalencia FALSA, y eso es
+  // exactamente lo que la invariante de los grupos existe para impedir. Un id que no es ninguna de
+  // las dos cosas sigue siendo un error: una errata no puede convertirse en un grupo por accidente.
+  if (!isKnownGroupShape(e.group)) {
     throw new Error(
-      `El grupo '${e.group}' no es uno de los 14 de §5. Declarar un grupo nuevo es cambiar el ` +
-      'documento del cliente: se hace en la capa 1, no desde aquí.',
+      `El grupo '${e.group}' no es uno de los 14 de §5 ni un grupo propio bien formado (prefijo 'V-'). ` +
+      'Los catorce son el documento del cliente y no se amplían desde aquí; una calidad que no ' +
+      'equivale a ninguno se declara como grupo propio.',
     );
   }
 }

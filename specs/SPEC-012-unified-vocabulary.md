@@ -12,7 +12,7 @@
 ## Purpose
 
 A single vocabulary view for the buyer, instead of one screen per attribute. The attribute is a
-**filter**, not a route. The `→ vocabulario` links from the queue or the backlog land on
+**filter**, not a route. The `→ vocabulario` links from the queue or a line's drawer land on
 `/vocabulario?attr=<attribute>&alias=<text>` and open the addition form pre-filled.
 
 ## Why not an LLM
@@ -47,8 +47,8 @@ route: `GET/POST/DELETE /api/vocabulary`.
 
 - `GET` → `{ entries, uncovered, finishCatalog }`
 - `POST` → addition. Demo default: `force: true` (policy guards travel as `warnings`;
-  something structurally impossible — duplicate id, alias with no finish, material that isn't
-  AC/INOX — responds 422 and isn't saved).
+  something structurally impossible — duplicate id, alias with no finish, material that is neither
+  AC/INOX nor a declared non-derivation — responds 422 and isn't saved).
 - `DELETE` → retirement with reason. The id isn't reused.
 
 An addition from this route is indistinguishable from `pnpm run vocab` / `pnpm run finish:vocab`.
@@ -65,6 +65,17 @@ An addition from this route is indistinguishable from `pnpm run vocab` / `pnpm r
 5. Applying an addition while the MTO is open rewrites, live, the lines whose `raw` matches
    (`SuggestionPatch` in `App.tsx`) and leaves them to be revalidated. That's `SPEC-013`, not this
    spec: this spec only writes the vocabulary.
+6. **A value that matches nothing is an addition too.** `kind: 'new_group'` (quality) opens a group
+   of ours rather than forcing one of the client's fourteen; `GET` returns `qualityGroups` — the
+   fourteen plus ours, each flagged — so the form can offer both without conflating them.
+7. **Declared absences are additions too.** `kind: 'not_a_finish'` (§9) and `kind: 'not_derivable'`
+   (P-3) say *this value has no catalogue value, and here is why*. They are decisions, not gaps, and
+   they need to be reachable from the same form — otherwise the only exits on offer are the ones
+   that invent a value. `not_derivable` writes an `uncover` event to the material log and lands in
+   the `uncovered` table; **its reason is mandatory**, because an absence with no reason is
+   indistinguishable from nobody having looked. It is refused, guard or no guard, over a quality that
+   currently derives: that would leave the table saying two things at once without retiring
+   anything — retire the live entry first.
 
 ## Acceptance criteria
 
@@ -75,6 +86,8 @@ An addition from this route is indistinguishable from `pnpm run vocab` / `pnpm r
 - [x] A finish addition, a material addition, and a quality addition from this view write to their
       respective logs.
 - [x] Name and standard are listed with the tables' real entries, not a placeholder.
+- [x] A quality can be declared **not derivable** with its reason, from the same facade, and the
+      material log rebuilds the state from scratch (`src/rules/__tests__/vocabulary-not-derivable.test.ts`).
 
 ## Out of scope
 

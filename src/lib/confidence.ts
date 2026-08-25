@@ -28,6 +28,12 @@ export const PROVENANCE_SCORE: Record<Provenance, number | null> = {
   absent: null,
   /** A nut has no length (§7). That is not uncertainty either. */
   not_applicable: null,
+  /**
+   * Somebody read the row and typed it (SPEC-015). Nothing the pipeline produces beats that, so it
+   * scores at the top — and it never actually moves a published figure, because the pipeline does
+   * not emit this provenance: it lives in the session patch and in the corrections log.
+   */
+  human_corrected: 1.0,
 };
 
 /**

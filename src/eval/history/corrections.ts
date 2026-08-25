@@ -13,6 +13,7 @@
  * generan vocabulario.
  */
 import { randomUUID } from 'node:crypto';
+import { evidenceMatches } from './evidence.ts';
 import { openHistoryDb } from './db.ts';
 import { addEntry as addFinishEntry } from '../../rules/finish-db.ts';
 import { addEntry as addMaterialEntry } from '../../rules/vocabulary-db.ts';
@@ -72,8 +73,7 @@ export function proposeCorrection(input: NewCorrection, rowSourceText: string, a
   }
   if (!input.rationale.trim()) throw new Error('Falta el motivo de la corrección.');
 
-  const norm = (s: string) => s.normalize('NFKC').replace(/\s+/g, ' ').trim().toUpperCase();
-  if (!norm(rowSourceText).includes(norm(input.evidence))) {
+  if (!evidenceMatches(rowSourceText, input.evidence)) {
     throw new Error(
       `La evidencia "${input.evidence}" no aparece literalmente en la fila ${input.rowRef}. No se registra: ` +
         'una corrección exige evidencia literal, no una paráfrasis.',
@@ -81,6 +81,20 @@ export function proposeCorrection(input: NewCorrection, rowSourceText: string, a
   }
 
   const conn = openHistoryDb();
+
+  // Un `runId` que no existe reventaba con "FOREIGN KEY constraint failed", que no le dice nada a
+  // quien llama. Y es un error fácil de cometer: `run_id` apunta a un run de EVALUACIÓN (SPEC-010),
+  // no al MTO que el comprador tiene abierto — dos bases, dos espacios de ids.
+  if (input.runId) {
+    const known = conn.prepare('SELECT id FROM evaluation_runs WHERE id = ?').get(input.runId);
+    if (!known) {
+      throw new Error(
+        `No existe el run de evaluación '${input.runId}'. Ojo: no es el id del MTO procesado — ` +
+          'una corrección hecha desde la app no nace de un run de evaluación y va sin runId.',
+      );
+    }
+  }
+
   const id = randomUUID();
   const author = input.author?.trim() ?? '';
   conn.exec('BEGIN IMMEDIATE');

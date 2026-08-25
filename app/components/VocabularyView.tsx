@@ -26,7 +26,7 @@ import { VOCAB_ACTOR } from '../lib/finish-vocab-ui.ts';
 import { AppTopbar } from './AppTopbar.tsx';
 import type { SuggestionPatch } from './App.tsx';
 import { FinishDecisionFields, type FinishDecision } from './FinishDecisionFields.tsx';
-import { QUALITY_GROUPS } from '../../src/rules/quality.ts';
+import { QUALITY_GROUPS } from '../../src/rules/quality-groups.ts';
 
 interface ValueConflictRow {
   rowRef: string;

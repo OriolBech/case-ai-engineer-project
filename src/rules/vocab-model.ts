@@ -12,7 +12,16 @@
 
 export type VocabAttribute = 'name' | 'material' | 'quality' | 'norma' | 'finish';
 
-export type VocabKind = 'alias' | 'derivation' | 'equivalence' | 'not_a_finish';
+export type VocabKind =
+  | 'alias'
+  | 'derivation'
+  | 'equivalence'
+  /** El acabado que se declara "esto no es un acabado". Una ausencia decidida, no una laguna. */
+  | 'not_a_finish'
+  /** Su gemelo en material: "de esta calidad no se deduce el metal", con su motivo. */
+  | 'not_derivable'
+  /** Y el suyo en calidad: "esto no equivale a nada de §5", así que estrena grupo propio. */
+  | 'new_group';
 
 /** Una entrada de vocabulario, sea del atributo que sea, en la forma que pinta la vista única. */
 export interface VocabEntry {

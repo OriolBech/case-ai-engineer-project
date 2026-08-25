@@ -19,3 +19,7 @@ data/eval/*.sqlite*
 
 # Histórico de MTOs procesados desde la app: datos reales de uso, no algo que versionar.
 data/processing/*.sqlite*
+
+# Eventos de KPI de uso (correcciones, vocabulario, compras): telemetría local de cada máquina.
+# Mismo criterio que los dos de arriba — se quedaba fuera por olvido, no por decisión.
+data/kpi/*.sqlite*

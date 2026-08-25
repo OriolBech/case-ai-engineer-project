@@ -15,15 +15,24 @@
  *
  * Lo que sí lleva es lo que SPEC-008 pide: el span en el texto original y la regla que produjo cada
  * atributo, atributo por atributo. Ahí la política aparece donde significa algo.
+ *
+ * Y lleva dos cosas más, que son distintas entre sí y conviene no mezclar. Una, **corregir un
+ * atributo de esta línea** (`AttributeCorrection`): cambiarlo, quitarlo cuando la pieza no lo lleva,
+ * o escribir el que el sistema no vio. Eso arregla la fila y queda como etiqueta con su evidencia
+ * (SPEC-015), sin tocar ninguna regla. Dos, las DECISIONES pendientes de la línea (`LineDecisions`): calidad, material y
+ * acabado que ninguna regla cubre todavía. Estaban en "Cómo ha ido", que es un resumen de métricas y
+ * se lee de una pasada; una decisión de vocabulario se toma mirando esta pantalla —el texto de la
+ * fila, el resto de atributos, de dónde sale cada uno—, así que es aquí donde va.
  */
 'use client';
 
 import { useMemo, useState } from 'react';
 import { ATTRIBUTE_KEYS, type Attributes, type OutputLine } from '../../src/pipeline/types.ts';
+import type { PolicyBacklogItem } from '../../src/pipeline/coverage.ts';
 import { ATTR_LABEL, PROVENANCE_LABEL, isWeak } from '../lib/derive.ts';
-import { lineNeedsFinishVocab } from '../lib/finish-vocab-ui.ts';
 import type { SuggestionPatch } from './App.tsx';
-import { FinishVocabAddPanel } from './FinishVocabAddPanel.tsx';
+import { LineDecisions } from './LineDecisions.tsx';
+import { AttributeCorrection } from './AttributeCorrection.tsx';
 
 type AttrKey = (typeof ATTRIBUTE_KEYS)[number];
 
@@ -53,15 +62,21 @@ function buildSegments(sourceText: string, attributes: Attributes): Segment[] {
 export function TracePanel({
   line,
   sourceText,
+  backlog = [],
   onClose,
   onApplied,
+  onCorrected,
 }: {
   line: OutputLine;
   sourceText: string | null;
+  /** Decisiones que el proyecto debe. Aquí se filtran a las que ESTA línea puede cerrar. */
+  backlog?: readonly PolicyBacklogItem[];
   onClose: () => void;
   onApplied?: (p: SuggestionPatch) => void;
+  onCorrected?: (lineId: string, attribute: AttrKey, value: string | null) => void;
 }) {
   const [active, setActive] = useState<AttrKey | null>(null);
+  const [editing, setEditing] = useState<AttrKey | null>(null);
   const segments = useMemo(
     () => (sourceText ? buildSegments(sourceText, line.attributes) : []),
     [sourceText, line.attributes],
@@ -109,16 +124,9 @@ export function TracePanel({
             </div>
           )}
 
-          {lineNeedsFinishVocab(line) && line.attributes.finish.raw && (
-            <div className="trace-finish-vocab">
-              <FinishVocabAddPanel
-                defaultAlias={line.attributes.finish.raw}
-                source="UI comprador (traza)"
-                collapsible={false}
-                onApplied={onApplied}
-              />
-            </div>
-          )}
+          {/* Toda decisión de vocabulario se toma aquí, mirando la fila. El panel de KPIs las cuenta;
+              este panel es donde se cierran. Ver la cabecera de `LineDecisions.tsx`. */}
+          <LineDecisions line={line} backlog={backlog} onApplied={onApplied} />
 
           <div className="trace-kv-list">
             {ATTRIBUTE_KEYS.map((k) => {
@@ -141,8 +149,28 @@ export function TracePanel({
                       {PROVENANCE_LABEL[a.provenance]}
                     </span>
                     {a.rule && <span className="trace-kv-rule">{a.rule}</span>}
+                    {/* El botón vive junto a la procedencia porque es ahí donde se ve el motivo para
+                        pulsarlo: "supuesto por una regla" es justo lo que a veces está mal. */}
+                    <button
+                      type="button"
+                      className="trace-kv-edit"
+                      onClick={(e) => { e.stopPropagation(); setEditing(editing === k ? null : k); }}
+                    >
+                      {editing === k ? 'cancelar' : a.normalized === null ? 'añadir' : 'corregir'}
+                    </button>
                   </div>
                   {a.raw && a.raw !== a.normalized && <div className="trace-kv-raw">tal cual en el MTO: “{a.raw}”</div>}
+                  {editing === k && (
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <AttributeCorrection
+                        line={line}
+                        attribute={k}
+                        sourceText={sourceText}
+                        onCorrected={onCorrected}
+                        onClose={() => setEditing(null)}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}

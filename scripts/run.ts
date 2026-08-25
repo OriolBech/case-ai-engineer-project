@@ -59,7 +59,7 @@ for (const l of out.lines) {
   if (l.rowRef !== lastRow) { console.log(`\n  fila ${l.rowRef}`); lastRow = l.rowRef; }
   const a = ATTRIBUTE_KEYS.map((k) => {
     const v = l.attributes[k];
-    const mark = { extrapolated: 'ᵉ', derived: 'ᵈ', inferred: 'ⁱ', extracted_uncatalogued: 'ᵘ', not_applicable: '', absent: '', extracted: '', table_normalized: '', exact_catalog: '' }[v.provenance];
+    const mark = { extrapolated: 'ᵉ', derived: 'ᵈ', inferred: 'ⁱ', extracted_uncatalogued: 'ᵘ', not_applicable: '', absent: '', extracted: '', table_normalized: '', exact_catalog: '', human_corrected: 'ᴴ' }[v.provenance];
     return `${v.normalized ?? '—'}${mark}`;
   }).join(' · ');
   const st = l.status === 'RESUELTA' ? '✅' : '⚠️ ' + l.reasons.map((r) => r.code).join('+');

@@ -12,7 +12,7 @@
  *
  * Necesita el runtime de Node porque `node:sqlite` no corre en Edge.
  */
-import { addVocab, listAllUncovered, listAllVocab, listFinishCatalog, resolveVocab, retireVocab } from '../../../src/rules/vocab.ts';
+import { addVocab, listAllUncovered, listAllVocab, listFinishCatalog, listQualityGroups, resolveVocab, retireVocab } from '../../../src/rules/vocab.ts';
 import type { VocabAddInput, VocabAttribute } from '../../../src/rules/vocab-model.ts';
 import { recordVocabularyKpiEvent } from '../../../src/kpi/events.ts';
 
@@ -28,6 +28,7 @@ export async function GET(): Promise<Response> {
       entries: listAllVocab(),
       uncovered: listAllUncovered(),
       finishCatalog: listFinishCatalog(),
+      qualityGroups: listQualityGroups(),
     });
   } catch (e) {
     return Response.json({ error: msg(e) }, { status: 500 });
@@ -92,6 +93,7 @@ export async function POST(req: Request): Promise<Response> {
     entries: listAllVocab(),
     uncovered: listAllUncovered(),
     finishCatalog: listFinishCatalog(),
+    qualityGroups: listQualityGroups(),
   });
 }
 

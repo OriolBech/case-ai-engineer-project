@@ -79,8 +79,39 @@ The value **exactly as written**, always. The rule records the layer:
 
 - From `/vocabulario` (`?attr=quality&alias=45H`): token + dropdown of the 14 groups with their
   equivalences visible + reason.
-- From the backlog (`KpiPanel`): the quality `UNKNOWN_VALUE` gap brings a candidate and a quick
-  add.
+- From the line (`TracePanel` → `LineDecisions`), in the drawer that opens on clicking the row —
+  **whenever the line's quality is outside §5 and has no layer-2 entry** (`quality:out_of_catalog`),
+  not only when a gap was raised. §5 grades like `GR L7` never produce a gap (§5 says to keep them
+  verbatim) and were previously undecidable from the UI. The gap, when there is one, supplies the
+  candidate. Not in the KPI panel — that one counts the decisions, it does not take them
+  (SPEC-008 §3).
+- The panel shows the group's members, so what is being decided reads as what it is: *what is this
+  interchangeable with*. Ambiguity is excluded on purpose — two conflicting entries are not fixed by
+  adding a third.
+
+### The three exits
+
+Picking one of the fourteen used to be the **only** exit, and that was a defect rather than caution.
+For a quality interchangeable with none of them — `GR 660`, a nickel-base alloy — the sole way to
+save anything was to declare an equivalence that is **false**: the form pushed the buyer into
+breaking the very invariant it exists to protect, in the way that ends with `8.8` shipped where the
+drawing said `GR 660`. Finish already had "declare a new one"; material has "not derivable".
+
+1. **Equivalent to a §5 group** — the original behaviour.
+2. **Equivalent to a group we already created** — two out-of-§5 qualities that *are* interchangeable
+   with each other share one.
+3. **A new quality, equivalent to nothing** — it opens its own group, `kind: 'new_group'`, and
+   declares no equivalence at all. Its reason is **mandatory**.
+
+**Layer 1 is still exactly fourteen.** A group of ours is born in our layer with the `V-` prefix
+(`V-GR-660`), and the prefix is load-bearing: the client's document and our decisions must never be
+mistakable for one another — not in the table, not in the log, not in a purchase's trace. The type
+system carries the split (`ClientQualityGroup` / `OwnQualityGroup`), an id that is neither is still
+an error rather than a group, and the §5-contradiction guard is unchanged: moving `8.8` out of G5 is
+rewriting the client's document, and it is refused (or warned, under the demo's `force`).
+
+Own groups produce no type incoherence — §5 says nothing about them, so `checkCoherence` returns
+null — and they can carry a material derivation like any other group.
 - Unlike finish and material, **there is no live re-application** on the open MTO: the group moves
   coherence and material derivation, and that is recalculated on the server when reprocessing.
 
@@ -92,10 +123,15 @@ The value **exactly as written**, always. The rule records the layer:
 - [x] Contradiction guard against §5, conflict in layer 2, and gold-set regression.
 - [x] `/vocabulario` lists §5 (`client`) and layer 2 (`added`) together; add and retire from the
       facade.
+- [x] A quality that equals none of the fourteen can be saved **without** declaring a false
+      equivalence: it opens its own `V-` group, interchangeable with nothing
+      (`src/rules/__tests__/quality-new-group.test.ts`).
+- [x] `QUALITY_GROUPS.size === 14` after any number of own groups are created.
 
 ## Out of scope
 
-- Creating new groups (layer 1, the client's document).
+- Editing **layer 1**: the fourteen §5 groups are the client's document. Declaring a group of *ours*
+  (`V-…`) is a different act and it is in scope — see "The three exits".
 - Addition with a mandatory signature (who + reason as a hard requirement). Today it is the agile
   flow with amber guards, by product decision; if a substitution requires a signing owner, that is
   an approval console (see `docs/07-target-solution.md`).

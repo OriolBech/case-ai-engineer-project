@@ -24,7 +24,7 @@ the criterion "putting a model where a table was enough."
 | Table | File | Entries | Origin |
 |---|---|---|---|
 | Names | `rules/names.ts` | 5 values, ~11 aliases | Rules §3 |
-| Quality | `rules/quality.ts` | 14 groups G1–G14 | Rules §5 |
+| Quality | `rules/quality-groups.ts` (lookup in `quality.ts`) | 14 groups G1–G14 | Rules §5 |
 | Standards | `rules/standards.ts` | 25 DIN→ISO/EN equivalences | Rules §8 |
 | Finishes | `rules/finish-db.ts` (adapters in `finish.ts`) | 7 values, aliases in SQLite + log | Rules §9 · SPEC-011 |
 | Layer-2 aliases | `rules/generic-alias-db.ts` | Name, quality and standard additions | Approved corrections · SPEC-015 |

@@ -5,7 +5,9 @@ import { ATTRIBUTE_KEYS, type OutputLine, type ReasonCode } from '../../src/pipe
 import {
   downloadCsv, effectiveQueue, groupByFamily, groupByRow, isMarked, linesToCsv, queueOf, type RowGroup,
 } from '../lib/derive.ts';
+import type { PolicyBacklogItem } from '../../src/pipeline/coverage.ts';
 import { lineNeedsFinishVocab } from '../lib/finish-vocab-ui.ts';
+import { blockingAttributes } from '../lib/line-decisions.ts';
 import { StatusBadge } from './StatusBadge.tsx';
 
 type Tab = 'todas' | 'resuelta' | 'revision' | 'fuera-familia';
@@ -32,6 +34,26 @@ function attrCell(line: OutputLine, key: (typeof ATTRIBUTE_KEYS)[number]) {
   );
 }
 
+/**
+ * El aviso de que esta línea esconde una decisión, no una revisión.
+ *
+ * Es lo que hace descubrible el desplegable: la decisión se toma abriendo la línea
+ * (`LineDecisions`), y sin este texto habría que saberlo de memoria. Se nombra el atributo, porque
+ * "clic para decidir" a secas no dice qué se decide.
+ *
+ * SÓLO lo que bloquea. Una línea resuelta a la que además se le puede afinar el vocabulario —una
+ * calidad fuera de §5 que §5 manda conservar tal cual— no lleva aviso: la cola es la lista de lo que
+ * falta, y marcar ahí una línea que ya está lista para pedir es mandar a mirar lo que no lo necesita.
+ */
+function decisionHint(line: OutputLine, backlog: readonly PolicyBacklogItem[]): string | null {
+  const label = { quality: 'la calidad', material: 'el material', finish: 'el acabado' } as const;
+  const attrs = new Set<string>(blockingAttributes(line, backlog).map((a) => label[a]));
+  if (attrs.size === 0) return null;
+  const list = [...attrs];
+  const text = list.length === 1 ? list[0] : `${list.slice(0, -1).join(', ')} y ${list[list.length - 1]}`;
+  return `Clic para decidir ${text}`;
+}
+
 export function QueueScreen({
   lines,
   rowsSourceText,
@@ -39,6 +61,7 @@ export function QueueScreen({
   onValidate,
   onOpenTrace,
   processedMtoId,
+  backlog = [],
 }: {
   lines: OutputLine[];
   rowsSourceText: Map<string, string>;
@@ -47,6 +70,8 @@ export function QueueScreen({
   onOpenTrace: (lineId: string) => void;
   /** Id del MTO en histórico; necesario para registrar exportación RFQ. */
   processedMtoId?: string | null;
+  /** Decisiones que el proyecto debe: aquí solo se avisa de cuáles cuelgan de cada línea. */
+  backlog?: readonly PolicyBacklogItem[];
 }) {
   const [tab, setTab] = useState<Tab>('todas');
   const [groupMode, setGroupMode] = useState<GroupMode>('fila');
@@ -266,8 +291,8 @@ export function QueueScreen({
                     {l.reasons.length > 1 && (
                       <span className="reason-more">+{l.reasons.length - 1} motivo(s) más</span>
                     )}
-                    {lineNeedsFinishVocab(l) && (
-                      <span className="reason-hint">Clic para decidir el acabado</span>
+                    {decisionHint(l, backlog) && (
+                      <span className="reason-hint">{decisionHint(l, backlog)}</span>
                     )}
                   </span>
                 </div>

@@ -61,6 +61,31 @@ path.
 | UI/API queue: list PENDING, approve, reject, conflicts, and confirmed promotion | done; the auditable id is generated server-side |
 | Actor and timestamps for every transition + append-only events | done, SQLite schema v2 |
 | Second blind pass of the gold set (`pass-2.jsonl`) | pending |
+| **Correcting an attribute from the line's drawer** (change / remove / add) | done — `AttributeCorrection`, SPEC-008 §3 |
+| Literal-evidence rule shared by server and form (`evidence.ts`) | done |
+| Corrected value carries its own provenance (`human_corrected`) | done |
+
+## Where a correction is made
+
+In the line's drawer, next to the attribute that is wrong — not in a separate screen. The reason is
+the same one that moved the vocabulary decisions there (SPEC-008 §3): correcting a value means
+looking at the row, and the row is here. The three shapes a correction takes are the three the buyer
+actually needs:
+
+| | What it asserts | Evidence |
+|---|---|---|
+| **Change** | the system read this wrong | the fragment it misread |
+| **Remove** | this piece does not carry this attribute | the text it mistook for one |
+| **Add** | the row says it and the system did not see it | the text it missed |
+
+Removal deserves the emphasis: an empty cell produced by a person is **not** the same as an empty
+cell produced by the pipeline. One is an assertion, the other a gap — hence the mandatory reason and
+the distinct provenance.
+
+A correction changes the open session's line and is stored as PENDING. It does **not** change any
+rule: `runId` stays null (that column points at an *evaluation* run, SPEC-010 — a different database
+and a different id space; passing the processed MTO's id there fails the foreign key, and now says
+so in words instead of `FOREIGN KEY constraint failed`).
 
 ## Contract
 

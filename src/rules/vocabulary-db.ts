@@ -65,7 +65,7 @@ export interface UncoveredRow {
 export interface ChangeRow {
   seq: number;
   at: string;
-  action: 'seed' | 'add' | 'retire';
+  action: 'seed' | 'add' | 'retire' | 'uncover';
   entryId: string;
   by: string;
   detail: string;
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS uncovered (
 CREATE TABLE IF NOT EXISTS change (
   seq      INTEGER PRIMARY KEY AUTOINCREMENT,
   at       TEXT NOT NULL,
-  action   TEXT NOT NULL CHECK (action IN ('seed','add','retire')),
+  action   TEXT NOT NULL CHECK (action IN ('seed','add','retire','uncover')),
   entry_id TEXT NOT NULL,
   by       TEXT NOT NULL,
   detail   TEXT NOT NULL
@@ -127,7 +127,14 @@ interface SeedFile {
 /** Un evento del log. Es la fuente de la verdad; la base es una vista de esto. */
 type LogEvent =
   | { action: 'add'; at: string; by: string; entry: Omit<VocabRow, 'retiredAt' | 'retiredWhy'>; detail: string }
-  | { action: 'retire'; at: string; by: string; entryId: string; detail: string };
+  | { action: 'retire'; at: string; by: string; entryId: string; detail: string }
+  /**
+   * Declarar una calidad NO derivable, con su motivo. Antes sólo la semilla podía poblar `uncovered`,
+   * así que "no se puede saber el material a partir de esta calidad" era una decisión que sólo cabía
+   * tomar editando un fichero y desplegando — justo lo contrario del bucle que este vocabulario
+   * existe para cerrar. El acabado ya tenía su equivalente (`not_a_finish`) desde el primer día.
+   */
+  | { action: 'uncover'; at: string; by: string; matchKind: MatchKind; matchValue: string; detail: string };
 
 let db: DatabaseSync | null = null;
 
@@ -153,9 +160,36 @@ export function openVocabularyDb(opts: { dbPath?: string; seedPath?: string; log
   if (dbPath !== ':memory:') db.exec('PRAGMA journal_mode = WAL');
   db.exec('PRAGMA busy_timeout = 5000');
   db.exec(SCHEMA);
+  migrateChangeActions(db);
   seed(db, seedPath);
   applyLog(db, logPath);
   return db;
+}
+
+/**
+ * Amplía el CHECK de `change` para admitir `uncover` en bases creadas antes de que existiera.
+ *
+ * `CREATE TABLE IF NOT EXISTS` no toca una tabla que ya está, así que sin esto una base viva
+ * rechazaría el evento nuevo con un error de restricción — y el alta fallaría sólo en las máquinas
+ * que ya venían usando el sistema, que es la peor forma de fallar. Se copia el contenido en vez de
+ * vaciarlo: `change` es el historial legible de quién decidió qué, y se conserva entero.
+ */
+function migrateChangeActions(conn: DatabaseSync): void {
+  const row = conn.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='change'`)
+    .get() as { sql: string } | undefined;
+  if (!row || row.sql.includes("'uncover'")) return;
+
+  conn.exec('BEGIN IMMEDIATE');
+  try {
+    conn.exec('ALTER TABLE change RENAME TO change_old');
+    conn.exec(SCHEMA);
+    conn.exec('INSERT INTO change (seq, at, action, entry_id, by, detail) SELECT seq, at, action, entry_id, by, detail FROM change_old');
+    conn.exec('DROP TABLE change_old');
+    conn.exec('COMMIT');
+  } catch (e) {
+    conn.exec('ROLLBACK');
+    throw e;
+  }
 }
 
 /** Cierra y olvida. Costura para los tests. */
@@ -229,10 +263,14 @@ function applyLog(conn: DatabaseSync, logPath: string): void {
   try {
   for (const raw of events) {
     const ev = JSON.parse(raw) as LogEvent;
-    const key = `${ev.action}|${ev.action === 'add' ? ev.entry.id : ev.entryId}|${ev.at}`;
+    const evId = ev.action === 'add' ? ev.entry.id : ev.action === 'retire' ? ev.entryId : `uncovered:${ev.matchValue}`;
+    const key = `${ev.action}|${evId}|${ev.at}`;
     if (applied.has(key)) continue;
 
-    if (ev.action === 'add') {
+    if (ev.action === 'uncover') {
+      conn.prepare(`INSERT OR REPLACE INTO uncovered (match_kind, match_value, why) VALUES (?, ?, ?)`)
+        .run(ev.matchKind, ev.matchValue, ev.detail);
+    } else if (ev.action === 'add') {
       conn.prepare(`
         INSERT OR REPLACE INTO entry (id, match_kind, match_value, material, rationale, decided_by, decided_at, source)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
@@ -243,7 +281,7 @@ function applyLog(conn: DatabaseSync, logPath: string): void {
         .run(ev.at, ev.detail, ev.entryId);
     }
     conn.prepare(`INSERT INTO change (at, action, entry_id, by, detail) VALUES (?, ?, ?, ?, ?)`)
-      .run(ev.at, ev.action, ev.action === 'add' ? ev.entry.id : ev.entryId, ev.by, ev.detail);
+      .run(ev.at, ev.action, evId, ev.by, ev.detail);
   }
     conn.exec('COMMIT');
   } catch (e) {
@@ -330,9 +368,12 @@ export function deriveMaterial(rawQuality: string): Derivation | NoDerivation {
   const q = resolveQuality(rawQuality);
   const folded = rawQuality.toUpperCase().replace(/\s+/g, ' ').trim();
 
-  const deliberate = listUncovered().find(
-    (u) => u.matchKind === 'qualityGroup' && q.group !== null && u.matchValue === q.group,
-  );
+  // Por grupo (las HV de la semilla) y también por patrón: una calidad fuera de §5 no tiene grupo, y
+  // declararla no derivable desde la línea es precisamente el caso que no tiene otro sitio donde ir.
+  const deliberate = listUncovered().find((u) =>
+    u.matchKind === 'qualityGroup'
+      ? q.group !== null && u.matchValue === q.group
+      : new RegExp(u.matchValue, 'i').test(folded));
   if (deliberate) return { reason: 'deliberate', why: deliberate.why };
 
   const matches = listEntries().filter((e) =>
@@ -408,6 +449,48 @@ export function addEntry(
   const ev: LogEvent = {
     action: 'add', at, by: e.decidedBy, detail: e.rationale,
     entry: { ...e, decidedAt: at },
+  };
+  mkdirSync(dirname(logPath), { recursive: true });
+  appendFileSync(logPath, `${JSON.stringify(ev)}\n`, 'utf8');
+  applyLog(conn, logPath);
+  return { warnings };
+}
+
+/**
+ * Declara una calidad NO derivable, con su motivo.
+ *
+ * El equivalente de `not_a_finish` para el material, y por la misma razón: hay valores sobre los que
+ * la respuesta correcta es "de esto no se deduce el material", y ésa es una decisión tan legítima
+ * como decir AC o INOX. Sin ella, la única salida desde la pantalla era elegir uno de los dos —es
+ * decir, inventárselo— o dejar la línea en revisión para siempre.
+ *
+ * La guarda: no se declara no derivable algo que HOY deriva. Eso no es declarar una ausencia, es
+ * contradecir una entrada viva sin retirarla, y dejaría la tabla diciendo dos cosas a la vez.
+ */
+export function addUncovered(
+  u: { matchKind: MatchKind; matchValue: string; why: string; decidedBy: string },
+  at: string,
+  logPath = process.env.VOCAB_LOG ?? LOG_PATH,
+  opts: { force?: boolean } = {},
+): { warnings: string[] } {
+  const conn = openVocabularyDb();
+  if (!u.why.trim()) {
+    throw new Error('Declarar una calidad no derivable exige el motivo: es lo único que la distingue de un olvido.');
+  }
+
+  const warnings: string[] = [];
+  const live = listEntries().find((x) => x.matchKind === u.matchKind && x.matchValue === u.matchValue);
+  if (live) {
+    warnings.push(
+      `'${u.matchValue}' ya deriva a ${live.material} por la entrada '${live.id}'. ` +
+      `Declararla no derivable no la retira: retira '${live.id}' con su motivo si la decisión ha cambiado.`,
+    );
+  }
+  if (warnings.length && !opts.force) throw new Error(warnings[0]);
+
+  const ev: LogEvent = {
+    action: 'uncover', at, by: u.decidedBy,
+    matchKind: u.matchKind, matchValue: u.matchValue, detail: u.why.trim(),
   };
   mkdirSync(dirname(logPath), { recursive: true });
   appendFileSync(logPath, `${JSON.stringify(ev)}\n`, 'utf8');

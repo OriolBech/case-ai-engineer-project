@@ -18,7 +18,9 @@ import * as genericDb from './generic-alias-db.ts';
 import { suggestFinishEntryId } from './finish-vocab-id.ts';
 import { NAME_ALIASES, normalizeClientName, normalizeName } from './names.ts';
 import { QUALITY_GROUPS } from './quality.ts';
+import { isKnownGroupShape, isOwnGroup, ownGroupId } from './quality-groups.ts';
 import { DIN_EQUIVALENCES, normalizeClientStandard, normalizeStandard } from './standards.ts';
+import type { ClientQualityGroup } from '../pipeline/types.ts';
 import type {
   VocabAddInput,
   VocabAddResult,
@@ -163,16 +165,19 @@ function qualityEntries(): VocabEntry[] {
       });
     }
   }
-  // Capa 2 (SPEC-017): lo que §5 no lista y compras ha declarado equivalente a un grupo.
+  // Capa 2 (SPEC-017): lo que §5 no lista y compras ha declarado equivalente a un grupo — de los
+  // catorce del cliente, o de los nuestros. Un grupo propio no tiene canónico de §5 que enseñar: su
+  // valor de referencia es el propio token que lo estrenó, y así se lee en la tabla.
   for (const r of qualityDb.listEntries({ includeRetired: true })) {
-    const canonical = QUALITY_GROUPS.get(r.group)?.[0] ?? r.group;
+    const own = isOwnGroup(r.group);
+    const canonical = own ? r.alias : QUALITY_GROUPS.get(r.group as ClientQualityGroup)?.[0] ?? r.group;
     out.push({
       attribute: 'quality',
       id: r.id,
       match: r.alias,
       matchLabel: `texto “${r.alias}”`,
-      value: `${r.group} · ${canonical}`,
-      kind: 'equivalence',
+      value: own ? `${r.group} · grupo propio` : `${r.group} · ${canonical}`,
+      kind: own ? 'new_group' : 'equivalence',
       source: 'added',
       rationale: r.rationale,
       decidedBy: 'compras',
@@ -243,6 +248,29 @@ export function listAllVocab(): VocabEntry[] {
 
 export function listFinishCatalog(): string[] {
   return finishDb.listCatalog();
+}
+
+/**
+ * Los grupos de calidad que hoy se pueden elegir: los catorce de §5 y los que hemos creado nosotros.
+ *
+ * Van juntos y marcados, no en dos listas: quien decide necesita ver de un vistazo TODO aquello con
+ * lo que su calidad podría ser intercambiable, y a la vez saber cuál de esas equivalencias es del
+ * documento del cliente y cuál nuestra. Un grupo propio se lista con sus miembros vivos, que es lo
+ * que de verdad declara: `V-GR-660 · GR 660, GR 660H`.
+ */
+export function listQualityGroups(): { id: string; members: string[]; own: boolean }[] {
+  const out: { id: string; members: string[]; own: boolean }[] =
+    [...QUALITY_GROUPS].map(([id, values]) => ({ id: id as string, members: [...values], own: false }));
+
+  const mine = new Map<string, string[]>();
+  for (const r of qualityDb.listEntries()) {
+    if (!isOwnGroup(r.group)) continue;
+    const members = mine.get(r.group) ?? [];
+    members.push(r.alias);
+    mine.set(r.group, members);
+  }
+  for (const [id, members] of mine) out.push({ id, members, own: true });
+  return out;
 }
 
 export function listAllUncovered(): VocabUncovered[] {
@@ -339,10 +367,24 @@ export function addVocab(input: VocabAddInput, opts: { force?: boolean } = {}): 
     }
 
     if (input.attribute === 'material') {
-      if (input.value !== 'AC' && input.value !== 'INOX') {
-        return { ok: false, warnings: [], error: 'El material debe ser AC o INOX.' };
-      }
       const matchKind = input.matchKind ?? 'qualityPattern';
+
+      // "De esta calidad no se deduce el metal" es una decisión, no un hueco — el gemelo de
+      // `not_a_finish`. Antes sólo la semilla podía declararlo, así que la pantalla ofrecía AC o INOX
+      // y nada más: sobre una dureza, las dos opciones son inventarse el material.
+      if (input.kind === 'not_derivable') {
+        const { warnings } = materialDb.addUncovered(
+          { matchKind, matchValue: match, why: input.rationale, decidedBy: input.decidedBy },
+          at,
+          undefined,
+          { force: opts.force },
+        );
+        return { ok: true, warnings, entryId: `uncovered:${match}` };
+      }
+
+      if (input.value !== 'AC' && input.value !== 'INOX') {
+        return { ok: false, warnings: [], error: 'El material debe ser AC o INOX, o declararse no derivable con su motivo.' };
+      }
       const explicitId = input.id?.trim();
       const id = allocateId(
         explicitId || slugId('mat', `${match}-${input.value}`),
@@ -367,12 +409,17 @@ export function addVocab(input: VocabAddInput, opts: { force?: boolean } = {}): 
     }
 
     if (input.attribute === 'quality') {
-      const group = input.value?.trim() ?? '';
-      if (!QUALITY_GROUPS.has(group as never)) {
+      // Tres salidas, como el acabado: equivale a un grupo de §5, equivale a un grupo propio que ya
+      // creamos, o es una calidad nueva que no equivale a nada — y entonces estrena grupo propio.
+      // La tercera no existía, y su ausencia empujaba a declarar equivalencias falsas.
+      const asked = input.value?.trim() ?? '';
+      const group = input.kind === 'new_group' ? ownGroupId(input.match.trim()) : asked;
+      if (!isKnownGroupShape(group)) {
         return {
           ok: false,
           warnings: [],
-          error: `El grupo '${group}' no es uno de los 14 de §5 (${[...QUALITY_GROUPS.keys()].join(', ')}).`,
+          error: `El grupo '${group}' no es uno de los 14 de §5 (${[...QUALITY_GROUPS.keys()].join(', ')}) `
+            + "ni un grupo propio (prefijo 'V-').",
         };
       }
       const explicitId = input.id?.trim();

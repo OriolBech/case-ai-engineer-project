@@ -11,6 +11,12 @@
  *   ¿De qué no está seguro el sistema?       → lo apoyado en una regla, no en el papel
  *   ¿Qué no ha sabido decidir nadie todavía?  → las decisiones que faltan, en castellano
  *
+ * LO QUE ESTE PANEL NO HACE. No se toma ni una decisión aquí. Los formularios de vocabulario
+ * —calidad, material, acabado— estuvieron en el bloque 3 y se han movido al desplegable de la línea
+ * (`LineDecisions`), donde está el texto de la fila que hace falta para decidir bien. La regla:
+ * **aquí se cuentan las decisiones, en la línea se toman.** Cuántas debe este MTO es una métrica de
+ * su revisión; cambiarle el vocabulario a la empresa desde una pantalla de métricas, no.
+ *
  * LA DECISIÓN QUE LO ORDENA TODO. Sobre un MTO nuevo, sin una hoja de respuestas para ese fichero
  * concreto, el sistema tiene confianza (de dónde sale cada valor: literal, tabla, suposición) pero
  * **no tiene acierto verificado** — la confianza está calibrada sobre los ficheros de prueba, no
@@ -21,7 +27,7 @@
  */
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { ProcessSummary } from '../lib/api-types.ts';
 import {
   ATTR_LABEL, extrapolate, formatEur, formatSeconds, inScope, isWeak, queueOf,
@@ -29,204 +35,10 @@ import {
 } from '../lib/derive.ts';
 import type { Provenance } from '../../src/pipeline/types.ts';
 import type { ATTRIBUTE_KEYS } from '../../src/pipeline/types.ts';
-import { FinishVocabAddPanel } from './FinishVocabAddPanel.tsx';
-import { QUALITY_GROUPS } from '../../src/rules/quality.ts';
-import { VOCAB_ACTOR } from '../lib/finish-vocab-ui.ts';
-import type { SuggestionPatch } from './App.tsx';
 
 interface Props {
   result: ProcessSummary;
-  onSuggestionApplied?: (p: SuggestionPatch) => void;
   onClose: () => void;
-}
-
-/**
- * Alta rápida en el vocabulario de material desde un caso concreto del backlog.
- *
- * El caso ya trae `candidate` con el id y el patrón sugeridos (`src/pipeline/coverage.ts`); lo único
- * que le falta a la decisión es el material y quién la toma. Nada de escribir JSON a mano: es
- * exactamente el bucle de aprendizaje de `docs/11-system-behind-the-rules.md` §4, con un
- * formulario de tres campos en vez de una llamada a `pnpm run vocab add`.
- */
-function VocabQuickAdd({
-  candidate,
-  value,
-  onApplied,
-}: {
-  candidate: Record<string, unknown>;
-  value: string;
-  onApplied?: (p: SuggestionPatch) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [material, setMaterial] = useState<'AC' | 'INOX'>('AC');
-  const [rationale, setRationale] = useState('');
-  const [state, setState] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
-  const [error, setError] = useState<string | null>(null);
-  const [warnings, setWarnings] = useState<string[]>([]);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setState('saving');
-    setError(null);
-    setWarnings([]);
-    try {
-      const when = candidate.when as { qualityGroup?: string; qualityPattern?: string } | undefined;
-      const matchKind = when?.qualityGroup ? 'qualityGroup' : 'qualityPattern';
-      const matchValue = when?.qualityGroup ?? when?.qualityPattern ?? value;
-      const res = await fetch('/api/vocabulary', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          attribute: 'material',
-          id: candidate.id,
-          matchKind,
-          match: matchValue,
-          value: material,
-          rationale,
-          decidedBy: VOCAB_ACTOR,
-          evidence: 'UI comprador (backlog)',
-        }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
-      setWarnings(body.warnings ?? []);
-      setState('done');
-      onApplied?.({ attribute: 'material', match: matchValue, value: material });
-    } catch (e2) {
-      setError(e2 instanceof Error ? e2.message : String(e2));
-      setState('error');
-    }
-  };
-
-  if (state === 'done') {
-    return (
-      <div className="vocab-quickadd-wrap">
-        <p className="kpi-help vocab-quickadd-done">
-          Añadido. Las líneas de este MTO quedan resueltas; se aplicará igual al resto de MTOs.
-        </p>
-        {warnings.length > 0 && (
-          <div className="vocab-warning">
-            <strong>Se ha guardado igual, pero ojo:</strong>
-            <ul>{warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
-          </div>
-        )}
-      </div>
-    );
-  }
-  if (!open) {
-    return (
-      <button className="wf-btn small" onClick={() => setOpen(true)}>
-        Añadir al vocabulario
-      </button>
-    );
-  }
-  return (
-    <form className="vocab-quickadd" onSubmit={submit}>
-      <select value={material} onChange={(e) => setMaterial(e.target.value as 'AC' | 'INOX')}>
-        <option value="AC">AC (acero)</option>
-        <option value="INOX">INOX (inoxidable)</option>
-      </select>
-      <input
-        value={rationale}
-        onChange={(e) => setRationale(e.target.value)}
-        placeholder="motivo (opcional)"
-      />
-      <button className="wf-btn primary small" type="submit" disabled={state === 'saving'}>
-        {state === 'saving' ? 'Guardando…' : 'Confirmar'}
-      </button>
-      {error && <span className="vocab-quickadd-error">{error}</span>}
-    </form>
-  );
-}
-
-/**
- * Alta rápida en el vocabulario de calidad (capa 2 de §5, SPEC-017) desde un hueco del backlog.
- *
- * Igual de ágil que la de material, con una diferencia de fondo: aquí la decisión no es "¿AC o
- * INOX?" sino "¿con qué grupo de §5 es intercambiable?". El hueco trae el token; el grupo NO se
- * propone, porque proponerlo sería inventarse la equivalencia — se elige en el desplegable.
- *
- * No hay re-aplicación en caliente sobre el MTO abierto: el grupo mueve coherencia y material, y
- * eso se recalcula en el servidor al reprocesar, no a mano en el cliente.
- */
-function QualityQuickAdd({ value }: { value: string }) {
-  const [open, setOpen] = useState(false);
-  const [group, setGroup] = useState('G5');
-  const [rationale, setRationale] = useState('');
-  const [state, setState] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
-  const [error, setError] = useState<string | null>(null);
-  const [warnings, setWarnings] = useState<string[]>([]);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setState('saving');
-    setError(null);
-    setWarnings([]);
-    try {
-      const res = await fetch('/api/vocabulary', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          attribute: 'quality',
-          match: value,
-          value: group,
-          rationale,
-          decidedBy: VOCAB_ACTOR,
-          evidence: 'UI comprador (backlog)',
-        }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
-      setWarnings(body.warnings ?? []);
-      setState('done');
-    } catch (e2) {
-      setError(e2 instanceof Error ? e2.message : String(e2));
-      setState('error');
-    }
-  };
-
-  if (state === 'done') {
-    return (
-      <div className="vocab-quickadd-wrap">
-        <p className="kpi-help vocab-quickadd-done">
-          Añadida. Se aplicará igual a todos los MTO siguientes; reprocesa este para ver el efecto.
-        </p>
-        {warnings.length > 0 && (
-          <div className="vocab-warning">
-            <strong>Se ha guardado igual, pero ojo:</strong>
-            <ul>{warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
-          </div>
-        )}
-      </div>
-    );
-  }
-  if (!open) {
-    return (
-      <button className="wf-btn small" onClick={() => setOpen(true)}>
-        Añadir al vocabulario
-      </button>
-    );
-  }
-  return (
-    <form className="vocab-quickadd" onSubmit={submit}>
-      <select value={group} onChange={(e) => setGroup(e.target.value)}>
-        {[...QUALITY_GROUPS].map(([g, values]) => (
-          <option key={g} value={g}>
-            {g} · {values[0]}
-          </option>
-        ))}
-      </select>
-      <input
-        value={rationale}
-        onChange={(e) => setRationale(e.target.value)}
-        placeholder="motivo (opcional)"
-      />
-      <button className="wf-btn primary small" type="submit" disabled={state === 'saving'}>
-        {state === 'saving' ? 'Guardando…' : 'Confirmar'}
-      </button>
-      {error && <span className="vocab-quickadd-error">{error}</span>}
-    </form>
-  );
 }
 
 /**
@@ -246,6 +58,7 @@ const TRUST: Record<Provenance, { label: string; detail: string; look: boolean }
   inferred: { label: 'Supuesto por una regla, no escrito en el MTO', detail: 'La unidad de una longitud sin unidad, o una cantidad que la fila no escribe. Hay una regla detrás, pero el papel no lo dice.', look: true },
   absent: { label: 'No está en el MTO', detail: 'Nadie lo escribió. No hay nada que deducir.', look: true },
   not_applicable: { label: 'No aplica', detail: 'Una tuerca no tiene longitud.', look: false },
+  human_corrected: { label: 'Lo has corregido tú, mirando la fila', detail: 'Alguien leyó la fila y escribió el valor a mano. Queda registrado con su motivo y su evidencia.', look: false },
 };
 
 /** Motivos de revisión en la lengua del comprador, y a quién le toca. */
@@ -269,6 +82,17 @@ const REASON_TEXT: Record<string, string> = {
   UNMAPPED_VALUE: 'Un valor que las tablas no saben interpretar de forma única',
 };
 
+/** De qué campo es cada decisión pendiente. El detalle largo se lee al abrir la línea. */
+const BACKLOG_ATTR: Record<string, string> = {
+  quality: 'calidad',
+  material: 'material',
+  finish: 'acabado',
+  name: 'nombre',
+  standard: 'norma',
+  measure: 'medida',
+  length: 'longitud',
+};
+
 /** Cómo se lee cada cola en el desglose de motivos. "Otra familia" no es trabajo de esta casa. */
 const QUEUE_OWNER: Record<Queue, string> = {
   resuelta: 'resuelto',
@@ -285,7 +109,7 @@ function Bar({ value, total, tone }: { value: number; total: number; tone: 'ok' 
   );
 }
 
-export function KpiPanel({ result, onSuggestionApplied, onClose }: Props) {
+export function KpiPanel({ result, onClose }: Props) {
   const { lines, diagnostics: d, metrics } = result;
 
   const v = useMemo(() => {
@@ -305,8 +129,12 @@ export function KpiPanel({ result, onSuggestionApplied, onClose }: Props) {
       reasons: reasonCounts(lines),
       cost: extrapolate(metrics.costEur, result.rowsIngested),
       minutesSaved: Math.round((resolved.length * 90) / 60),
+      // Cuántas filas del MTO están esperando a que alguien decida. No es el número de decisiones:
+      // una sola puede estar bloqueando cuarenta filas, y esa diferencia es justo lo que hace que
+      // decidir salga a cuenta.
+      backlogRows: new Set(d.policyBacklog.flatMap((b) => b.rows)).size,
     };
-  }, [lines, metrics.costEur, result.rowsIngested]);
+  }, [lines, metrics.costEur, result.rowsIngested, d.policyBacklog]);
 
   const pct = (n: number, t: number) => (t ? Math.round((100 * n) / t) : 0);
 
@@ -506,40 +334,31 @@ export function KpiPanel({ result, onSuggestionApplied, onClose }: Props) {
           ) : (
             <>
               <p className="kpi-note">
-                Esto <strong>no</strong> es trabajo tuyo de revisar líneas: son casos que ninguna regla
-                cubre todavía. Cada uno se decide <strong>una vez</strong> y el sistema lo aplica igual
-                en todos los MTO que vengan.
+                <strong>{d.policyBacklog.length}</strong>{' '}
+                {d.policyBacklog.length === 1 ? 'caso que ninguna regla cubre' : 'casos que ninguna regla cubre'}{' '}
+                todavía, en {v.backlogRows} {v.backlogRows === 1 ? 'fila' : 'filas'}. Esto{' '}
+                <strong>no</strong> es trabajo tuyo de revisar líneas: cada uno se decide{' '}
+                <strong>una vez</strong> y el sistema lo aplica igual en todos los MTO que vengan.
               </p>
-              <ul className="kpi-backlog">
+              {/* Una línea por decisión: qué valor, de qué campo y a cuántas filas frena. El porqué
+                  largo de cada una vive donde se decide —el desplegable de la línea—, porque aquí
+                  sería un muro de texto en una pantalla que se lee de una pasada. */}
+              <ul className="kpi-backlog compact">
                 {d.policyBacklog.map((b, i) => (
                   <li key={`${b.kind}-${i}`}>
                     <strong>{b.value || b.attribute}</strong>
-                    <div className="kpi-help">{b.detail}</div>
-                    <div className="kpi-help">
-                      {b.rows.length === 1 ? `Fila ${b.rows[0]}` : `${b.rows.length} filas: ${b.rows.join(', ')}`}
-                    </div>
-                    {b.kind === 'UNCOVERED_DERIVATION' && b.candidate && (
-                      <div className="vocab-quickadd-wrap">
-                        <VocabQuickAdd candidate={b.candidate} value={b.value} onApplied={onSuggestionApplied} />
-                      </div>
-                    )}
-                    {b.kind === 'UNKNOWN_VALUE' && b.attribute === 'quality' && b.candidate && (
-                      <div className="vocab-quickadd-wrap">
-                        <QualityQuickAdd value={b.value} />
-                      </div>
-                    )}
-                    {b.kind === 'UNKNOWN_VALUE' && b.attribute === 'finish' && (
-                      <FinishVocabAddPanel
-                        defaultAlias={String(b.candidate?.alias ?? b.value)}
-                        defaultFinish={String(b.candidate?.finish ?? 'CINCADO')}
-                        source="UI comprador (backlog)"
-                        collapsible
-                        onApplied={onSuggestionApplied}
-                      />
-                    )}
+                    <span className="kpi-backlog-attr">{BACKLOG_ATTR[b.attribute ?? ''] ?? 'valor'}</span>
+                    <span className="kpi-backlog-rows">
+                      {b.rows.length === 1 ? `fila ${b.rows[0]}` : `${b.rows.length} filas · ${b.rows.join(', ')}`}
+                    </span>
                   </li>
                 ))}
               </ul>
+              <span className="kpi-help">
+                Se deciden en la cola: abre la línea con un clic y el desplegable trae la decisión con
+                su formulario. Aquí solo se cuentan, porque esta pantalla es el resumen de cómo ha ido
+                la revisión de este MTO, no el sitio donde se cambia el vocabulario.
+              </span>
             </>
           )}
         </section>
