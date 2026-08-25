@@ -173,6 +173,25 @@ flagged in the front end and is confirmable in bulk.
 **Alternative.** `POLICY_IMPLICIT_MULTIPLICITY=review` → an unwritten quantity sends the line to
 review with reason `QUANTITY_NOT_STATED`.
 
+**Scope, narrowed 2026-08-25.** P-2 applies only to a **secondary** element. Two corrections, both
+from the same finding — the system disagreed with the gold set on the quantity provenance of 10 of
+the 30 lines, and the harness could not see it because it grades quantity's *value* and no cell's
+*provenance*:
+
+- **A written `1` is a written count.** `1 WASHER ASTM F436` on row 5 says one washer per set. The
+  scanner rejected any count below 2, so the row's own words were filed under P-2 as though the row
+  had said nothing. Now `findMultiplicity` accepts `>= 1`; the introduction guard is unchanged, so
+  `M10 x 1 TUERCA` and `1 | STUD BOLT` are still rejected.
+- **The principal is not an assumption.** The quantity column counts the item the row is about;
+  there is no reading of `STUD BOLT … 40 uds` under which the studs are not 40. Marking it
+  `inferred` put the "assumed" mark on every set head — nine of thirty lines — over a factor of 1
+  that cannot move the number. An assumption that cannot change the value cannot degrade the
+  value's provenance.
+
+The values never changed; the trace did. After both, the system agrees with the gold set on all 30
+quantities **and** all 30 quantity provenances. Pinned in
+`src/pipeline/__tests__/validate-quantity-provenance.test.ts`.
+
 **Volume.** 3–4/15 rows: 2, 3, 8.
 
 ---

@@ -93,7 +93,13 @@ describe('numeradores y denominadores', () => {
   test('la cantidad es una celda más del error silencioso, no un atributo aparte', () => {
     const line = makeLine({
       allCertainOk: false,
-      cells: [{ lineId: 's1', rowRef: '1', attribute: 'quantity', certainty: 'C', expected: '100', got: '10000', ok: false }],
+      cells: [{
+        lineId: 's1', rowRef: '1', attribute: 'quantity', certainty: 'C',
+        expected: '100', got: '10000', ok: false,
+        // Valor mal => la procedencia no se gradúa: `provenanceOk` null. Castigar dos veces el
+        // mismo fallo diría que hay dos problemas donde hay uno.
+        expectedProvenance: 'extracted', gotProvenance: 'inferred', provenanceOk: null,
+      }],
     });
     const id = saveRun(
       baseInput({ report: makeReport({ lines: [line], silentErrorRate: { bad: 1, resolved: 1, pct: 100, lines: ['s1'] } }) }),

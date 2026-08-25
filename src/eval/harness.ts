@@ -52,6 +52,13 @@ export interface CellResult {
   expected: string | null;
   got: string | null;
   ok: boolean;
+  /**
+   * La procedencia, que el gold etiqueta desde el primer día y nadie comparaba. Ver `traceFidelity`.
+   */
+  expectedProvenance: string;
+  gotProvenance: string;
+  /** Sólo tiene sentido si el valor coincide: ver `traceFidelity`. `null` cuando no se gradúa. */
+  provenanceOk: boolean | null;
 }
 
 export interface LineResult {
@@ -110,6 +117,36 @@ export interface EvalReport {
 
   statusAgreement: { ok: number; total: number; pct: number };
 
+  /**
+   * ¿Dice la verdad sobre de dónde salió cada dato? El segundo agujero de este arnés.
+   *
+   * `quantity` estuvo etiquetada en el gold desde el primer día sin que nadie la comparara, y se
+   * descubrió por casualidad. **La procedencia era el mismo agujero un nivel más abajo**: el gold la
+   * etiqueta en las 240 celdas, `GoldCell.provenance` existe desde el principio, y ninguna métrica
+   * la miraba. Diez desacuerdos de procedencia en la cantidad vivieron ahí meses.
+   *
+   * No es cosmética, y por eso se mide: la procedencia **decide el estado de la línea**
+   * (`THRESHOLD_MIN_PROVENANCE` enruta a revisión por el eslabón más débil), pinta la marca ● que le
+   * dice al comprador dónde mirar, y ordena el panel de riesgo. Una procedencia mal puesta manda a
+   * revisar lo que no hace falta, o —peor— calla sobre un dato que se asumió.
+   *
+   * SE MIDE APARTE, nunca dentro de `perAttribute` ni del error silencioso. Dos razones. La primera
+   * es que responde a otra pregunta: aquéllas dicen *¿es correcto el dato?* y ésta dice *¿es
+   * correcto lo que el sistema cuenta sobre el dato?*. La segunda es la invariante 12: esos números
+   * están publicados en `docs/10-benchmarks.md`, y cambiarles la definición por debajo dejaría toda
+   * la serie histórica sin baseline con el que compararse.
+   *
+   * **Sólo sobre celdas CIERTAS cuyo valor ya coincide.** Si el valor está mal, la procedencia de un
+   * valor equivocado no informa de nada y contarla sería castigar dos veces el mismo fallo.
+   */
+  traceFidelity: {
+    ok: number;
+    total: number;
+    pct: number;
+    /** `linea.atributo: esperada -> obtenida`, para que el desacuerdo se pueda ir a mirar. */
+    mismatches: string[];
+  };
+
   perAttribute: Record<string, { okC: number; totalC: number; pctC: number; okP: number; totalP: number }>;
 
   reasonAgreement: { exact: number; total: number; pct: number };
@@ -155,11 +192,15 @@ export function evaluate(systemLines: OutputLine[], gold: GoldLine[], model: str
         for (const k of ATTRIBUTE_KEYS) {
           const expected = gl.attributes[k].value;
           const got = sl.attributes[k].normalized;
+          const ok = same(expected, got);
           cells.push({
             lineId: sl.id, rowRef, attribute: k,
             certainty: gl.attributes[k].certainty,
             expected: expected === null ? null : String(expected),
-            got, ok: same(expected, got),
+            got, ok,
+            expectedProvenance: gl.attributes[k].provenance,
+            gotProvenance: sl.attributes[k].provenance,
+            provenanceOk: ok ? gl.attributes[k].provenance === sl.attributes[k].provenance : null,
           });
         }
         // La cantidad es la OCTAVA celda, y estuvo etiquetada en el gold desde el primer día sin
@@ -172,12 +213,16 @@ export function evaluate(systemLines: OutputLine[], gold: GoldLine[], model: str
         // Pero es el único campo donde equivocarse multiplica el pedido, así que cuenta para el
         // error silencioso igual que los demás. El reparto C/P del gold ya hace el trabajo de
         // política: cantidad escrita es CIERTA, multiplicidad no escrita (P-2) es de política.
+        const qtyOk = same(gl.quantity.value, sl.quantity);
         cells.push({
           lineId: sl.id, rowRef, attribute: 'quantity',
           certainty: gl.quantity.certainty,
           expected: gl.quantity.value === null ? null : String(gl.quantity.value),
           got: sl.quantity === null ? null : String(sl.quantity),
-          ok: same(gl.quantity.value, sl.quantity),
+          ok: qtyOk,
+          expectedProvenance: gl.quantity.provenance,
+          gotProvenance: sl.quantityProvenance,
+          provenanceOk: qtyOk ? gl.quantity.provenance === sl.quantityProvenance : null,
         });
       }
       const goldReasons = new Set<string>(gl?.reasons ?? []);
@@ -225,6 +270,11 @@ export function evaluate(systemLines: OutputLine[], gold: GoldLine[], model: str
     };
   }
 
+  // Fidelidad de la traza: sobre celdas CIERTAS con el valor ya correcto, ¿coincide la procedencia?
+  // El filtro `provenanceOk !== null` es el que implementa "sólo si el valor coincide".
+  const provCells = aligned.flatMap((l) => l.cells.filter((c) => c.certainty === 'C' && c.provenanceOk !== null));
+  const provOk = provCells.filter((c) => c.provenanceOk).length;
+
   const reasonExact = lines.filter((l) => l.aligned && !l.missingReasons.length && !l.extraReasons.length).length;
 
   return {
@@ -258,6 +308,14 @@ export function evaluate(systemLines: OutputLine[], gold: GoldLine[], model: str
     statusAgreement: {
       ok: aligned.filter((l) => l.statusOk).length, total: aligned.length,
       pct: aligned.length ? (100 * aligned.filter((l) => l.statusOk).length) / aligned.length : 0,
+    },
+    traceFidelity: {
+      ok: provOk,
+      total: provCells.length,
+      pct: provCells.length ? (100 * provOk) / provCells.length : 100,
+      mismatches: provCells
+        .filter((c) => !c.provenanceOk)
+        .map((c) => `${c.lineId}.${c.attribute}: ${c.expectedProvenance} -> ${c.gotProvenance}`),
     },
     perAttribute,
     reasonAgreement: {

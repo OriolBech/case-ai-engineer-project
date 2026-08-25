@@ -58,7 +58,17 @@ export function locate(source: string, evidence: string | null, from = 0): Locat
  * hallucination, and the row produced NO LINES AT ALL. A silently vanished row is a material nobody
  * buys, which is the one outcome this pipeline must never produce.
  */
-function unescapeJsonish(s: string): string {
+/**
+ * Undoes one layer of JSON escaping the model left in a string it returned.
+ *
+ * EXPORTED because the value needs it as much as the evidence does, and for a while only the
+ * evidence got it. A model that answers `1\"` for the measure of `STUD BOLT 1" X 150 LG` was
+ * located correctly in the row — `locate` unescapes before searching — and then the **value** was
+ * adopted verbatim, so the line shipped a measure with a literal backslash in it. It resolved, so
+ * the harness counted it as a SILENT ERROR: the worst class, a wrong size on a line nobody is going
+ * to look at. Intermittent, because the double escaping is the model's whim: one pass in six.
+ */
+export function unescapeJsonish(s: string): string {
   if (!s.includes('\\')) return s;
   return s.replace(/\\(["'\\nrt])/g, (_, c: string) =>
     c === 'n' ? '\n' : c === 'r' ? '\r' : c === 't' ? '\t' : c);

@@ -39,11 +39,42 @@ Exact definitions in `docs/02-kpi.md`.
    system fails."*
 6. `€/row` and the extrapolation to `4,000 rows × 25 reviews`.
 7. `latency/1,000 lines`.
-8. `out_of_scope` — P-9, reported separately and never averaged in. Lines the gold set declares as
+8. `trace_fidelity` — **does the system tell the truth about where each datum came from?**
+   Reported separately and never folded into 1-5. See below.
+9. `out_of_scope` — P-9, reported separately and never averaged in. Lines the gold set declares as
    belonging to a different family are excluded from the denominators of 2 and 4: counting them
    would make the metric swing with how many flanges the MTO happens to contain. The exclusion is
    decided by **the gold set, never the system**, and the two kinds of disagreement are named
    separately (`missed`, `falsePositives`) because they don't cost the same.
+
+### On provenance — the same hole as quantity, one level down
+
+The gold labels the **provenance** of all 240 cells (`GoldCell.provenance`, there since the first
+day), and **no metric looked at it**. The story is the one below about quantity, repeated: a field
+labelled from the start, never compared, and therefore free to drift. It did — the system disagreed
+with the gold on the quantity provenance of 10 of 30 lines, and nothing showed it.
+
+It is not cosmetic. Provenance **decides the line's status**: `THRESHOLD_MIN_PROVENANCE` routes to
+review on the weakest link, so a wrong provenance sends a good line to review or — worse — stays
+quiet about a value that was assumed. It also drives the ● mark that tells the buyer where to look,
+and it orders the risk panel.
+
+`trace_fidelity` = of the CERTAIN cells **whose value already matches**, how many carry the gold's
+provenance.
+
+- **Only where the value matches.** The provenance of a wrong value informs nothing, and counting
+  it would punish the same failure twice.
+- **Never folded into the value rates.** Two reasons. It answers a different question — those say
+  *is the datum right*, this says *is what the system claims about the datum right*. And invariant
+  12: those numbers are published in `docs/10-benchmarks.md`, and redefining them underneath would
+  leave the whole history without a baseline.
+
+**First run: 85.8% (181/211), with one systematic disagreement — `name`, on all 30 lines.** Excluding
+`name` it is 181/181, over the same 211 certain cells as every other rate. The gold labels `name` as `extracted` while labelling every other
+table-driven attribute (`standard`, `finish`, `quality`) as `table_normalized`, for the same
+mechanism. Our reading is that the gold is inconsistent with itself here; it has **not** been
+changed, and the disagreement is written up in `data/gold/README.md` for a human to settle. Quote
+the number as 85.8% with its exception named — never as 100% by quietly dropping `name`.
 
 ## Gold set format
 
@@ -51,6 +82,7 @@ Exact definitions in `docs/02-kpi.md`.
 - the 7 expected attributes,
 - **the quantity**, which is the eighth gradable cell,
 - `certainty: "certain" | "policy_dependent"` **per cell**,
+- **the provenance** expected for each cell, which `trace_fidelity` grades,
 - the expected reason if it goes to review.
 
 `policy_dependent` cells are excluded from the main metrics and reported as a sensitivity
@@ -71,3 +103,8 @@ was blind to quantity.
 - [x] `--ablate=extract` and `--ablate=critic` are implemented. split/normalize are still pending.
 - [ ] Reproducible: two consecutive runs give the same report except for latency.
 - [ ] Runs in < 2 min on the gold set (otherwise it won't get used).
+- [x] Every field the gold labels is compared by some metric. Quantity's **value** (2026-08-24) and
+      every cell's **provenance** (2026-08-25) were both labelled and both unmeasured; a labelled
+      field nobody grades is a field free to drift, and both did.
+- [x] `trace_fidelity` is reported apart, persisted to the history, and names its disagreements
+      line by line so they can be gone and looked at.

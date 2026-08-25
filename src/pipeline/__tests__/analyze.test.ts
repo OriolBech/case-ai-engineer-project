@@ -98,11 +98,56 @@ test('findMultiplicity · las formas que escriben los MTO, y las que se le parec
     ['STUD BOLT 7/8" X 130, 2 WASHER 7/8"', 'WASHER', 2, 'la fracción de la medida no estorba'],
     ['Tornillo M12 tuercas', 'tuercas', null, 'M12 es una medida'],
     ['Arandela 7/8" WASHER', 'WASHER', null, 'una fracción no es una cantidad'],
+    // El `1` escrito. Es el caso de la fila 5 del MTO del enunciado, y antes se descartaba por ser
+    // menor que 2: la fila decía "una arandela" y el sistema lo archivaba como si no hubiera dicho
+    // nada. El número no cambia; la procedencia sí, y con ella la marca de "esto es un supuesto".
+    ['STUD BOLT 1" X 150, GR B7, W/ 2 NUT ASTM A194, 1 WASHER ASTM F436', 'WASHER', 1, 'un 1 escrito es un 1'],
+    ['esparrago M20 con 1 tuerca DIN 934', 'tuerca', 1, 'un 1 con conector español'],
+    // Y las que un `1` NO puede abrir: la guardia de introducción sigue siendo la que trabaja.
+    ['Tornillo M10 x 1 TUERCA', 'TUERCA', null, 'el 1 de una designación no está introducido'],
+    ['Arandela DIN 1 WASHER', 'WASHER', null, 'un número introducido por DIN es una norma'],
   ];
   for (const [text, name, expected, why] of cases) {
     const found = findMultiplicity(text, text.indexOf(name));
     assert.equal(found?.value ?? null, expected, `${why}: ${JSON.stringify(text)} -> ${name}`);
   }
+});
+
+/**
+ * El error silencioso que costó más caro de encontrar, porque sólo aparece una pasada de cada seis.
+ *
+ * La fila 5 dice `STUD BOLT 1" X 150 LG`. El modelo a veces devuelve la medida ya escapada, `1\\"`,
+ * y `locate` la encontraba igual —desescapa antes de buscar— así que no había alucinación, no había
+ * motivo, y la línea salía RESUELTA con una barra invertida dentro de la medida. Una medida
+ * corrupta en una línea que nadie va a mirar es exactamente lo que el KPI llama error silencioso.
+ *
+ * La prueba es determinista aunque el fallo no lo sea: el escapado se inyecta a mano.
+ */
+test('valor escapado por el modelo · la barra invertida no llega a la línea', () => {
+  const row: MtoRow = {
+    itemRef: '5',
+    sourceText: 'STUD BOLT 1" X 150 LG, ASTM A193, GR B7, W/ 2 NUT ASTM A194, 1 WASHER ASTM F436',
+    cellOffsets: {}, quantity: 24, quantityColumn: 'CANT.', unit: 'uds', sheet: 'MTO', rowNumber: 9,
+  };
+  const a = analysisFromResponse({
+    elements: [{
+      detectedName: 'STUD BOLT', normalizedName: 'ESPARRAGO', role: 'principal',
+      evidence: 'STUD BOLT 1" X 150 LG', multiplicity: 1, multiplicityStated: false,
+      attributes: {
+        measure: { value: '1\\"', evidence: '1\\"' },
+        length: { value: '150', evidence: 'X 150' },
+        quality: { value: 'GR B7', evidence: 'GR B7' },
+        standard: { value: 'ASTM A193', evidence: 'ASTM A193' },
+        material: { value: null, evidence: null },
+        finish: { value: null, evidence: null },
+      },
+    }],
+  } as never, row);
+
+  const measure = a.elements[0].attributes.measure;
+  assert.equal(measure.value, '1"', 'la medida llega limpia, sin la barra del escapado');
+  assert.equal(measure.hallucinated, false, 'y se sigue localizando en la fila');
+  assert.deepEqual(a.hallucinations, []);
 });
 
 test('findMultiplicity · nunca cruza la frontera de una celda', () => {

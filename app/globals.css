@@ -460,6 +460,12 @@ a { color: inherit; }
 .badge.outfamily .dot { background: transparent; border: 1px solid var(--fg-4); }
 .badge.confirmed { color: var(--ok); border-color: var(--ok); background: var(--ok-soft); }
 .badge.confirmed .dot { background: var(--ok); }
+/* Devuelta a mano. El mismo rojo que "Revisión" porque el estado es el mismo —esta línea no se pide—
+   y §2.3 del sistema de diseño no admite un ámbar para inventar un tercer estado. Lo que cambia es
+   el borde discontinuo, el mismo recurso que usa `.outfamily`: la raya dice "esto no lo ha dictado
+   el sistema". Quien lo distingue es la etiqueta, no un color nuevo. */
+.badge.reopened { color: var(--sapira-red); border-color: var(--sapira-red); border-style: dashed; background: #c544440f; }
+.badge.reopened .dot { background: transparent; border: 1px solid var(--sapira-red); }
 
 .kindtag {
   font: 600 9px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
@@ -1035,6 +1041,15 @@ html:has(.trace-overlay) {
 .how-stage-spec { margin-left: auto; font: 500 0.7rem/1 var(--font-mono); color: var(--fg-4); }
 .how-badge-llm { background: var(--sapira-red-soft); color: var(--sapira-red); border: 1px solid var(--sapira-red); }
 .how-badge-rules { background: var(--surface-sunken); color: var(--fg-3); border: 1px solid var(--border-subtle); }
+/* La respuesta corta, antes de las siete etapas: quien la lee ya puede parar de leer. */
+.how-lede { border-left: 2px solid var(--sapira-red); padding-left: 12px; }
+
+/* Una capacidad que se activa por configuración, no una etapa fija del recorrido. Borde punteado
+   neutro para separarla del flujo de arriba sin que parezca un hueco en él. */
+.how-optional {
+  margin-top: 14px; padding: 12px 14px;
+  border: 1px dashed var(--border-strong); background: var(--surface-sunken);
+}
 .how-stage-summary { margin: 0.55rem 0 0; font-size: 0.83rem; color: var(--fg-2); }
 .how-stage-detail { margin: 0.5rem 0 0; font-size: 0.8rem; line-height: 1.55; color: var(--fg-3); }
 

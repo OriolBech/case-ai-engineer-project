@@ -49,6 +49,11 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ProcessSummary | null>(null);
   const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
+  // La vuelta atrás: líneas que el pipeline (o esta sesión) daba por resueltas y que una persona ha
+  // devuelto a revisión. Vive aquí, junto a `confirmed`, porque es la misma clase de dato —lo que un
+  // humano ha decidido en esta sesión sobre la salida cruda— y porque las dos tienen que poder
+  // deshacerse la una a la otra.
+  const [reopened, setReopened] = useState<Set<string>>(new Set());
   const [traceLineId, setTraceLineId] = useState<string | null>(null);
   const [showKpis, setShowKpis] = useState(false);
   const [showVocab, setShowVocab] = useState(false);
@@ -172,6 +177,7 @@ export function App() {
     setProgress(null);
     setError(null);
     setConfirmed(new Set());
+    setReopened(new Set());
     setApplied(new Map());
     setTraceLineId(null);
     setProcessedMtoId(null);
@@ -183,6 +189,36 @@ export function App() {
   const validateLines = useCallback(async (ids: string[]) => {
     for (const id of ids) recordCorrectionKpiEvent(kpiSessionId, id, 'saved');
     setConfirmed((prev) => new Set([...prev, ...ids]));
+    // Validar deshace el haberla devuelto: si no, la línea se quedaría en revisión para siempre.
+    setReopened((prev) => {
+      if (!ids.some((id) => prev.has(id))) return prev;
+      const n = new Set(prev);
+      for (const id of ids) n.delete(id);
+      return n;
+    });
+  }, [kpiSessionId]);
+
+  /**
+   * Devolver a revisión: el camino de vuelta desde "resuelta".
+   *
+   * No debería hacer falta, y por eso hace falta. Cuando el comprador ve algo que no cuadra en una
+   * fila que el sistema da por buena, la alternativa a este botón no es "no hacer nada": es exportar
+   * el CSV y arreglarlo en Excel: justo lo que el enunciado pide quitar. Se registra como `started`
+   * porque eso es lo que es —una revisión que empieza—, y así el KPI de corrección no cuenta como
+   * cerrada una línea que alguien acaba de reabrir.
+   *
+   * No borra nada: ni la corrección aplicada, ni la sugerencia guardada. Sólo dice que esa línea
+   * todavía no se pide, así que cae del export RFQ y del % resueltas a la vez.
+   */
+  const reopenLines = useCallback((ids: string[]) => {
+    for (const id of ids) recordCorrectionKpiEvent(kpiSessionId, id, 'started');
+    setConfirmed((prev) => {
+      if (!ids.some((id) => prev.has(id))) return prev;
+      const n = new Set(prev);
+      for (const id of ids) n.delete(id);
+      return n;
+    });
+    setReopened((prev) => new Set([...prev, ...ids]));
   }, [kpiSessionId]);
 
   // Aceptar una sugerencia: re-aplica el vocabulario en caliente a las líneas del MTO abierto cuyo
@@ -212,6 +248,12 @@ export function App() {
       return n;
     });
     setConfirmed((prev) => new Set([...prev, ...ids]));
+    setReopened((prev) => {
+      if (!ids.some((id) => prev.has(id))) return prev;
+      const n = new Set(prev);
+      for (const id of ids) n.delete(id);
+      return n;
+    });
   }, [result, kpiSessionId]);
 
   /**
@@ -247,7 +289,7 @@ export function App() {
     );
   }
 
-  const resolvedCount = displayLines.filter((l) => effectiveQueue(l, confirmed) === 'resuelta').length;
+  const resolvedCount = displayLines.filter((l) => effectiveQueue(l, confirmed, reopened) === 'resuelta').length;
   const pctResolved = displayLines.length ? Math.round((100 * resolvedCount) / displayLines.length) : 0;
   const traceLine = traceLineId ? displayLines.find((l) => l.id === traceLineId) ?? null : null;
   const allCached = result.metrics.llmCalls > 0 && result.metrics.cacheHits === result.metrics.llmCalls;
@@ -287,7 +329,9 @@ export function App() {
         lines={displayLines}
         rowsSourceText={rowsSourceText}
         confirmed={confirmed}
+        reopened={reopened}
         onValidate={validateLines}
+        onReopen={reopenLines}
         onOpenTrace={openTrace}
         processedMtoId={processedMtoId}
         backlog={result.diagnostics.policyBacklog}

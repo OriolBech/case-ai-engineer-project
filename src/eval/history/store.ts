@@ -81,6 +81,7 @@ function metricsFromReport(r: EvalReport): MetricRow[] {
   push('global', 'queue_noise', r.queueNoise.pct, r.queueNoise.noisy, r.queueNoise.review);
   push('global', 'status_agreement', r.statusAgreement.pct, r.statusAgreement.ok, r.statusAgreement.total);
   push('global', 'reason_agreement', r.reasonAgreement.pct, r.reasonAgreement.exact, r.reasonAgreement.total);
+  push('global', 'trace_fidelity', r.traceFidelity.pct, r.traceFidelity.ok, r.traceFidelity.total);
   const oosPct = r.outOfScope.goldLines ? (100 * r.outOfScope.detected) / r.outOfScope.goldLines : 100;
   push('global', 'out_of_scope', oosPct, r.outOfScope.detected, r.outOfScope.goldLines);
 

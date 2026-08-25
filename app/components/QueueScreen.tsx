@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import { ATTRIBUTE_KEYS, type OutputLine, type ReasonCode } from '../../src/pipeline/types.ts';
 import {
-  downloadCsv, effectiveQueue, groupByFamily, groupByRow, isMarked, linesToCsv, queueOf, type RowGroup,
+  PROVENANCE_LABEL, downloadCsv, effectiveQueue, groupByFamily, groupByRow, isMarked, linesToCsv,
+  queueOf, type RowGroup,
 } from '../lib/derive.ts';
 import type { PolicyBacklogItem } from '../../src/pipeline/coverage.ts';
 import { lineNeedsFinishVocab } from '../lib/finish-vocab-ui.ts';
@@ -15,6 +16,29 @@ type GroupMode = 'fila' | 'familia';
 
 const PAGE_SIZE = 20;
 
+/**
+ * Lo que dice el punto de una celda marcada, en la lengua de quien compra.
+ *
+ * Antes decía `extracted_uncatalogued: quality:out_of_catalog`, que es el enum y la regla — y
+ * SPEC-008 pide exactamente lo contrario: *"el motivo en texto legible, no un código"*. El caso que
+ * lo destapó es el MTO del enunciado: sus filas 1, 5 y 12 salen RESUELTAS con la calidad `GR B7` o
+ * `GR 2H` marcada, y §5 nombra esos dos valores **por su nombre** como el ejemplo de lo que hay que
+ * extraer tal cual. El sistema acierta; el punto se leía como si hubiera hecho algo raro.
+ *
+ * Así que el literal fuera de catálogo tiene su propio texto: el valor es exacto —lo pone la fila—,
+ * lo que no se sabe es con qué grupo de §5 es intercambiable. Es una equivalencia que falta, no un
+ * dato en duda, y la diferencia es la que hay entre "revisa esto" y "puedes enseñarme esto".
+ */
+function markTitle(provenance: string, rule: string | null): string {
+  if (provenance === 'extracted_uncatalogued') {
+    return 'Literal de la fila, fuera de la lista de §5. Las reglas mandan conservarlo tal cual '
+      + '(es el caso de los grados ASTM: GR B7, GR 2H). El valor es exacto; lo que el sistema no '
+      + 'sabe es con qué grupo es intercambiable. Abre la línea para declararlo.';
+  }
+  const label = PROVENANCE_LABEL[provenance as keyof typeof PROVENANCE_LABEL] ?? provenance;
+  return rule ? `${label} · ${rule}` : label;
+}
+
 function attrCell(line: OutputLine, key: (typeof ATTRIBUTE_KEYS)[number]) {
   const a = line.attributes[key];
   const pendingFinish = key === 'finish' && lineNeedsFinishVocab(line);
@@ -25,7 +49,7 @@ function attrCell(line: OutputLine, key: (typeof ATTRIBUTE_KEYS)[number]) {
         {display ?? '—'}
       </span>
       {a.normalized !== null && isMarked(a.provenance) && (
-        <span className="attr-mark" title={`${a.provenance}: ${a.rule ?? ''}`}>●</span>
+        <span className="attr-mark" title={markTitle(a.provenance, a.rule)}>●</span>
       )}
       {pendingFinish && (
         <span className="attr-mark pending" title="Acabado en la fila, no reconocido por el catálogo">?</span>
@@ -58,7 +82,9 @@ export function QueueScreen({
   lines,
   rowsSourceText,
   confirmed,
+  reopened,
   onValidate,
+  onReopen,
   onOpenTrace,
   processedMtoId,
   backlog = [],
@@ -66,7 +92,11 @@ export function QueueScreen({
   lines: OutputLine[];
   rowsSourceText: Map<string, string>;
   confirmed: Set<string>;
+  /** Líneas resueltas que una persona ha devuelto a revisión en esta sesión. */
+  reopened: Set<string>;
   onValidate: (ids: string[]) => void;
+  /** La vuelta atrás desde "resuelta". Ver `effectiveQueue` en `app/lib/derive.ts`. */
+  onReopen: (ids: string[]) => void;
   onOpenTrace: (lineId: string) => void;
   /** Id del MTO en histórico; necesario para registrar exportación RFQ. */
   processedMtoId?: string | null;
@@ -82,14 +112,14 @@ export function QueueScreen({
 
   const counts = useMemo(() => {
     const c = { todas: lines.length, resuelta: 0, revision: 0, 'fuera-familia': 0 };
-    for (const l of lines) c[effectiveQueue(l, confirmed)]++;
+    for (const l of lines) c[effectiveQueue(l, confirmed, reopened)]++;
     return c;
-  }, [lines, confirmed]);
+  }, [lines, confirmed, reopened]);
 
   const byTab = useMemo(() => {
     if (tab === 'todas') return lines;
-    return lines.filter((l) => effectiveQueue(l, confirmed) === tab);
-  }, [lines, tab, confirmed]);
+    return lines.filter((l) => effectiveQueue(l, confirmed, reopened) === tab);
+  }, [lines, tab, confirmed, reopened]);
 
   const reasonOptions = useMemo(() => {
     if (tab !== 'revision') return [];
@@ -125,7 +155,20 @@ export function QueueScreen({
   const pageClamped = Math.min(page, totalPages - 1);
   const pageGroups = groups.slice(pageClamped * PAGE_SIZE, pageClamped * PAGE_SIZE + PAGE_SIZE);
 
-  const showCheckboxes = tab === 'revision';
+  /**
+   * Los dos sentidos de la misma acción en bloque, y por qué la de vuelta también existe.
+   *
+   * Hacia adelante ("en revisión" → validar) es lo que pide SPEC-008: con 4.000 filas, resolver de
+   * una en una no es un producto. Hacia atrás ("resueltas" → devolver a revisión) es la salida para
+   * cuando el sistema se equivoca en la dirección cara: dar por buena una línea que no lo está. Sin
+   * ella, quien lo detecta no tiene más remedio que exportar el CSV y arreglarlo en Excel, que es lo
+   * que este producto viene a quitar. Se selecciona igual, en el mismo sitio y con el mismo gesto.
+   *
+   * "Otra familia" no lleva selector: no es una cola de trabajo (P-9), es una fila de otro comprador.
+   */
+  const selectMode: 'validar' | 'devolver' | null =
+    tab === 'revision' ? 'validar' : tab === 'resuelta' ? 'devolver' : null;
+  const showCheckboxes = selectMode !== null;
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -135,14 +178,17 @@ export function QueueScreen({
     });
   };
 
-  const selectableIds = bySearchAndReason.filter((l) => !confirmed.has(l.id)).map((l) => l.id);
+  // En "en revisión" no se ofrece validar lo ya validado; en "resueltas" toda línea de la pestaña se
+  // puede devolver, la haya dado por buena el pipeline o una persona.
+  const isSelectable = (l: OutputLine) => (selectMode === 'validar' ? !confirmed.has(l.id) : true);
+  const selectableIds = showCheckboxes ? bySearchAndReason.filter(isSelectable).map((l) => l.id) : [];
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
 
   const exportCsv = (which: 'resueltas' | 'revision' | 'fuera-familia') => {
     const source =
-      which === 'resueltas' ? lines.filter((l) => effectiveQueue(l, confirmed) === 'resuelta')
+      which === 'resueltas' ? lines.filter((l) => effectiveQueue(l, confirmed, reopened) === 'resuelta')
       : which === 'fuera-familia' ? lines.filter((l) => queueOf(l) === 'fuera-familia')
-      : lines.filter((l) => effectiveQueue(l, confirmed) === 'revision');
+      : lines.filter((l) => effectiveQueue(l, confirmed, reopened) === 'revision');
     downloadCsv(`mto_${which}.csv`, linesToCsv(source));
     if (which === 'resueltas' && processedMtoId && source.length > 0) {
       void fetch('/api/revisions/rfq-export', {
@@ -214,12 +260,22 @@ export function QueueScreen({
       {showCheckboxes && selected.size > 0 && (
         <div className="bulkbar">
           <span className="bulkbar-count"><b>{selected.size}</b> líneas seleccionadas</span>
-          <button
-            className="wf-btn primary small"
-            onClick={() => { onValidate([...selected]); setSelected(new Set()); }}
-          >
-            Validar seleccionadas
-          </button>
+          {selectMode === 'validar' ? (
+            <button
+              className="wf-btn primary small"
+              onClick={() => { onValidate([...selected]); setSelected(new Set()); }}
+            >
+              Validar seleccionadas
+            </button>
+          ) : (
+            <button
+              className="wf-btn primary small"
+              title="Salen del export RFQ y del % resueltas hasta que se validen de nuevo. No se pierde nada."
+              onClick={() => { onReopen([...selected]); setSelected(new Set()); }}
+            >
+              Devolver a revisión
+            </button>
+          )}
           <button className="wf-btn small" onClick={() => setSelected(new Set())}>Deseleccionar</button>
         </div>
       )}
@@ -263,7 +319,7 @@ export function QueueScreen({
                   onClick={() => onOpenTrace(l.id)}
                 >
                   <span className="cell-check" onClick={(e) => e.stopPropagation()}>
-                    {showCheckboxes && !confirmed.has(l.id) && (
+                    {showCheckboxes && isSelectable(l) && (
                       <input type="checkbox" checked={selected.has(l.id)} onChange={() => toggleSelect(l.id)} />
                     )}
                   </span>
@@ -282,7 +338,13 @@ export function QueueScreen({
                     )}
                   </span>
                   <span className="cell-reason">
-                    <StatusBadge line={l} confirmed={confirmed.has(l.id)} />
+                    <StatusBadge line={l} confirmed={confirmed.has(l.id)} reopened={reopened.has(l.id)} />
+                    {/* Una línea devuelta puede no tener ningún motivo del pipeline —la dio por
+                        buena y alguien la paró—, así que la insignia se quedaría sola. El motivo
+                        real es que lo decidió una persona, y eso se escribe. */}
+                    {reopened.has(l.id) && (
+                      <span className="reason-text">Devuelta a revisión a mano · fuera del RFQ hasta validarla</span>
+                    )}
                     {l.reasons[0] && (
                       <span className="reason-text" title={l.reasons.map((r) => r.message).join(' · ')}>
                         {l.reasons[0].message}

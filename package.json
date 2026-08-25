@@ -20,6 +20,7 @@
     "run": "node scripts/run.ts",
     "eval": "node scripts/eval.ts",
     "traps": "node scripts/traps.ts",
+    "critic:eval": "node scripts/critic-eval.ts",
     "eval:history": "node scripts/eval-history.ts",
     "suggestions:kpi": "node scripts/suggestions-kpi.ts",
     "corrections:kpi": "node scripts/corrections-kpi.ts",

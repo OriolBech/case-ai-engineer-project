@@ -85,6 +85,36 @@ queue_noise = REVISION_MANUAL lines the gold considers correct / total FAMILY RE
 The "invisible failure" metric: if this rises, the buyer stops looking at the queue and the
 protection against the costly error is also lost.
 
+### Trace fidelity — is the story about the datum true?
+
+```
+trace_fidelity = CERTAIN cells whose provenance matches the gold / CERTAIN cells whose VALUE already matches
+```
+
+Everything above asks *is the datum right*. This asks *is what the system says about the datum
+right*, and it is the only metric here that grades the trace instead of the answer.
+
+It exists because the gold has labelled the provenance of all 240 cells since day one and **nothing
+compared it** — the same shape of hole that hid a line with 10,000 bolts where the MTO asked for
+100, one level further down. Ten quantity-provenance disagreements lived there for months.
+
+Not cosmetic: provenance **decides the line's status**. `THRESHOLD_MIN_PROVENANCE` routes on the
+weakest link, so a wrong provenance sends a good line to review, or stays quiet about a value that
+was assumed. It also paints the ● the buyer is told to look at.
+
+Two rules, both deliberate:
+
+- **Only where the value already matches.** The provenance of a wrong value informs nothing;
+  counting it would punish one failure twice.
+- **Reported apart, never folded in.** Different question, and invariant 12: the rates above are
+  published with their baselines, and redefining them underneath would strand the whole series.
+
+**Today: 85.8% (181/211)** — the same 211 certain cells as every rate above — with one systematic
+disagreement: `name` on all 30 lines, where the
+gold says `extracted` and the system says `table_normalized` for the same §3 table it labels
+`table_normalized` everywhere else. Unresolved on purpose and written up in `data/gold/README.md`.
+Quote it with the exception; 100% here would be obtained by deleting the inconvenient column.
+
 ### The denominator: what does NOT go in, and why (P-9)
 
 The two rates above are calculated **over fastener-hardware lines**. A flange or a gasket that

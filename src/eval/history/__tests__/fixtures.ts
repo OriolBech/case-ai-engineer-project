@@ -33,6 +33,7 @@ export function makeReport(overrides: Partial<EvalReport> = {}): EvalReport {
     queueNoise: { noisy: 0, review: 0, pct: 0, lines: [] },
     outOfScope: { goldLines: 0, detected: 0, missed: [], falsePositives: [] },
     statusAgreement: { ok: 1, total: 1, pct: 100 },
+    traceFidelity: { ok: 1, total: 1, pct: 100, mismatches: [] },
     perAttribute: {
       name: { okC: 1, totalC: 1, pctC: 100, okP: 0, totalP: 0 },
     },

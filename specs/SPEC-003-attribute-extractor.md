@@ -62,15 +62,31 @@ normalize: that's SPEC-004 and it's deterministic.
       (§5).
 - [x] In row 1 the nut's measure is extracted (`HEX. NUT 7/8"` writes it) and in row 5 it's
       extrapolated (`2 NUT ASTM A194`, no measure). The distinction is respected.
+- [x] **A value the model returns JSON-escaped arrives unescaped.** A measure of `1\"` reaches the
+      line as `1"`. Same boundary the evidence already had.
+- [x] **A written `1` is a written count.** `1 WASHER ASTM F436` gives `multiplicityStated: true`,
+      so the quantity reads `extracted` and not `inferred` (P-2).
 
-## Two prompt errors that cost a round trip
+## Three errors that cost a round trip
 
 1. **`A2`/`A4` as material.** The prompt gave `A4` as a material example. They're qualities
    (G1/G3) and §5 lists them as such. The same error was in the materials table.
 2. **Standard placed in the quality field.** `gpt-5.4-mini` returned `ASTM F436` as the washer's
    quality on rows 1 and 5 — where the gold says there's no quality and the line goes to review.
    The span checker **doesn't catch it**, because `ASTM F436` really is in the text: the failure is
-   one of attribution, not invention. It's the gap that justifies the critic (SPEC-006).
+   one of attribution, not invention. It was the gap that justified the critic (SPEC-006) — and it
+   no longer is: the rules engine raises `UNMAPPED_VALUE` on it by itself, which is why the critic
+   is off by default since 2026-08-25.
+3. **The value kept an escape the evidence did not.** `locate` unescapes before searching the row,
+   so a model answering `1\"` for the measure of `STUD BOLT 1" X 150 LG` was located fine — no
+   hallucination, no reason — and then the **value** was stored verbatim, backslash included. The
+   line resolved, so it counted as a **silent error**: a corrupt size on a line nobody reviews.
+
+   It showed up in about one pass in six, so no single green run would ever have found it. It was
+   caught by repeating the eval with `LLM_CACHE=off`, which is the only reason invariant 11 exists.
+   The fix is one call to the same `unescapeJsonish` at the value's boundary; the shape of the bug
+   is **one string, two boundaries, and only one of them converting**. Pinned deterministically in
+   `analyze.test.ts`: the test fails if the call is removed.
 
 ## What happens to the KPI if removed
 

@@ -21,15 +21,35 @@ export function queueOf(line: OutputLine): Queue {
   return 'revision';
 }
 
+const NONE: ReadonlySet<string> = new Set();
+
 /**
- * La cola efectiva de cara a la UI, contando lo que el humano ya validó en esta sesión.
+ * La cola efectiva de cara a la UI, contando lo que el humano ya decidió en esta sesión.
  *
  * Una línea validada, o una sugerencia de vocabulario ya guardada, cuenta como resuelta aunque el
  * pipeline no la marcase `RESUELTA`: la decisión la ha tomado una persona. Guardar es decidir.
+ *
+ * `reopenedIds` es la puerta de vuelta, y manda sobre las otras dos. El comprador que ve algo raro
+ * en una fila que el sistema da por resuelta —la calidad que no cuadra, la longitud que no puede
+ * ser— necesita poder sacarla de la cola de pedir sin salir de la pantalla. Que "no debería pasar"
+ * es justamente por qué tiene que existir: la salida que no se contempla es la que se apaña
+ * exportando el CSV y arreglándolo en Excel, que es exactamente lo que este producto viene a
+ * quitar. Devolver a revisión NO borra nada; sólo dice que esa línea todavía no se pide, así que
+ * cae del export RFQ y del % resueltas al mismo tiempo y por la misma razón.
+ *
+ * `fuera-familia` no se toca: una brida no es una línea resuelta a la que se pueda dar la vuelta,
+ * y mandarla a "revisión" sería pedirle a alguien que revise una fila que ya está bien (P-9).
  */
-export function effectiveQueue(line: OutputLine, validatedIds: ReadonlySet<string>): Queue {
+export function effectiveQueue(
+  line: OutputLine,
+  validatedIds: ReadonlySet<string>,
+  reopenedIds: ReadonlySet<string> = NONE,
+): Queue {
+  const base = queueOf(line);
+  if (base === 'fuera-familia') return base;
+  if (reopenedIds.has(line.id)) return 'revision';
   if (validatedIds.has(line.id)) return 'resuelta';
-  return queueOf(line);
+  return base;
 }
 
 /**

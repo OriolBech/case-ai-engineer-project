@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { needsCritic, criticiseRow } from '../critic.ts';
+import { criticRoutingFromEnv, needsCritic, criticiseRow } from '../critic.ts';
 import type { Analysis } from '../analyze.ts';
 import type { MtoRow, OutputLine } from '../types.ts';
 import type { Llm } from '../../lib/llm.ts';
@@ -64,7 +64,17 @@ describe('criticiseRow · SÓLO puede degradar', () => {
       missingElements: [],
       verdicts: [{ lineId: '1.2', agrees: false, issue: 'WRONG_ATTRIBUTION', attribute: 'quality', explanation: 'ASTM F436 es una norma, no una calidad' }],
     });
-    const r = await criticiseRow(llm, row, analysis(2), [line('1.1', 'RESUELTA'), line('1.2', 'RESUELTA')]);
+    // La calidad la tiene que haber puesto el extractor, o la puerta de `mayDispute` no deja pasar
+    // el veredicto. Es justo el caso real: `ASTM F436` copiado de la fila al campo equivocado, que
+    // ninguna tabla del cliente reconoce y sale como `extracted_uncatalogued`.
+    const disputed: OutputLine = {
+      ...line('1.2', 'RESUELTA'),
+      attributes: {
+        ...line('1.2', 'RESUELTA').attributes,
+        quality: { raw: 'ASTM F436', normalized: 'ASTM F436', provenance: 'extracted_uncatalogued', span: null, rule: null },
+      },
+    };
+    const r = await criticiseRow(llm, row, analysis(2), [line('1.1', 'RESUELTA'), disputed]);
     assert.deepEqual(r.downgraded, ['1.2']);
     assert.equal(r.lines[1].status, 'REVISION_MANUAL');
     assert.equal(r.lines[1].reasons[0].code, 'CRITIC_DISAGREES');
@@ -129,6 +139,84 @@ describe('criticiseRow · SÓLO puede degradar', () => {
     const llm = stubLlm({ missingElements: [], verdicts: [] });
     await criticiseRow(llm, row, analysis(1), [line('1.1', 'RESUELTA')]);
     assert.equal((llm as unknown as { callCount: number }).callCount, 0);
+  });
+});
+
+/**
+ * La puerta que hace imposible el falso positivo que el crítico comete de verdad.
+ *
+ * Los cuatro degradados medidos —tres en el gold, uno en la fixture congelada— atacaban los tres
+ * una celda que el extractor NO puso: el material derivado por P-3, la norma traducida por la tabla
+ * §8, el alcance del acabado decidido por P-1. El prompt ya lo prohíbe por escrito y el modelo lo
+ * hace igual, así que la regla vive aquí.
+ */
+describe('criticiseRow · sólo se discute lo que puso el extractor', () => {
+  const cell = (provenance: string) => ({ raw: 'X', normalized: 'X', provenance, span: null, rule: null });
+  const withAttr = (id: string, key: string, provenance: string): OutputLine => ({
+    ...line(id, 'RESUELTA'),
+    attributes: { ...line(id, 'RESUELTA').attributes, [key]: cell(provenance) } as OutputLine['attributes'],
+  });
+  const dispute = (id: string, attribute: string | null) => ({
+    verdicts: [{ lineId: id, agrees: false, issue: 'WRONG_ATTRIBUTION', attribute, explanation: 'no cuadra' }],
+    missingElements: [],
+  });
+  const run = async (l: OutputLine, attribute: string | null) =>
+    criticiseRow(stubLlm(dispute(l.id, attribute)), row, analysis(3), [l], 'multi_element');
+
+  test('un material DERIVADO no se discute: lo puso P-3, no el extractor', async () => {
+    const c = await run(withAttr('1.2', 'material', 'derived'), 'material');
+    assert.deepEqual(c.downgraded, []);
+    assert.equal(c.lines[0].status, 'RESUELTA');
+  });
+
+  test('una medida EXTRAPOLADA no se discute: la puso §2', async () => {
+    const c = await run(withAttr('1.2', 'measure', 'extrapolated'), 'measure');
+    assert.deepEqual(c.downgraded, []);
+  });
+
+  test('una celda vacía no se discute: no hay nada colocado que pueda estar mal colocado', async () => {
+    const c = await run(withAttr('1.2', 'quality', 'absent'), 'quality');
+    assert.deepEqual(c.downgraded, []);
+  });
+
+  test('un veredicto que no dice qué atributo discute no degrada: no se puede comprobar', async () => {
+    const c = await run(withAttr('1.2', 'quality', 'extracted'), null);
+    assert.deepEqual(c.downgraded, []);
+  });
+
+  test('SÍ degrada el caso para el que existe: una norma metida en el campo calidad', async () => {
+    // `ASTM F436` en la calidad de la arandela — literal de la fila, campo equivocado. Es la
+    // procedencia `extracted_uncatalogued`, y la puerta tiene que dejarla pasar entera.
+    const c = await run(withAttr('1.3', 'quality', 'extracted_uncatalogued'), 'quality');
+    assert.deepEqual(c.downgraded, ['1.3']);
+    assert.equal(c.lines[0].status, 'REVISION_MANUAL');
+  });
+
+  test('una calidad NORMALIZADA POR LA TABLA tampoco se discute, y eso cuesta algo', async () => {
+    // El precio consciente de la puerta: `table_normalized` es donde el crítico relitiga la
+    // traducción («DIN 933 debería ser ISO 4014», que es al revés de lo que dice §8) y lo archiva
+    // como WRONG_ATTRIBUTION, así que ni el atributo ni el `issue` distinguen los dos casos. Con
+    // cero verdaderos positivos medidos, se elige no equivocarse nunca.
+    const c = await run(withAttr('1.2', 'quality', 'table_normalized'), 'quality');
+    assert.deepEqual(c.downgraded, []);
+  });
+
+  test('la cantidad no pasa por la puerta: no es uno de los siete atributos', async () => {
+    const c = await run(line('1.2', 'RESUELTA'), 'quantity');
+    assert.deepEqual(c.downgraded, ['1.2']);
+  });
+});
+
+describe('criticRoutingFromEnv · el defecto es una medición', () => {
+  test('sin variable, apagado', () => {
+    assert.equal(criticRoutingFromEnv({} as unknown as NodeJS.ProcessEnv), 'off');
+  });
+  test('se puede volver a encender explícitamente', () => {
+    assert.equal(criticRoutingFromEnv({ CRITIC_ROUTING: 'multi_element' } as unknown as NodeJS.ProcessEnv), 'multi_element');
+    assert.equal(criticRoutingFromEnv({ CRITIC_ROUTING: 'all' } as unknown as NodeJS.ProcessEnv), 'all');
+  });
+  test('un valor que no existe apaga, no revienta ni adivina', () => {
+    assert.equal(criticRoutingFromEnv({ CRITIC_ROUTING: 'siempre' } as unknown as NodeJS.ProcessEnv), 'off');
   });
 });
 

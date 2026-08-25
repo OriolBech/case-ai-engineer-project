@@ -18,6 +18,7 @@ pnpm run eval -- --save --label="…"      # persists to history (SPEC-010)
 ```bash
 pnpm run eval:history
 pnpm run eval:compare -- <base-run> <candidate-run>
+pnpm run critic:eval                     # critic recall/precision on the frozen fixture
 pnpm run suggestions:kpi                 # 0/0 without a buyer
 pnpm run corrections:kpi
 ```
@@ -42,7 +43,7 @@ pnpm run providers:check
 | `LLM_CACHE=off` | Cost, latency, or any figure about to be published |
 | Same `LLM_MAIN` / prompt | Comparing models |
 | Multiple passes | Latency; also the critic (recall varies between passes) |
-| `CRITIC=off` | Equivalent to `--ablate=critic` |
+| `CRITIC_ROUTING` | Critic routing: `off` (the measured default), `multi_element`, `all`. `--ablate=critic` forces `off` |
 
 Docker, if there's no local Node:
 

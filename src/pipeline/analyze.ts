@@ -20,7 +20,7 @@ import type { Llm } from '../lib/llm.ts';
 import { LlmError } from '../lib/llm.ts';
 import type { MtoRow, Span } from './types.ts';
 import { ANALYZE_SCHEMA, ANALYZE_SYSTEM, analyzeUser } from './prompts.ts';
-import { locate } from './spans.ts';
+import { locate, unescapeJsonish } from './spans.ts';
 import { findNames } from '../rules/names.ts';
 import { findStandards } from '../rules/standards.ts';
 
@@ -254,7 +254,18 @@ export function findMultiplicity(sourceText: string, elementStart: number): { va
   }
 
   const n = Number(before.slice(i, end));
-  if (!Number.isFinite(n) || n < 2) return null;
+  // `>= 1`, not `>= 2`. A written `1` is not the absence of a count: `1 WASHER ASTM F436` on row 5
+  // says one washer per set, and rejecting it filed the row's own words under P-2 as if the row had
+  // said nothing. The number does not move — quantity x 1 is quantity — but the trace did: the cell
+  // read `inferido`, carried the "careful, this was assumed" mark in the queue, and disagreed with
+  // the gold set, which records it as `extracted`.
+  //
+  // Safe because the introduction guard above is what does the real work: a `1` still has to be
+  // introduced by punctuation, by a connector, or by the start of the cell, so `M10 x 1 TUERCA` and
+  // `1 | STUD BOLT` are rejected exactly as before. And the blast radius of a wrong accept is a
+  // provenance label, never a wrong order — which is the opposite of the `>= 2` case, where a wrong
+  // accept multiplies the purchase.
+  if (!Number.isFinite(n) || n < 1) return null;
   return { value: n, evidence: before.slice(i).trim() };
 }
 
@@ -349,8 +360,11 @@ function verify(raw: RawAnalysis, row: MtoRow): Analysis {
     const attributes = {} as Record<AnalyzedAttrKey, AnalyzedValue>;
     for (const key of ANALYZED_ATTR_KEYS) {
       const rawAttr = el.attributes?.[key];
+      // `unescapeJsonish` on the VALUE, not only on the evidence. `locate` already unescapes what
+      // it searches for, so a doubly-escaped `1\"` was found in the row and then stored with the
+      // backslash still in it. Same string, two boundaries, one of them missing — see spans.ts.
       const a: RawAttr = {
-        value: typeof rawAttr?.value === 'string' ? rawAttr.value : null,
+        value: typeof rawAttr?.value === 'string' ? unescapeJsonish(rawAttr.value) : null,
         evidence: typeof rawAttr?.evidence === 'string' ? rawAttr.evidence : null,
       };
       if (a.value === null) { attributes[key] = { value: null, span: null, hallucinated: false }; continue; }

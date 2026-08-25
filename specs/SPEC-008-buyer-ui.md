@@ -41,6 +41,16 @@ It must include:
 - **Grouping by family**, which is the next step in the real workflow: who it gets sent to.
 - Bulk actions: confirm N lines with the same reason at once. With 4,000 rows, resolving them one
   by one isn't a product.
+- **The same bulk selector in the other direction**: from *Resueltas*, send N lines back to review.
+  It should not be needed — a resolved line is resolved — and that is precisely the argument for it:
+  the system's expensive failure is passing a line it should not have, and the only person who
+  catches it is the buyer, looking at the queue. Without a way back, the workaround is exporting the
+  CSV and fixing it in Excel, which is the one thing the case statement asks us to remove. Returning
+  a line destroys nothing (no correction, no saved suggestion); it says *this one is not ordered
+  yet*, so it leaves the RFQ export and the *% resolved* at the same time and for the same reason.
+  It carries its own badge (`Devuelta`) because the next step differs from a review the pipeline
+  asked for: nothing is missing, a person stopped it. Out-of-family lines have no selector — that is
+  not a work queue (P-9). Pinned in `app/lib/__tests__/derive-queue.test.ts`.
 
 ### 3. Trace panel — and the only place decisions are taken
 Clicking a line shows: the **original row text with the highlighted span** that justifies each
@@ -165,6 +175,10 @@ history, outside the nav.
       and a reason, and the line shows the result as `corregido a mano`.
 - [x] A **resolved** line never shows a pending decision or a queue hint. What it can still teach the
       system is offered as tuning, and says so.
+- [x] A resolved line can be sent back to review from the queue, in bulk, and when it is it drops
+      out of both the RFQ export and the *% resolved*.
+- [x] The mark on an attribute explains itself in buyer language. A quality §5 says to keep verbatim
+      (`GR B7`, `GR 2H`) reads as a missing **equivalence**, not as a datum in doubt.
 - [x] When there is **nothing** pending on a value that looks unfinished — a quality outside the §5
       catalogue, an empty material — the drawer says why and still offers the vocabulary link. "No
       option to decide" is never the answer; see `OpenEnds` in `LineDecisions.tsx`.

@@ -87,22 +87,6 @@ const STAGES = [
   },
   {
     n: 7,
-    title: 'Crítico',
-    llm: true,
-    spec: 'SPEC-006',
-    summary: 'Segunda opinión, sólo en filas de riesgo, y sólo puede degradar — nunca promover.',
-    detail:
-      'Corre exclusivamente sobre filas con más de un elemento y evidencia débil (en el MTO de ' +
-      'referencia, 9 de 15 filas) — no por un score de confianza, que resultó no separar nada útil. ' +
-      'Compara la salida ya normalizada contra el texto original buscando tres cosas: material sin ' +
-      'colocar, atributo en el elemento equivocado, cantidad que contradice la prosa. Si discrepa, ' +
-      'la línea baja a revisión con el motivo. Nunca puede subir una línea de revisión a resuelta: ' +
-      'ese diseño asimétrico es lo que hace seguro usar un modelo barato aquí. Y si esta segunda ' +
-      'lectura falla, la línea sale igual pero se dice cuál: una comprobación que desaparece sin ' +
-      'avisar es peor que no tenerla, porque el número de la pantalla no se mueve.',
-  },
-  {
-    n: 8,
     title: 'Estado final',
     llm: false,
     spec: 'SPEC-007 / SPEC-008',
@@ -121,24 +105,14 @@ const STAGES = [
 
 const AGENTS = [
   {
-    name: 'Agente A · split + extract',
+    name: 'Split + extract',
     role: 'Generador: decide elementos y atributos',
     when: 'Siempre, 1 vez por fila',
     calls: '1/fila (2 si el router escala a modelo fuerte)',
     model: 'Barato o fuerte, según el router',
-    canPromote: 'N/A — es el único que genera',
-    canDegrade: 'N/A',
-    failure: 'Línea mal generada; no tiene red de seguridad propia',
-  },
-  {
-    name: 'Agente B · crítico',
-    role: 'Verificador: sólo compara salida contra texto fuente',
-    when: 'Selectivo: filas multi-elemento con evidencia débil',
-    calls: '1/fila hoy (repetir 2-3 veces y unir está evaluado, no implementado)',
-    model: 'Siempre el más barato',
-    canPromote: 'No, nunca — invariante con test',
-    canDegrade: 'Sí, es su única función',
-    failure: 'Si el proveedor falla, se mantiene el veredicto de las reglas; nunca tumba el pipeline',
+    canPromote: 'No: RESUELTA la decide el validador, no el modelo',
+    canDegrade: 'No: el estado no lo toca ninguna llamada al modelo',
+    failure: 'Si el proveedor falla, la fila sale como PROCESSING_FAILED; nunca desaparece',
   },
 ];
 
@@ -155,6 +129,78 @@ const POLICIES = [
   { id: 'P-10', name: 'Número desnudo en la medida de un set', decision: 'Se descarta; §2 pone la medida bien formada del hermano' },
   { id: 'P-11', name: 'Valor que P-10 descarta', decision: 'Si es calidad de catálogo y coherente con el tipo, se recupera' },
   { id: 'P-12', name: 'Acabado que el vocabulario no reconoce', decision: 'Va a revisión (UNMAPPED_VALUE); no se exporta como si no llevara acabado' },
+  { id: 'P-13', name: 'Calidad que el vocabulario de material no cubre', decision: 'La línea no se resuelve con el material vacío: va a revisión y abre la decisión' },
+];
+
+/**
+ * Los guardarraíles, que es la pregunta que de verdad hace quien compra.
+ *
+ * No "¿usáis IA?" sino **"¿qué parte del resultado depende de que el modelo tenga un buen día?"**.
+ * La respuesta corta es: una sola llamada por fila, y todo lo que pasa después es tabla o regla.
+ * Cada fila de aquí es una restricción que existe en el código y tiene su prueba, no una intención.
+ */
+const GUARDRAILS = [
+  {
+    claim: 'El modelo propone; nunca decide el nombre',
+    how:
+      'La familia la fija la tabla de §3 sobre el término literal de la fila. Si el modelo dice ' +
+      'VARILLA ROSCADA donde la fila pone STUD BOLT, sale ESPARRAGO. El modelo pierde.',
+    proof: 'analyze.test.ts · «la tabla veta al modelo»',
+  },
+  {
+    claim: 'La cantidad la decide la fila, no el modelo',
+    how:
+      'La multiplicidad se busca con un escáner sobre el texto (W/2 HEX. NUT, 2 arandelas). Es el ' +
+      'único número que MULTIPLICA el pedido, y un modelo llegó a leer la columna de cantidad como ' +
+      'multiplicidad: 100 tornillos se convirtieron en 10.000. Ahora manda la fila y la discrepancia ' +
+      'se reporta.',
+    proof: 'findMultiplicity · 16 casos, incluidas las formas que NO son cantidades',
+  },
+  {
+    claim: 'Ningún valor puede salir si no está escrito en la fila',
+    how:
+      'Al modelo no se le piden posiciones, se le pide el literal en el que se apoya, y lo buscamos ' +
+      'nosotros en el texto. Lo que no aparece en la fila no vino de la fila: se descarta y se cuenta ' +
+      'como alucinación. 0 en 79 filas.',
+    proof: 'spans.ts · locate()',
+  },
+  {
+    claim: 'El modelo no puede dar por buena una línea',
+    how:
+      'RESUELTA la decide el validador con reglas booleanas sobre la salida ya normalizada. Ninguna ' +
+      'llamada al modelo toca el estado de una línea: el modelo aporta lectura, no veredicto.',
+    proof: 'SPEC-005 · validate.ts',
+  },
+  {
+    claim: 'Lo ambiguo es una decisión con nombre, no un valor por defecto',
+    how:
+      'Cada hueco de las reglas del cliente es una política P-* conmutable por variable de entorno, ' +
+      'con su delta medido. Si un caso no lo cubre ninguna, se abre un «hueco de política»: una ' +
+      'decisión que el proyecto debe, no un dato que revisar en silencio.',
+    proof: 'docs/03-policies.md · la tabla de aquí arriba',
+  },
+  {
+    claim: 'Una fila nunca desaparece',
+    how:
+      'Si el modelo no devuelve elementos, sale una línea con su motivo. Si el proveedor se cae, sale ' +
+      'como PROCESSING_FAILED. El fallo se ve; nunca se convierte en una fila que no estaba.',
+    proof: 'validate.ts · «una fila nunca desaparece»',
+  },
+  {
+    claim: 'La caché cubre la llamada al modelo y nada más',
+    how:
+      'El normalizador y el validador se vuelven a ejecutar siempre. Cambiar una política re-deriva ' +
+      'el resultado entero aunque la lectura venga de caché — si no, se estaría midiendo la caché.',
+    proof: 'ADR-004',
+  },
+  {
+    claim: 'Corregir a mano no cambia las reglas',
+    how:
+      'Una corrección es una etiqueta sobre ESA fila, con evidencia literal obligatoria y motivo. El ' +
+      'servidor rechaza cualquier evidencia que no esté en la fila palabra por palabra. Convertirla en ' +
+      'regla es otro camino, con aprobación y regresión contra el gold.',
+    proof: 'SPEC-015',
+  },
 ];
 
 export default function ComoFuncionaPage() {
@@ -168,8 +214,15 @@ export default function ComoFuncionaPage() {
           <h1>Cómo funciona el sistema</h1>
           <p className="kpi-sub">
             El recorrido de una fila de MTO, de principio a fin: qué decide una tabla, qué decide un
-            modelo, y por qué. Ocho etapas, dos agentes de IA, y las políticas de negocio que
-            gobiernan lo que las reglas del cliente no dejaban claro.
+            modelo, y por qué. Siete etapas, y las políticas de negocio que gobiernan lo que las
+            reglas del cliente no dejaban claro.
+          </p>
+          <p className="kpi-note how-lede">
+            La pregunta corta, contestada arriba del todo: <strong>de las siete etapas, sólo una
+            llama a un modelo</strong>. Una llamada por fila. Todo lo que pasa después —normalizar,
+            validar, decidir si la línea se puede pedir— son tablas cerradas y reglas booleanas, así
+            que <strong>el mismo Excel da el mismo resultado</strong> y cada dato se puede señalar en
+            el texto original. Los guardarraíles están en la sección siguiente.
           </p>
         </header>
 
@@ -177,8 +230,8 @@ export default function ComoFuncionaPage() {
         <section className="kpi-section">
           <h3>El recorrido de una fila</h3>
           <p className="kpi-note">
-            De las 8 etapas, sólo <strong>2 llaman a un modelo</strong> (marcadas «LLM» abajo). El
-            resto son tablas y reglas deterministas — reproducibles, auditables y gratis.
+            De las 7 etapas, sólo <strong>1 llama a un modelo</strong> (marcada «LLM» abajo). Las
+            otras seis son tablas y reglas deterministas — reproducibles, auditables y gratis.
           </p>
           <div className="how-flow">
             {STAGES.map((s, i) => (
@@ -201,19 +254,56 @@ export default function ComoFuncionaPage() {
           </div>
         </section>
 
+        {/* ---- 1b. Guardarraíles -------------------------------------------- */}
+        <section className="kpi-section">
+          <h3>Qué impide que el modelo se invente algo</h3>
+          <p className="kpi-note">
+            La pregunta razonable de quien va a firmar una compra no es «¿usáis IA?», es{' '}
+            <strong>«¿qué parte del resultado depende de que el modelo tenga un buen día?»</strong>.
+            La respuesta es: la lectura de la prosa, y sólo eso. A partir de ahí el modelo entra en un
+            embudo de restricciones que no puede saltarse, y cuando choca con una tabla{' '}
+            <strong>pierde el modelo</strong>. Cada línea de abajo existe en el código y tiene su
+            prueba automática; ninguna es una intención.
+          </p>
+          <table className="vocab-table">
+            <thead>
+              <tr><th>Garantía</th><th>Cómo se sostiene</th><th>Dónde se comprueba</th></tr>
+            </thead>
+            <tbody>
+              {GUARDRAILS.map((g) => (
+                <tr key={g.claim}>
+                  <td><strong>{g.claim}</strong></td>
+                  <td>{g.how}</td>
+                  <td><code>{g.proof}</code></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="kpi-note">
+            Lo que <strong>no</strong> se promete, porque no sería cierto: la lectura de la prosa no
+            es determinista. Repetido el mismo fichero, el modelo puede leer una fila de otra manera
+            —o el proveedor puede caerse—. Por eso las cifras se miden con la caché apagada y en
+            varias pasadas, nunca en una. Y por eso el diseño busca que{' '}
+            <strong>la varianza se pague en revisiones de más y nunca en material mal pedido</strong>:
+            una fila leída raro se queda sin resolver, que cuesta 90 segundos, en vez de salir
+            resuelta y equivocada, que cuesta semanas de obra.
+          </p>
+        </section>
+
         {/* ---- 2. Las llamadas al modelo ------------------------------------ */}
         <section className="kpi-section">
-          <h3>Las llamadas al modelo: los dos agentes</h3>
+          <h3>La llamada al modelo: qué se le pide y qué no</h3>
           <p className="kpi-note">
-            Un generador y un verificador, deliberadamente separados: el que genera tiene toda la
-            información pero también todo el sesgo; el que verifica no ve el problema desde cero,
-            sólo pregunta "¿esto contradice la fuente?" — sesgado a refutar, y sólo puede empeorar el
-            resultado, nunca mejorarlo de más.
+            Una sola llamada por fila, y hace una sola cosa: <strong>leer la prosa</strong>. Separar
+            los elementos de un set y decidir a cuál pertenece cada atributo es el mismo acto de
+            lectura, así que partirlo en dos llamadas costaría el triple por el mismo juicio. Lo que
+            devuelve entra después por el embudo de arriba: el nombre lo rehace la tabla, la cantidad
+            la rehace la fila, y el estado lo decide el validador.
           </p>
           <table className="vocab-table">
             <thead>
               <tr>
-                <th>Agente</th>
+                <th>Llamada</th>
                 <th>Rol</th>
                 <th>Cuándo corre</th>
                 <th>Llamadas</th>
@@ -234,13 +324,23 @@ export default function ComoFuncionaPage() {
               ))}
             </tbody>
           </table>
+          <p className="kpi-note how-optional">
+            <strong>Hay además una segunda lectura, activable por configuración.</strong> Es un
+            crítico: contrasta la salida ya normalizada contra el texto original buscando el fallo
+            que las reglas no pueden ver por sí solas —un atributo colocado en el elemento
+            equivocado— y por diseño <strong>sólo puede mandar una línea a revisión, nunca
+            aprobarla</strong>. Esa asimetría es lo que hace seguro ponerle ahí un modelo barato: su
+            peor caso es una revisión de más, jamás una compra mal hecha. Se enciende por MTO con una
+            variable de entorno, y tiene su propio banco de medida —recall y precisión sobre una
+            salida con errores conocidos— para decidir en qué catálogos compensa pagarla.
+          </p>
         </section>
 
         {/* ---- 3. Las políticas ---------------------------------------------- */}
         <section className="kpi-section">
           <h3>Las políticas: lo que las reglas del cliente no dejaban claro</h3>
           <p className="kpi-note">
-            Nueve ambigüedades reales del enunciado, cada una con una decisión explícita y
+            Trece ambigüedades reales del enunciado, cada una con una decisión explícita y
             reversible por variable de entorno — nada se resuelve implícitamente en el código.
           </p>
           <table className="vocab-table">
@@ -273,7 +373,10 @@ export default function ComoFuncionaPage() {
             <li><strong>derivado</strong> — el vocabulario de material lo dedujo de la calidad.</li>
             <li><strong>inferido</strong> — una política de negocio lo completó (p. ej. multiplicidad no escrita).</li>
             <li><strong>extrapolado</strong> — se propagó de un elemento del set a otro (p. ej. el acabado).</li>
+            <li><strong>literal fuera de catálogo</strong> — está en la fila y ninguna tabla lo reconoce. §5 manda conservarlo tal cual (los grados ASTM: GR B7, GR 2H). El valor es exacto; lo que falta es su equivalencia.</li>
+            <li><strong>corregido a mano</strong> — lo cambió una persona, con evidencia literal y motivo. La fuente más fiable de la lista y la que el sistema menos puede explicar, que es justo por qué se marca.</li>
             <li><strong>ausente</strong> — no está, y es un valor válido, no un error.</li>
+            <li><strong>no aplica</strong> — la longitud de una tuerca (§7). No es un hueco.</li>
           </ul>
         </section>
 

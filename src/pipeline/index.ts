@@ -10,7 +10,7 @@ import { analyzeRowBaseline } from './baseline.ts';
 import { normalizeElement } from './normalize.ts';
 import { validateRow } from './validate.ts';
 import { scoreLine, thresholds, route, type Routing } from '../lib/confidence.ts';
-import { criticiseRow, needsCritic, type CriticRouting } from './critic.ts';
+import { criticRoutingFromEnv, criticiseRow, needsCritic, type CriticRouting } from './critic.ts';
 import { detectGaps, policyBacklog, type PolicyGap, type PolicyBacklogItem } from './coverage.ts';
 import type { Llm } from '../lib/llm.ts';
 import { policiesFromEnv, type Policies, type PolicyOverride } from '../rules/policies.ts';
@@ -97,7 +97,9 @@ export async function processMto(
   const t = thresholds();
   // The critic is an LLM stage: under the extract ablation there is no model, so it is off no matter
   // what the caller asked, and the run stays free and offline.
-  const criticRouting = extractor === 'baseline' ? 'off' : opts.criticRouting ?? 'multi_element';
+  //
+  // DEFAULT `off`, and the default is a measurement, not an opinion. See `criticRoutingFromEnv`.
+  const criticRouting = extractor === 'baseline' ? 'off' : opts.criticRouting ?? criticRoutingFromEnv();
   const lines: OutputLine[] = [];
   const routing: Record<string, Routing> = {};
   const criticStats = {

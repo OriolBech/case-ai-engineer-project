@@ -392,7 +392,16 @@ function buildLine(el: NormalizedElement, ctx: Ctx): OutputLine {
   if (rowQty === null) {
     quantityProvenance = 'absent';
     reasons.push(reason('QUANTITY_NOT_STATED'));
-  } else if (!el.multiplicityStated && ctx.elementCount > 1) {
+  } else if (!el.multiplicityStated && ctx.elementCount > 1 && el.role !== 'principal') {
+    // P-2 assumes one per set when the row does not say. That assumption is real for a SECONDARY
+    // element — `with NUT` genuinely does not say whether it is one nut or two — and it is not one
+    // for the PRINCIPAL: the row's quantity column counts the item the row is about, and there is
+    // no reading of `STUD BOLT ... 40 uds` under which the studs are not 40.
+    //
+    // The distinction is not cosmetic. Marking the principal `inferred` put the "assumed" dot on
+    // nine of the thirty lines of the given MTO — every set head — over a factor of 1 that does not
+    // move the number, and disagreed with the gold set on all nine. An assumption that cannot change
+    // the value cannot degrade the value's provenance.
     quantityProvenance = 'inferred';
     policies.add('P-2');
     if (P.implicitMultiplicity === 'review') reasons.push(reason('QUANTITY_NOT_STATED'));

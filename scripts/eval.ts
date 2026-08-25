@@ -7,6 +7,7 @@ import { loadEnv } from '../src/lib/env.ts';
 import { installErrorHandler } from '../src/lib/cli.ts';
 import { createLlm, eurPerUsd, Llm } from '../src/lib/llm.ts';
 import { processMto } from '../src/pipeline/index.ts';
+import { criticRoutingFromEnv } from '../src/pipeline/critic.ts';
 import { loadGold, evaluate, type EvalReport } from '../src/eval/harness.ts';
 import { allTiers } from '../src/lib/tiers.ts';
 import { describeOverrides, policiesFromEnv } from '../src/rules/policies.ts';
@@ -36,8 +37,10 @@ const saveLabel = args.find((a) => a.startsWith('--label='))?.slice('--label='.l
 // with an API key is one nobody runs. An empty-provider Llm reports zero cost and throws only if a
 // call is ever attempted — which the baseline path never does.
 const llm = extractor === 'baseline' ? new Llm(new Map(), null, tiers) : createLlm();
+// El defecto sale del entorno, igual que en el pipeline: si el arnés trajera el suyo propio, la
+// eval mediría una configuración que ninguna ejecución real usa — que es lo que pasaba.
 const criticRouting = (
-  ablate === 'critic' ? 'off' : args.find((a) => a.startsWith('--critic='))?.split('=')[1] ?? 'multi_element'
+  ablate === 'critic' ? 'off' : args.find((a) => a.startsWith('--critic='))?.split('=')[1] ?? criticRoutingFromEnv()
 ) as 'multi_element' | 'all' | 'off';
 if (ablate && ablate !== 'extract' && ablate !== 'critic') {
   console.log(`\n!! --ablate=${ablate} no está implementado. Disponibles: extract, critic.`);
@@ -92,6 +95,13 @@ if (r.outOfScope.goldLines || r.outOfScope.falsePositives.length) {
 }
 console.log(`  acuerdo de estado      ${pc(r.statusAgreement.pct)}`);
 console.log(`  motivos exactos        ${pc(r.reasonAgreement.pct)}`);
+// Aparte de las tasas de valor a propósito: dice si el sistema cuenta la verdad sobre de dónde salió
+// cada dato, no si el dato es correcto. Ver `traceFidelity` en src/eval/harness.ts.
+console.log(`  fidelidad de traza     ${pc(r.traceFidelity.pct)}  (${r.traceFidelity.ok}/${r.traceFidelity.total} procedencias sobre celdas ciertas ya correctas)`);
+if (r.traceFidelity.mismatches.length) {
+  console.log(`    !! ${r.traceFidelity.mismatches.length} celda(s) con el valor bien y la procedencia mal:`);
+  for (const m of r.traceFidelity.mismatches) console.log(`       ${m}`);
+}
 console.log(`  alucinaciones          ${out.hallucinations.length}`);
 const rejected = out.analyses.flatMap((a) => a.rejectedMultiplicity.map((r) => ({ row: a.rowRef, ...r })));
 console.log(`  multiplicidades rechazadas ${rejected.length}`);
