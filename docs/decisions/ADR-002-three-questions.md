@@ -66,4 +66,4 @@ for when I'm implementing, which is when the things I don't see today usually su
 implementation uncovered something day 0 couldn't see and that can't be closed unilaterally. It
 uncovered three things —P-10, P-11, and a critic that was getting truncated— and all three are
 closed either by the client's rules or as our own bugs. The breakdown, with the candidates
-evaluated and why each one fails, is in `../client-questions/respuestas.md` §"Remaining slot".
+evaluated and why each one fails, is in `../client-questions/answers.md` §"Remaining slot".

@@ -48,5 +48,105 @@
     "file": "v10-frances.xlsx",
     "ataca": "cabeceras en otro idioma",
     "expectQuantity": true
+  },
+  {
+    "file": "v11-blancos-intercalados.xlsx",
+    "ataca": "filas en blanco intercaladas (EMPTY_ROW reportado)",
+    "expectQuantity": true
+  },
+  {
+    "file": "v12-item-alfanumerico.xlsx",
+    "ataca": "referencias de línea alfanuméricas (TOR-001)",
+    "expectQuantity": true
+  },
+  {
+    "file": "v13-tres-hojas.xlsx",
+    "ataca": "dos hojas con datos: la segunda se ignora y se reporta",
+    "expectQuantity": true
+  },
+  {
+    "file": "v14-hoja-vacia.xlsx",
+    "ataca": "primera hoja vacía, datos en la segunda",
+    "expectQuantity": true
+  },
+  {
+    "file": "v15-cabecera-en-el-limite.xlsx",
+    "ataca": "detección de cabeceras en el límite del escaneo (fila 25)",
+    "expectQuantity": true
+  },
+  {
+    "file": "v16-salto-linea-cabecera.xlsx",
+    "ataca": "cabecera con salto de línea ('CANT.\\nTOTAL')",
+    "expectQuantity": true
+  },
+  {
+    "file": "v17-minusculas-diacriticos.xlsx",
+    "ataca": "cabeceras en minúsculas con diacríticos",
+    "expectQuantity": true
+  },
+  {
+    "file": "v18-aleman.xlsx",
+    "ataca": "cabeceras en alemán: MENGE no reconocida, se avisa con candidatas",
+    "expectQuantity": false
+  },
+  {
+    "file": "v19-portugues.xlsx",
+    "ataca": "cabeceras en portugués: QTDE no reconocida, se avisa",
+    "expectQuantity": false
+  },
+  {
+    "file": "v20-formulas-sin-cache.xlsx",
+    "ataca": "cantidad como fórmula sin valor cacheado (null, no inventada)",
+    "expectQuantity": false
+  },
+  {
+    "file": "v21-uds-como-cantidad.xlsx",
+    "ataca": "cantidad en columna 'UDS' (token de último recurso)",
+    "expectQuantity": true
+  },
+  {
+    "file": "v22-nos-como-cantidad.xlsx",
+    "ataca": "cantidad 'NOS' y unidad 'UOM'",
+    "expectQuantity": true
+  },
+  {
+    "file": "v23-prioridad-cant-sobre-qty.xlsx",
+    "ataca": "dos columnas candidatas: 'CANT.' gana a 'QTY' aunque vaya después",
+    "expectQuantity": true
+  },
+  {
+    "file": "v24-cabecera-duplicada.xlsx",
+    "ataca": "cabecera duplicada ('MATERIAL' dos veces)",
+    "expectQuantity": true
+  },
+  {
+    "file": "v25-celdas-combinadas.xlsx",
+    "ataca": "celdas combinadas sobre la cabecera",
+    "expectQuantity": true
+  },
+  {
+    "file": "v26-fechas.xlsx",
+    "ataca": "celdas de fecha (Date) junto a los datos",
+    "expectQuantity": true
+  },
+  {
+    "file": "v27-espacios-duros.xlsx",
+    "ataca": "cantidades con espacios duros (NBSP) alrededor",
+    "expectQuantity": true
+  },
+  {
+    "file": "v28-celda-huerfana.xlsx",
+    "ataca": "celdas más allá de la última cabecera se descartan",
+    "expectQuantity": true
+  },
+  {
+    "file": "v29-orden-inverso.xlsx",
+    "ataca": "columnas en orden inverso",
+    "expectQuantity": true
+  },
+  {
+    "file": "v30-unidad-pegada.xlsx",
+    "ataca": "unidad pegada a la cantidad ('40 uds')",
+    "expectQuantity": true
   }
 ]

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang='es'>
+<head>
+<meta charset='utf-8'>
+<title>Normalización de tornillería desde MTOs · Oriol Bech</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  --red: #c94d43;
+  --ink: #434240;
+  --ink-2: #6b6764;
+  --ink-3: #878482;
+  --paper: #f7f4f0;
+  --rule: #d5d1cc;
+  --head: #efebe6;
+  --font: "DM Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+
+@page { size: A4; margin: 9mm 11mm 9mm 11mm; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font);
+  font-size: 8.15pt;
+  line-height: 1.25;
+  color: var(--ink);
+  background: #fff;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+h1 {
+  font-size: 13.5pt;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  margin: 0 0 0.55em;
+  padding: 0 0 0.28em;
+  border-bottom: 2px solid var(--red);
+  color: var(--ink);
+}
+h1 .meta {
+  display: block;
+  font-size: 8pt;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 0.18em;
+}
+
+h2 {
+  font-size: 9.3pt;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0.55em 0 0.18em;
+  color: var(--ink);
+  break-after: avoid;
+  page-break-after: avoid;
+}
+h2.page-break {
+  break-before: page;
+  page-break-before: always;
+  margin-top: 0;
+}
+h2 .n {
+  color: var(--red);
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 8.2pt;
+  margin-right: 0.35em;
+}
+
+p { margin: 0.22em 0; }
+p + p { margin-top: 0.32em; }
+
+strong { font-weight: 650; }
+em { font-style: italic; }
+code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  font-feature-settings: "tnum";
+  background: #efebe6;
+  padding: 0 0.18em;
+}
+
+blockquote {
+  margin: 0.28em 0;
+  padding: 0.22em 0.65em;
+  border-left: 3px solid var(--red);
+  background: #f8f4ef;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+blockquote p { margin: 0; }
+
+ol { margin: 0.28em 0 0.28em 1.2em; padding: 0; }
+ol li { margin: 0.12em 0; padding-left: 0.15em; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.28em 0 0.38em;
+  font-size: 7.45pt;
+  line-height: 1.26;
+  break-inside: auto;
+}
+table.kv { break-inside: avoid; page-break-inside: avoid; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; page-break-inside: avoid; }
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.18em 0.45em 0.18em 0;
+  border-bottom: 1px solid var(--rule);
+}
+th {
+  font-weight: 600;
+  color: var(--ink-3);
+  font-size: 6.8pt;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 0.22em;
+}
+td:first-child { font-weight: 550; width: 22%; }
+table.kv td:first-child { width: 28%; font-weight: 600; }
+table.wide td:first-child { width: 18%; }
+
+.flow {
+  font-family: var(--mono);
+  font-size: 7.4pt;
+  background: #f8f4ef;
+  padding: 0.35em 0.55em;
+  margin: 0.2em 0 0.4em;
+  border: 1px solid var(--rule);
+  line-height: 1.4;
+}
+</style>
+</head>
+<body>
+<h1><span class="meta">Oriol Bech</span>Normalización de tornillería desde MTOs</h1>
+<blockquote><p><strong>La primera excepción se corrige en menos de 90 segundos; la siguiente vez ya forma parte del vocabulario común. El modelo interpreta la prosa, pero las reglas del cliente deciden qué se compra.</strong></p></blockquote>
+<h2><span class="n">1.</span>El problema y el compromiso</h2>
+<p>Un MTO puede traer 20.000 filas y 25 revisiones. Tornillería representa un 15–25%: unas <strong>4.000 filas por revisión</strong>, leídas hoy por seis compradores a <strong>90 segundos por fila</strong>. Son <strong>100 horas por revisión y 2.500 horas por obra</strong> dedicadas a entender Excel antes de poder comprar.</p>
+<p>El problema no es sólo el volumen. Una fila puede contener un set completo —espárrago, dos tuercas y arandelas— escrito en prosa, con cantidades y especificaciones distintas para cada pieza.</p>
+<p><strong>Los dos errores son asimétricos:</strong></p>
+<table><thead><tr><th>Error</th><th>Consecuencia</th><th>Decisión de producto</th></tr></thead><tbody><tr><td>Dar por buena una línea mal interpretada</td><td>3–8 semanas de retraso en obra</td><td><strong>No puede salir en silencio</strong></td></tr><tr><td>Mandar una línea correcta a revisión</td><td>90 segundos adicionales</td><td>Se acepta, pero se mide para no llenar la cola de ruido</td></tr></tbody></table>
+<p>Por eso no optimizo “accuracy”. Mido <strong>error silencioso</strong> —líneas aprobadas con algún dato cierto mal—, <strong>tiempo de corrección</strong>, reutilización del vocabulario, autonomía útil y ruido en la cola. La referencia son las 15 filas entregadas, etiquetadas antes del pipeline: <strong>30 líneas y 240 celdas</strong>, separando reglas del cliente (211) de decisiones de política (29).</p>
+<p><strong>Mi compromiso:</strong> cero errores silenciosos sobre datos decididos por el cliente · corregir una línea en <strong>≤90 segundos</strong>, desde abrirla hasta guardar la decisión · cada sugerencia aceptada queda en el vocabulario común y se reaplica a los casos iguales · coste <strong>≤0,0001 €/fila leída</strong>. Una decisión guardada evita repetir esos 90 segundos en el resto del MTO y en los siguientes. La autonomía inicial es un resultado, no la promesa: <strong>lo que no está en el MTO no se inventa</strong>.</p>
+<h2><span class="n">2.</span>La solución, agente a agente</h2>
+<p>La arquitectura tiene <strong>dos agentes</strong>, no seis. Todo lo que puede resolver una tabla o una regla queda fuera del modelo.</p>
+<table><thead><tr><th>Agente</th><th>Qué hace y por qué existe</th><th>Qué pasa si lo quito</th></tr></thead><tbody><tr><td><strong>A · lector</strong></td><td>Lee una fila de prosa una vez, identifica las piezas del set y atribuye cada dato a la pieza correcta</td><td>El lector por reglas sólo cubre con seguridad las <strong>6/15 filas simples</strong>; las 9 multi-material pierden piezas o atribución</td></tr><tr><td><strong>B · segunda lectura</strong></td><td><strong>Activo por defecto</strong>, revisa selectivamente las filas con riesgo de atribución y <strong>sólo puede mandar a revisión</strong>, nunca aprobar</td><td>En el gold actual el delta es 0 porque A no falla; sobre 7 errores conocidos reduce los errores a 4, con precisión 100% en la pasada citada</td></tr></tbody></table>
+<p>Después de A, las tablas del cliente deciden nombres, normas, calidades y acabados; las reglas deciden obligatoriedad, coherencia y estado final. Esta frontera cerró tres fallos reales: confundir <code>STUD BOLT</code>, perder la longitud de <code>M16x60</code> y multiplicar mal un pedido por interpretar la cantidad con el modelo.</p>
+<p>El resultado llega a una <strong>UI de comprador</strong>, no a otro Excel: RFQ listas, colas separadas por destinatario, motivo de revisión y texto original resaltado. Identidad estable y comparación entre revisiones evitan tratar como nueva una pieza ya comprada en una revisión anterior, sin usar LLM.</p>
+<p>Cuando el comprador acepta una sugerencia, el sistema guarda el alias, el valor, la evidencia y el motivo directamente en el vocabulario. Reaplica la decisión a todos los casos iguales del MTO abierto y los MTO futuros leen la misma tabla. Una decisión incompatible no sobrescribe la anterior: debe retirarse explícitamente. <strong>La primera excepción enseña; las siguientes se resuelven con una tabla, no con memoria del modelo.</strong></p>
+<h2><span class="n">3.</span>Resultados y dónde falla</h2>
+<p><code>openai/gpt-oss-120b</code> vía OpenRouter:</p>
+<table><thead><tr><th>Resultado</th><th>Medido</th></tr></thead><tbody><tr><td><strong>Error silencioso</strong></td><td><strong>0%</strong> — 0 errores entre 15 líneas aprobadas</td></tr><tr><td><strong>Autonomía útil</strong></td><td><strong>50%</strong> — 15 de 30 líneas ya no las toca nadie</td></tr><tr><td><strong>Ahorro potencial de trabajo</strong></td><td><strong>~1.250 horas por obra</strong> al 50% de autonomía</td></tr><tr><td><strong>Tiempo de corrección</strong></td><td>Objetivo <strong>≤90 s por línea</strong>; falta la prueba cronometrada con comprador</td></tr><tr><td><strong>Reutilización del vocabulario</strong></td><td>Aceptar una sugerencia de material/acabado la aplica al resto del MTO y la deja activa para los siguientes</td></tr><tr><td>Separación de sets / ruido en cola</td><td><strong>100% / 0%</strong></td></tr><tr><td>Desglose</td><td>Los 7 atributos y la cantidad: <strong>211/211 celdas ciertas correctas</strong></td></tr><tr><td>Coste</td><td><strong>0,000095 €/fila → 48 €/obra</strong> con 500.000 lecturas</td></tr><tr><td>Tiempo para 1.000 filas</td><td>Una pasada extrapola a <strong>~62 min serial; ~5 min con concurrencia 12 ideal</strong> (<code>.env</code> y valor por defecto). No es SLA: faltan repeticiones</td></tr></tbody></table>
+<p>El <strong>50% no es la promesa ni un límite del modelo</strong>: el 87% de la cola son calidades de tuercas y arandelas que el MTO no escribe. El valor acumulativo está en que cada excepción decidible se corrige una vez, queda trazada y puede dejar de consumir 90 segundos en el futuro.</p>
+<p><strong>Filas caídas en la referencia final: ninguna.</strong> Fuera de ella aparecen los límites reales:</p>
+<ol><li>Algunas filas multi-material difíciles se separan mal en una de cada cuatro tiradas. Un detector determinista comprueba que todo lo escrito haya quedado explicado y evita que el fallo sea silencioso.</li><li>Una fila sintética puso la calidad <code>10</code> de una tuerca en el campo medida. Pasó confianza y evidencia textual; se cerró con una regla, no con más IA.</li></ol>
+<h2 class="page-break"><span class="n">4.</span>La solución objetivo</h2>
+<p><strong>Antes de escalar hay que cerrar lo entregado:</strong> cronometrar el flujo ≤90 s; medir el error de las sugerencias aceptadas; ampliar las sugerencias más allá de material/acabado; y bloquear todos los huecos reales. Hoy el alta ágil escribe directamente en vocabulario y parte del gobierno sigue en CLI.</p>
+<p>La solución objetivo empieza después: convierte el histórico en gobierno, aprendizaje y predicción.</p>
+<table><thead><tr><th>Capacidad objetivo</th><th>Qué habría que construir</th><th>Coste estimado</th></tr></thead><tbody><tr><td><strong>Identidad, roles y auditoría</strong></td><td>Autenticación; vincular corrección, aprobación y promoción a personas, proyecto y revisión; permisos y log inmutable</td><td><strong>3–5 días</strong></td></tr><tr><td><strong>Vocabulario y políticas por proveedor/emisor</strong></td><td>Al cargar el MTO, seleccionar su emisor y fijar la versión: base común + variantes por proveedor, histórico, regresión y rollback; dos alias incompatibles pueden coexistir si su alcance es distinto</td><td><strong>1–2 semanas</strong></td></tr><tr><td><strong>Fine-tuning / LoRA gobernado por evidencia</strong></td><td>Dataset sólo con correcciones aprobadas y sin conflicto; train/validation ciegos, registro de adaptadores, comparación contra baseline y rollback</td><td><strong>2–4 semanas + datos</strong></td></tr><tr><td><strong>Predicción operativa</strong></td><td>Registrar apertura/cierre de revisión, RFQ, pedido y entrega; estimar p50/p90 de revisión y aprovisionamiento por familia/proveedor</td><td><strong>2–3 semanas + histórico</strong></td></tr></tbody></table>
+<p>El mayor ahorro fuera del KPI de extracción ya está construido: identidad por contenido y diff entre revisiones para no recomprar en la revisión 12 lo pedido en la 9.</p>
+<h2><span class="n">5.</span>Qué decidí no hacer</h2>
+<table><thead><tr><th>Decisión</th><th>Por qué</th></tr></thead><tbody><tr><td>LLM para normalizar</td><td>Son tablas cerradas. Añadiría coste y variabilidad sin comprar capacidad</td></tr><tr><td>Fine-tuning sobre 15 filas</td><td>Inflaría el resultado antes del blind set; no demostraría generalización</td></tr><tr><td>RL o aprender sin clic humano</td><td>El sistema no convierte sus propias predicciones en reglas; una persona acepta cada alta</td></tr><tr><td>Tres pasadas del segundo agente</td><td>La unión calculada mejora recall, pero aún no está implementada y medida como sistema</td></tr><tr><td>Filtro pre-LLM de última hora</td><td>Cambia quién decide que una fila no es tornillería; merece medida propia</td></tr><tr><td>Despliegue, autenticación y otras familias</td><td>El case pide ejecución local y profundidad en una familia</td></tr></tbody></table>
+<p><strong>Esfuerzo real:</strong> <strong>10–15 h</strong>, por encima de la referencia de 5–10 h. El tiempo adicional se dedicó a repetir resultados inestables y corregir el sistema de medida, no a ampliar alcance.</p>
+<h2><span class="n">6.</span>Qué rompe esto en producción</h2>
+<ol><li><strong>La cola se llena de ruido y el comprador deja de mirarla.</strong> Ya ocurrió: una cabecera desconocida generó 30 avisos iguales y la primera segunda-lectura añadió 31,8% de ruido. Se detecta con ruido en cola y motivos agrupables; falta alarma por revisión.</li><li><strong>Se aplica el vocabulario del proveedor equivocado.</strong> El mismo alias puede significar cosas distintas según quién emite el MTO y una tabla global compraría una de ellas en silencio. Cada ejecución debe fijar proveedor + versión y resolver variante del emisor → base común; si el emisor falta ante un alias específico o hay colisión en su alcance, bloquea y mide el hueco.</li><li><strong>Dos compradores no comparten la misma verdad dentro del mismo alcance.</strong> Entre proveedores pueden coexistir versiones; dentro del mismo proveedor, correcciones incompatibles son un conflicto que no se promedia ni entrena. Falta el segundo etiquetado ciego que acote la tasa humana de referencia.</li></ol>
+</body>
+</html>

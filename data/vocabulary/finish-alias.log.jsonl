@@ -1,0 +1,5 @@
+{"action":"add","at":"2026-08-23","by":"compras","detail":"","entry":{"id":"finish-test-no-motivo","alias":"TEST_NO_MOTIVO","kind":"alias","finish":"CINCADO","source":"added","rationale":"","decidedBy":"compras","evidence":"alta rápida desde la vista de vocabulario","decidedAt":"2026-08-23"}}
+{"action":"add","at":"2026-08-23","by":"compras","detail":"","entry":{"id":"finish-tropicalizado","alias":"tropicalizado","kind":"alias","finish":"TROPICALIZADO","source":"added","rationale":"","decidedBy":"compras","evidence":"UI comprador (traza)","decidedAt":"2026-08-23"}}
+{"action":"retire","at":"2026-08-23","by":"comprador (front)","entryId":"finish-tropicalizado","detail":"era de prueba"}
+{"action":"add","at":"2026-08-23","by":"compras","detail":"readd-verify","entry":{"id":"finish-tropicalizado-2","alias":"tropicalizado","kind":"alias","finish":"TROPICALIZADO","source":"added","rationale":"readd-verify","decidedBy":"compras","evidence":"alta rápida desde la vista de vocabulario","decidedAt":"2026-08-23"}}
+{"action":"retire","at":"2026-08-23","by":"comprador (front)","entryId":"finish-tropicalizado-2","detail":"era de prueba"}

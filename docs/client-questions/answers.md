@@ -57,7 +57,7 @@ wearing the confidence of a machine.
 
 What's missing isn't more rules. It's for the system to know how to say **"I've never seen this
 before"** instead of resolving it by default, and for that gap to become a traceable decision
-instead of a purchased line. See `docs/12-system-behind-the-rules.md`.
+instead of a purchased line. See `docs/11-system-behind-the-rules.md`.
 
 ---
 

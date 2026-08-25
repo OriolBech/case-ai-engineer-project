@@ -14,6 +14,7 @@
  */
 import { addVocab, listAllUncovered, listAllVocab, listFinishCatalog, resolveVocab, retireVocab } from '../../../src/rules/vocab.ts';
 import type { VocabAddInput, VocabAttribute } from '../../../src/rules/vocab-model.ts';
+import { recordVocabularyKpiEvent } from '../../../src/kpi/events.ts';
 
 export const runtime = 'nodejs';
 
@@ -74,9 +75,20 @@ export async function POST(req: Request): Promise<Response> {
   if (!result.ok) {
     return Response.json({ error: result.error ?? 'No se pudo guardar la entrada.' }, { status: 422 });
   }
+  const warnings = [...result.warnings];
+  if (result.entryId) {
+    try {
+      recordVocabularyKpiEvent({ entryId: result.entryId, attribute: input.attribute });
+    } catch (error) {
+      warnings.push(
+        `La entrada se guardó, pero no se pudo registrar su KPI: ${msg(error)}`,
+      );
+    }
+  }
   return Response.json({
     ok: true,
-    warnings: result.warnings,
+    warnings,
+    entryId: result.entryId,
     entries: listAllVocab(),
     uncovered: listAllUncovered(),
     finishCatalog: listFinishCatalog(),

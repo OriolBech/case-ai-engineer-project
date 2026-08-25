@@ -1,8 +1,8 @@
 /**
  * Orquestación fina de promoción de correcciones. SPEC-015.
  *
- * No corre eval: quien llama debe haber ejecutado `pnpm run eval -- --save` y pasar
- * `regressionPassed: true` explícitamente. El pipeline (`processMto`) no lee correcciones.
+ * No corre eval: quien llama debe haber ejecutado la regresión y pasar `regressionPassed: true`
+ * explícitamente. El pipeline (`processMto`) no lee correcciones; sólo vocabularios promovidos.
  */
 import { classifyPromotion } from '../../domain/ports.ts';
 import { getCorrection, isInValueConflict, promoteCorrection } from './corrections.ts';
@@ -10,11 +10,13 @@ import { getCorrection, isInValueConflict, promoteCorrection } from './correctio
 export interface PromoteOptions {
   regressionPassed: boolean;
   promotedEntryId?: string;
+  actor: string;
+  at?: string;
 }
 
 /**
  * Promociona una corrección APPROVED si su destino lo permite y no hay conflicto de valor.
- * `finish`/`material` escriben vocabulario; el resto queda sin conectar (gold / alias de otros attrs).
+ * Los cinco atributos de vocabulario escriben capa 2; gramática/cantidad nunca lo hacen.
  */
 export function orchestratePromotion(id: string, opts: PromoteOptions): void {
   const c = getCorrection(id);
@@ -43,11 +45,6 @@ export function orchestratePromotion(id: string, opts: PromoteOptions): void {
     );
   }
 
-  if (c.attribute !== 'material' && c.attribute !== 'finish') {
-    throw new Error(
-      `Sólo 'material' y 'finish' tienen destino de promoción implementado. '${c.attribute}' queda APPROVED.`,
-    );
-  }
   if (!opts.regressionPassed) {
     throw new Error(
       `La corrección '${id}' no se promociona: ejecuta primero la regresión (pnpm run eval -- --save).`,
@@ -57,5 +54,5 @@ export function orchestratePromotion(id: string, opts: PromoteOptions): void {
     throw new Error('Falta el id de la entrada de vocabulario promovida.');
   }
 
-  promoteCorrection(id, true, opts.promotedEntryId);
+  promoteCorrection(id, true, opts.promotedEntryId, opts.actor, opts.at);
 }

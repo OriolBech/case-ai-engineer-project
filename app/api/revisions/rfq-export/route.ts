@@ -5,6 +5,7 @@ import { fingerprintOf } from '../../../../src/domain/identity.ts';
 import { partsFromOutput } from '../../../../src/domain/from-output.ts';
 import { projectIdFromFileName } from '../../../../src/revisions/project-id.ts';
 import { getRevisionStore } from '../../../../src/revisions/sqlite-store.ts';
+import { recordLifecycleEvent } from '../../../../src/kpi/events.ts';
 import { getProcessedMto } from '../../../lib/mto-history-db.ts';
 
 export const runtime = 'nodejs';
@@ -35,6 +36,21 @@ export async function POST(req: Request): Promise<Response> {
 
     const projectId = projectIdFromFileName(summary.fileName);
     getRevisionStore().recordRfqExport(projectId, revisionId, fingerprints);
+    const at = new Date().toISOString();
+    recordLifecycleEvent({
+      projectId,
+      revisionId,
+      eventType: 'review_closed',
+      at,
+      note: 'Revisión cerrada al exportar la RFQ',
+    });
+    recordLifecycleEvent({
+      projectId,
+      revisionId,
+      eventType: 'rfq_sent',
+      at,
+      note: `${fingerprints.length} líneas exportadas a RFQ`,
+    });
     return Response.json({ recorded: fingerprints.length });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });

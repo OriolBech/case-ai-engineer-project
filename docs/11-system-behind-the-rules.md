@@ -119,7 +119,7 @@ The detector doesn't ask *"did the model get it right?"* It asks *"is there anyt
 row that the output doesn't explain?"* That framing turns out to cover a failure that wasn't part
 of the design: **the model's non-determinism**.
 
-When split was measured with repeated runs (`pnpm run split:repeat`, see `11-benchmarks.md`
+When split was measured with repeated runs (`pnpm run split:repeat`, see `10-benchmarks.md`
 §5-bis), it turned out that difficult multi-element rows split badly **≈1 run out of every 4**.
 One of those runs collapsed row 35 entirely into a single unclassified element. `pnpm run gaps`
 flagged it with four gaps: the nut, the washer, and their two standards, all unplaced.

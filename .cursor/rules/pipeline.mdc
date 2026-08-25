@@ -1,0 +1,20 @@
+---
+description: Pipeline and rules — LLM only where a table fails; explicit traces and policies
+globs: src/pipeline/**/*.ts,src/rules/**/*.ts,src/lib/**/*.ts
+alwaysApply: false
+---
+
+# Pipeline and rules
+
+`src/rules/` is deterministic. **No LLM.** The name is decided by `findNames` over the literal
+term, not by the model.
+
+- Only the measure is extrapolated. Quality and finish are not.
+- Quality is emitted exactly as written (`A4-70` ≠ `A4`). Never convert between groups.
+- Every output line carries traceability: a literal MTO span per non-null attribute.
+- Behavior not written in the client's rules → `docs/03-policies.md` + `POLICY_*` flag.
+- The cache (ADR-004) covers **only** the model call, never normalize/validate.
+- The critic (SPEC-006) **can only degrade**. It never promotes to `RESUELTA`.
+- A row never disappears: 0 elements → `NO_ELEMENTS_EXTRACTED`.
+
+If code and `specs/SPEC-001`…`007` disagree, one of the two is a bug. Same commit.

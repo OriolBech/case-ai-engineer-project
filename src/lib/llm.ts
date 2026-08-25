@@ -268,7 +268,7 @@ export class OpenRouterProvider implements LlmProvider {
     // Provider routing: https://openrouter.ai/docs/features/provider-routing
     // The default route lands wherever OpenRouter decides, and the SAME model is served at
     // ~50 tok/s by one provider and ~2.000 tok/s by another. That is where the 9x latency
-    // variance in docs/11-benchmarks.md comes from. Sorting by throughput (or pinning an order)
+    // variance in docs/10-benchmarks.md comes from. Sorting by throughput (or pinning an order)
     // is what makes a latency promise possible at all.
     const sort = opts.providerSort?.trim();
     if (sort && !['price', 'throughput', 'latency'].includes(sort)) {
@@ -282,7 +282,7 @@ export class OpenRouterProvider implements LlmProvider {
 
     // gpt-oss is a reasoning model: most of its wall clock is thinking tokens, and effort is the
     // dial. The CRITIC gets its own dial on purpose: the measured failure mode of a low-effort
-    // critic is disagreeing with CORRECT lines (docs/11-benchmarks.md §4), and that one has to
+    // critic is disagreeing with CORRECT lines (docs/10-benchmarks.md §4), and that one has to
     // see more clearly, not less — its worst case is a noisy queue, which destroys the whole
     // protection (the "invisible failure" of the brief).
     const effort = opts.reasoningEffort?.trim();

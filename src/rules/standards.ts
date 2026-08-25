@@ -10,6 +10,7 @@
  */
 
 import { fold } from './text.ts';
+import { findGenericAliases, resolveGenericAlias } from './generic-alias-db.ts';
 
 /** Verbatim from §8. Keys are folded DIN designations. */
 export const DIN_EQUIVALENCES: ReadonlyMap<string, string> = new Map([
@@ -92,7 +93,7 @@ const PATTERNS: { family: StandardFamily; re: RegExp; canon: (m: RegExpMatchArra
  * Rather than blacklist conjunctions language by language, the TABLE arbitrates: a suffix is only
  * kept when the suffixed designation actually exists in it.
  */
-export function normalizeStandard(raw: string): StandardResult | null {
+export function normalizeClientStandard(raw: string): StandardResult | null {
   const folded = fold(raw);
   for (const { family, re, canon } of PATTERNS) {
     const m = folded.match(re);
@@ -120,10 +121,26 @@ export function normalizeStandard(raw: string): StandardResult | null {
   return null;
 }
 
+export function normalizeStandard(raw: string): StandardResult | null {
+  const client = normalizeClientStandard(raw);
+  if (client) return client;
+  const added = resolveGenericAlias('standard', raw);
+  if (!added) return null;
+  const target = normalizeClientStandard(added.value);
+  if (!target) return null;
+  return {
+    raw,
+    normalized: target.normalized,
+    family: target.family,
+    mapped: true,
+    rule: `standard:alias:${added.id}`,
+  };
+}
+
 /** All standards in a row, in order. Feeds the deterministic baseline and the set splitter. */
 export function findStandards(text: string): { result: StandardResult; span: { start: number; end: number } }[] {
   const folded = fold(text);
-  const out: { result: StandardResult; span: { start: number; end: number } }[] = [];
+  const candidates: { result: StandardResult; span: { start: number; end: number } }[] = [];
   const claimed: boolean[] = new Array(folded.length).fill(false);
 
   for (const { re } of PATTERNS) {
@@ -134,11 +151,30 @@ export function findStandards(text: string): { result: StandardResult; span: { s
       let free = true;
       for (let i = start; i < end; i++) if (claimed[i]) { free = false; break; }
       if (!free) continue;
-      const result = normalizeStandard(m[0]);
+      const result = normalizeClientStandard(m[0]);
       if (!result) continue;
-      for (let i = start; i < end; i++) claimed[i] = true;
-      out.push({ result, span: { start, end } });
+      candidates.push({ result, span: { start, end } });
     }
+  }
+  for (const hit of findGenericAliases('standard', text)) {
+    const result = normalizeStandard(hit.row.alias);
+    if (result) candidates.push({ result, span: hit.span });
+  }
+  candidates.sort(
+    (a, b) => b.span.end - b.span.start - (a.span.end - a.span.start),
+  );
+  const out: typeof candidates = [];
+  for (const candidate of candidates) {
+    let free = true;
+    for (let i = candidate.span.start; i < candidate.span.end; i++) {
+      if (claimed[i]) {
+        free = false;
+        break;
+      }
+    }
+    if (!free) continue;
+    for (let i = candidate.span.start; i < candidate.span.end; i++) claimed[i] = true;
+    out.push(candidate);
   }
   return out.sort((x, y) => x.span.start - y.span.start);
 }

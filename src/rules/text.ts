@@ -24,6 +24,7 @@ export type AliasSource = 'client' | 'added';
 export interface Alias {
   text: string;
   source: AliasSource;
+  entryId?: string;
 }
 
 export const c = (...t: string[]): Alias[] => t.map((text) => ({ text, source: 'client' as const }));
@@ -33,6 +34,7 @@ export interface AliasHit<T> {
   value: T;
   alias: string;
   aliasSource: AliasSource;
+  aliasEntryId?: string;
   span: { start: number; end: number };
 }
 
@@ -65,7 +67,13 @@ export function findAliases<T>(text: string, table: ReadonlyMap<T, readonly Alia
       for (let i = start; i < end; i++) if (claimed[i]) { free = false; break; }
       if (!free) continue;
       for (let i = start; i < end; i++) claimed[i] = true;
-      hits.push({ value, alias: alias.text, aliasSource: alias.source, span: { start, end } });
+      hits.push({
+        value,
+        alias: alias.text,
+        aliasSource: alias.source,
+        aliasEntryId: alias.entryId,
+        span: { start, end },
+      });
     }
   }
   return hits.sort((x, y) => x.span.start - y.span.start);
@@ -82,6 +90,7 @@ export function lookupAlias<T>(raw: string, table: ReadonlyMap<T, readonly Alias
         value,
         alias: alias.text,
         aliasSource: alias.source,
+        aliasEntryId: alias.entryId,
         span: { start: 0, end: raw.length },
       };
       if (!best || alias.source === 'client') best = hit;

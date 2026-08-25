@@ -77,13 +77,14 @@ export interface VocabAddResult {
   ok: boolean;
   warnings: string[];
   error?: string;
+  entryId?: string;
 }
 
 /** El orden y las etiquetas de los atributos en la vista única. `editable:false` = solo lectura hoy. */
 export const VOCAB_ATTRIBUTES: { key: VocabAttribute; label: string; editable: boolean }[] = [
   { key: 'name', label: 'Nombre', editable: false },
   { key: 'material', label: 'Material', editable: true },
-  { key: 'quality', label: 'Calidad', editable: false },
+  { key: 'quality', label: 'Calidad', editable: true },
   { key: 'norma', label: 'Norma', editable: false },
   { key: 'finish', label: 'Acabado', editable: true },
 ];

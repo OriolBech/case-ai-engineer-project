@@ -14,6 +14,7 @@
 
 import { fold } from './text.ts';
 import type { QualityGroup, ItemName } from '../pipeline/types.ts';
+import { resolveGenericAlias } from './generic-alias-db.ts';
 
 /** Verbatim from §5's equivalence table. */
 export const QUALITY_GROUPS: ReadonlyMap<QualityGroup, readonly string[]> = new Map([
@@ -60,6 +61,10 @@ export interface QualityResult {
    * `GR 2H`, or a set-screw grade like `45H`. §5: these are extracted as-is.
    */
   inCatalog: boolean;
+  /** Valor objetivo de una entrada añadida. El pipeline conserva `raw` al emitir calidad. */
+  resolved: string;
+  /** null para la capa 1; id auditable para un alias de capa 2. */
+  aliasEntryId: string | null;
 }
 
 /**
@@ -69,10 +74,43 @@ export interface QualityResult {
  * flagged as a quality, it is not extracted"* — so deciding that `8` in some prose is a quality
  * is the extractor's job, and guessing it here would manufacture data.
  */
-export function normalizeQuality(raw: string): QualityResult {
+export function normalizeClientQuality(raw: string): QualityResult {
   const hit = BY_VALUE.get(fold(raw));
-  if (hit) return { raw, canonical: hit.canonical, group: hit.group, inCatalog: true };
-  return { raw, canonical: null, group: null, inCatalog: false };
+  if (hit) {
+    return {
+      raw,
+      canonical: hit.canonical,
+      group: hit.group,
+      inCatalog: true,
+      resolved: raw.trim(),
+      aliasEntryId: null,
+    };
+  }
+  return {
+    raw,
+    canonical: null,
+    group: null,
+    inCatalog: false,
+    resolved: raw.trim(),
+    aliasEntryId: null,
+  };
+}
+
+export function normalizeQuality(raw: string): QualityResult {
+  const client = normalizeClientQuality(raw);
+  if (client.inCatalog) return client;
+  const added = resolveGenericAlias('quality', raw);
+  if (!added) return client;
+  const target = normalizeClientQuality(added.value);
+  if (!target.inCatalog) return client;
+  return {
+    raw,
+    canonical: target.canonical,
+    group: target.group,
+    inCatalog: true,
+    resolved: added.value,
+    aliasEntryId: added.id,
+  };
 }
 
 /** Same group => equivalent. Different or unknown group => not equivalent. Never fuzzy. */

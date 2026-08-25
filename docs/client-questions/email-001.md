@@ -140,9 +140,9 @@ MTO with 15–25% fasteners it's the biggest sink of precision in the whole prob
 
 | # | §10 point | Policy | Status |
 |---|---|---|---|
-| 1 · Derived material | §10.1 | [P-3](../03-policies.md#p-3--material-no-escrito) | default applied |
-| 2 · Finish in a set | §10.4 | [P-1](../03-policies.md#p-1--alcance-del-acabado-dentro-de-un-set) | default applied |
+| 1 · Derived material | §10.1 | [P-3](../03-policies.md#p-3--material-not-written) | default applied |
+| 2 · Finish in a set | §10.4 | [P-1](../03-policies.md#p-1--scope-of-the-finish-within-a-set) | default applied |
 
-**Once an answer arrives**: log it in [`respuestas.md`](respuestas.md), mark the policy as
+**Once an answer arrives**: log it in [`answers.md`](answers.md), mark the policy as
 *confirmed* in [`03-policies.md`](../03-policies.md), and **leave the flag in place** so the
 alternative and its KPI delta can still be demonstrated in the challenge.

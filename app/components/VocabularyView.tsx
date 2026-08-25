@@ -26,6 +26,7 @@ import { VOCAB_ACTOR } from '../lib/finish-vocab-ui.ts';
 import { AppTopbar } from './AppTopbar.tsx';
 import type { SuggestionPatch } from './App.tsx';
 import { FinishDecisionFields, type FinishDecision } from './FinishDecisionFields.tsx';
+import { QUALITY_GROUPS } from '../../src/rules/quality.ts';
 
 interface ValueConflictRow {
   rowRef: string;
@@ -68,6 +69,7 @@ interface FormState {
   newFinishName: string;
   material: 'AC' | 'INOX';
   matchKind: 'qualityPattern' | 'qualityGroup';
+  qualityGroup: string;
   rationale: string;
   evidence: string;
 }
@@ -81,6 +83,7 @@ function emptyForm(attribute: VocabAttribute, match = ''): FormState {
     newFinishName: '',
     material: 'AC',
     matchKind: 'qualityPattern',
+    qualityGroup: 'G5',
     rationale: '',
     evidence: '',
   };
@@ -202,7 +205,9 @@ export function VocabularyView({ initialAttribute = 'todos', initialAlias = '', 
                 : form.finish
             : form.attribute === 'material'
               ? form.material
-              : null;
+              : form.attribute === 'quality'
+                ? form.qualityGroup
+                : null;
         const kind =
           form.attribute === 'finish'
             ? form.finishDecision === 'not_a_finish'
@@ -336,7 +341,7 @@ export function VocabularyView({ initialAttribute = 'todos', initialAlias = '', 
             <input
               value={form.match}
               onChange={(ev) => setForm((f) => ({ ...f, match: ev.target.value }))}
-              placeholder={form.attribute === 'material' ? 'p. ej. ^45H$ o A4-90' : 'tal como aparece en la fila'}
+              placeholder={form.attribute === 'material' ? 'p. ej. ^45H$ o A4-90' : form.attribute === 'quality' ? 'p. ej. 45H, GR 12H' : 'tal como aparece en la fila'}
               required
             />
             {preview && (
@@ -378,6 +383,26 @@ export function VocabularyView({ initialAttribute = 'todos', initialAlias = '', 
                 </select>
               </label>
             </>
+          )}
+
+          {form.attribute === 'quality' && (
+            <label className="vocab-form-wide">
+              Equivale al grupo (§5)
+              <select
+                value={form.qualityGroup}
+                onChange={(ev) => setForm((f) => ({ ...f, qualityGroup: ev.target.value }))}
+              >
+                {[...QUALITY_GROUPS].map(([g, values]) => (
+                  <option key={g} value={g}>
+                    {g} · {values[0]} (equivale a {values.join(', ')})
+                  </option>
+                ))}
+              </select>
+              <span className="kpi-help">
+                Ojo: esto declara la calidad intercambiable con las de ese grupo. No es una grafía, es
+                una equivalencia.
+              </span>
+            </label>
           )}
 
           <label className="vocab-form-wide">

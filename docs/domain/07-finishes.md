@@ -107,17 +107,17 @@ the document doesn't write it, information is missing — the piece isn't lackin
 ## 7.6 · The `P-1` problem, in one picture
 
 ```
-Fila 4:  BOLT DIN933 M16x60 with NUT DIN934 and WASHER DIN125, 8.8, zinc plated
+Row 4:  BOLT DIN933 M16x60 with NUT DIN934 and WASHER DIN125, 8.8, zinc plated
                                                                     ▲
-                                                          ¿a quién alcanza?
+                                                          who does it cover?
 
-Opción A — alcanza a todo el set                Opción B — sólo al principal
+Option A — covers the whole set                 Option B — principal only
   TORNILLO M16x60 8.8 CINCADO                     TORNILLO M16x60 8.8 CINCADO
-  TUERCA   M16    8.8 CINCADO                     TUERCA   M16    8.8 (crudo)
-  ARANDELA M16    8.8 CINCADO                     ARANDELA M16    8.8 (crudo)
+  TUERCA   M16    8.8 CINCADO                     TUERCA   M16    8.8 (bare)
+  ARANDELA M16    8.8 CINCADO                     ARANDELA M16    8.8 (bare)
 
-  ⚠ contradice §2: sólo la medida               ⚠ set físicamente inconsistente
-    se extrapola                                   y no comprable como conjunto
+  ⚠ contradicts §2: only the measure            ⚠ physically inconsistent set
+    is extrapolated                                and not buyable as a kit
 ```
 
 Both options are bad, and that's the point: there's no correct answer within the written rules.

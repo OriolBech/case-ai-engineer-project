@@ -14,8 +14,12 @@ loadEnv();
 // Se fuerza aquí en lugar de dejarlo al entorno, porque una medida a 0 tokens parece gratis.
 process.env.LLM_CACHE = 'off';
 const FILE = process.argv[2] ?? 'data/input/MTO_tornilleria.xlsx';
+const concurrency = Number(process.env.CONCURRENCY ?? 12);
+if (!Number.isInteger(concurrency) || concurrency < 1) {
+  throw new Error(`CONCURRENCY debe ser un entero positivo, recibido: ${process.env.CONCURRENCY}`);
+}
 const llm = createLlm();
-const out = await processMto(llm, FILE, { concurrency: Number(process.env.CONCURRENCY ?? 12) });
+const out = await processMto(llm, FILE, { concurrency });
 const s = llm.stats;
 const fx = eurPerUsd();
 if (!s.pricesConfigured) throw new Error('Faltan LLM_PRICE_IN / LLM_PRICE_OUT en .env');
@@ -86,7 +90,5 @@ console.log(`\nLATENCIA PARA ${LINES_TARGET} LÍNEAS`);
 console.log(`  líneas por fila       ${linesPerRow.toFixed(2)}`);
 console.log(`  tiempo de modelo/fila ${modelSecPerRow.toFixed(1)}s`);
 console.log(`  filas necesarias      ${rowsFor1000.toFixed(0)}`);
-for (const c of [6, 16, 32, 64]) {
-  const mins = (rowsFor1000 * modelSecPerRow) / c / 60;
-  console.log(`  con concurrencia ${String(c).padStart(2)}    ${mins.toFixed(1)} min`);
-}
+const mins = (rowsFor1000 * modelSecPerRow) / concurrency / 60;
+console.log(`  con concurrencia ${String(concurrency).padStart(2)}    ${mins.toFixed(1)} min (ideal)`);

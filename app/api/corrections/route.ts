@@ -7,11 +7,14 @@
  * El pipeline no lee human_corrections. Necesita runtime Node (node:sqlite).
  */
 import {
+  approveCorrection,
   listCorrections,
   listValueConflicts,
   proposeCorrection,
+  rejectCorrection,
   type NewCorrection,
 } from '../../../src/eval/history/corrections.ts';
+import { orchestratePromotion } from '../../../src/eval/history/promote.ts';
 
 export const runtime = 'nodejs';
 
@@ -24,10 +27,62 @@ const msg = (e: unknown): string => (e instanceof Error ? e.message : String(e))
 export async function GET(): Promise<Response> {
   try {
     const pending = listCorrections({ status: 'PENDING' });
+    const approved = listCorrections({ status: 'APPROVED' });
     const conflicts = listValueConflicts();
-    return Response.json({ pending, conflicts });
+    return Response.json({ pending, approved, conflicts });
   } catch (e) {
     return Response.json({ error: msg(e) }, { status: 500 });
+  }
+}
+
+interface DecisionBody {
+  id?: unknown;
+  action?: unknown;
+  actor?: unknown;
+  regressionConfirmed?: unknown;
+  promotedEntryId?: unknown;
+}
+
+export async function PATCH(req: Request): Promise<Response> {
+  let body: DecisionBody;
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: 'JSON inválido' }, { status: 400 });
+  }
+  if (typeof body.id !== 'string' || !body.id.trim()) {
+    return Response.json({ error: 'Falta id.' }, { status: 400 });
+  }
+  if (typeof body.actor !== 'string' || !body.actor.trim()) {
+    return Response.json({ error: 'Falta actor.' }, { status: 400 });
+  }
+  if (body.action !== 'approve' && body.action !== 'reject' && body.action !== 'promote') {
+    return Response.json({ error: 'action debe ser approve, reject o promote.' }, { status: 400 });
+  }
+
+  try {
+    const at = new Date().toISOString();
+    if (body.action === 'approve') approveCorrection(body.id, body.actor, at);
+    if (body.action === 'reject') rejectCorrection(body.id, body.actor, at);
+    if (body.action === 'promote') {
+      orchestratePromotion(body.id, {
+        regressionPassed: body.regressionConfirmed === true,
+        promotedEntryId:
+          typeof body.promotedEntryId === 'string' && body.promotedEntryId.trim()
+            ? body.promotedEntryId
+            : `correction-${body.id}`,
+        actor: body.actor,
+        at,
+      });
+    }
+    return Response.json({
+      ok: true,
+      pending: listCorrections({ status: 'PENDING' }),
+      approved: listCorrections({ status: 'APPROVED' }),
+      conflicts: listValueConflicts(),
+    });
+  } catch (e) {
+    return Response.json({ error: msg(e) }, { status: 409 });
   }
 }
 

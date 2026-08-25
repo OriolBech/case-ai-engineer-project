@@ -90,8 +90,9 @@ pnpm run suggestions:kpi
 
 `data/synthetic/MTO_sugerencias.xlsx` (`pnpm run mto:synthetic`) is not a realistic mixed MTO; it
 carries `NOMBRE`, `NORMA`, and `ACABADO` columns to exercise **several** vocabularies, not just
-finishes. The front end today only applies `finish` and `material` suggestions; name/grade/standard
-are visible and not editable (SPEC-012).
+finishes. The front end today re-applies `finish` and `material` suggestions live; **quality** is
+added from the backlog or `/vocabulario` (SPEC-017) but its effect — coherence and material — is
+recalculated on reprocess; name and standard are visible and not editable (SPEC-012).
 
 ## Out of scope
 

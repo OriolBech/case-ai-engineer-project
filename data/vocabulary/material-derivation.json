@@ -2,7 +2,7 @@
   "version": 1,
   "attribute": "material",
   "policy": "P-3",
-  "note": "Derivación del material a partir de la calidad. Datos, no código: cambiar una entrada no es un despliegue, y cada una lleva quién la decidió, cuándo y con qué argumento. Una calidad que no encaje con ninguna entrada NO se resuelve con material vacío: produce un hueco de política con la entrada candidata. Ver docs/12-system-behind-the-rules.md",
+  "note": "Derivación del material a partir de la calidad. Datos, no código: cambiar una entrada no es un despliegue, y cada una lleva quién la decidió, cuándo y con qué argumento. Una calidad que no encaje con ninguna entrada NO se resuelve con material vacío: produce un hueco de política con la entrada candidata. Ver docs/11-system-behind-the-rules.md",
   "entries": [
     {
       "id": "inox-a2",

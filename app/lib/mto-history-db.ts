@@ -20,6 +20,7 @@ import { dirname, join } from 'node:path';
 import { toIdentifiables } from '../../src/domain/from-output.ts';
 import { getRevisionStore } from '../../src/revisions/sqlite-store.ts';
 import { projectIdFromFileName } from '../../src/revisions/project-id.ts';
+import { recordLifecycleEvent } from '../../src/kpi/events.ts';
 import type { ProcessSummary } from './api-types.ts';
 
 const DB_PATH = join('data', 'processing', 'history.sqlite');
@@ -81,6 +82,8 @@ export interface ProcessedMtoSummary {
 export function saveProcessedMto(summary: ProcessSummary): string {
   const conn = openMtoHistoryDb();
   const id = randomUUID();
+  const at = new Date().toISOString();
+  const projectId = projectIdFromFileName(summary.fileName);
   const resolvedCount = summary.lines.filter((l) => l.status === 'RESUELTA').length;
   conn
     .prepare(
@@ -91,7 +94,7 @@ export function saveProcessedMto(summary: ProcessSummary): string {
     )
     .run(
       id,
-      new Date().toISOString(),
+      at,
       summary.fileName,
       summary.rowsIngested,
       summary.rowsSkipped,
@@ -105,13 +108,24 @@ export function saveProcessedMto(summary: ProcessSummary): string {
     );
   try {
     getRevisionStore().save({
-      projectId: projectIdFromFileName(summary.fileName),
+      projectId,
       revisionId: id,
-      at: new Date().toISOString(),
+      at,
       lines: toIdentifiables(summary.lines),
     });
   } catch (e) {
     console.error('No se pudo guardar snapshot de revisión:', e);
+  }
+  try {
+    recordLifecycleEvent({
+      projectId,
+      revisionId: id,
+      eventType: 'revision_opened',
+      at,
+      note: `MTO procesado: ${summary.fileName}`,
+    });
+  } catch (e) {
+    console.error('No se pudo registrar apertura de revisión para KPI:', e);
   }
   return id;
 }
@@ -149,4 +163,40 @@ export function getProcessedMto(id: string): ProcessSummary | null {
   const conn = openMtoHistoryDb();
   const r = conn.prepare(`SELECT payload_json FROM processed_mtos WHERE id = ?`).get(id) as { payload_json: string } | undefined;
   return r ? (JSON.parse(r.payload_json) as ProcessSummary) : null;
+}
+
+export function vocabularyEntryIdFromRule(rule: string | null): string | null {
+  if (!rule) return null;
+  return (
+    rule.match(/^(?:P-3|P-12):(.+)$/)?.[1] ??
+    rule.match(/^(?:name|quality):alias:(.+?)->/)?.[1] ??
+    rule.match(/^standard:alias:(.+)$/)?.[1] ??
+    null
+  );
+}
+
+/**
+ * Cuenta aplicaciones observadas de entradas promovidas en MTOs guardados.
+ *
+ * El pipeline deja el id de la entrada en `attribute.rule` (`P-3:<id>` / `P-12:<id>`). Se cuenta
+ * cada atributo de cada línea que vuelve a usarla; no se infiere reutilización por el mero hecho de
+ * que exista una promoción.
+ */
+export function countVocabularyRuleUses(entryIds: readonly string[]): number {
+  const wanted = new Set(entryIds.filter(Boolean));
+  if (wanted.size === 0) return 0;
+  const rows = openMtoHistoryDb()
+    .prepare(`SELECT payload_json FROM processed_mtos ORDER BY created_at`)
+    .all() as Array<{ payload_json: string }>;
+  let uses = 0;
+  for (const row of rows) {
+    const summary = JSON.parse(row.payload_json) as ProcessSummary;
+    for (const line of summary.lines) {
+      for (const attribute of Object.values(line.attributes)) {
+        const entryId = vocabularyEntryIdFromRule(attribute.rule);
+        if (entryId && wanted.has(entryId)) uses++;
+      }
+    }
+  }
+  return uses;
 }

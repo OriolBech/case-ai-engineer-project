@@ -93,8 +93,8 @@ Oriol
 
 | # | §10 point | Policy |
 |---|---|---|
-| 1 · Derived material | §10.1 | [P-3](../03-policies.md#p-3--material-no-escrito) |
-| 2 · Finish in a set | §10.4 | [P-1](../03-policies.md#p-1--alcance-del-acabado-dentro-de-un-set) |
+| 1 · Derived material | §10.1 | [P-3](../03-policies.md#p-3--material-not-written) |
+| 2 · Finish in a set | §10.4 | [P-1](../03-policies.md#p-1--scope-of-the-finish-within-a-set) |
 
 **Reserve**, in order: length without a unit if their files never write the unit; P-9 row outside
 the family (it isn't in §10, and in a 20,000-row MTO with 15–25% fasteners it's the biggest sink of

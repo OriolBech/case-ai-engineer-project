@@ -3,7 +3,7 @@
  *
  * 100% estática — no llama a `/api/*`, no depende de haber procesado ningún MTO. Es la versión
  * front de lo que ya está documentado en `specs/SPEC-00*.md` y `docs/03-policies.md` /
- * `docs/04-architecture.md` / `docs/12-system-behind-the-rules.md`, reescrito para
+ * `docs/04-architecture.md` / `docs/11-system-behind-the-rules.md`, reescrito para
  * presentarlo a alguien que no va a abrir el repositorio.
  */
 import { AppTopbar } from '../components/AppTopbar.tsx';

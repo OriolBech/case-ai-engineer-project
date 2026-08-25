@@ -13,10 +13,12 @@
 
 import * as materialDb from './vocabulary-db.ts';
 import * as finishDb from './finish-db.ts';
+import * as qualityDb from './quality-db.ts';
+import * as genericDb from './generic-alias-db.ts';
 import { suggestFinishEntryId } from './finish-vocab-id.ts';
-import { NAME_ALIASES, normalizeName } from './names.ts';
-import { QUALITY_GROUPS, normalizeQuality } from './quality.ts';
-import { DIN_EQUIVALENCES, normalizeStandard } from './standards.ts';
+import { NAME_ALIASES, normalizeClientName, normalizeName } from './names.ts';
+import { QUALITY_GROUPS } from './quality.ts';
+import { DIN_EQUIVALENCES, normalizeClientStandard, normalizeStandard } from './standards.ts';
 import type {
   VocabAddInput,
   VocabAddResult,
@@ -109,9 +111,11 @@ function finishToEntry(r: finishDb.FinishAliasRow): VocabEntry {
 }
 
 /**
- * Nombre, calidad y norma son catálogos/equivalencias CERRADOS del cliente (§3, §5, §8), hoy tablas
- * en código. Se exponen en la vista única en solo lectura —con sus entradas reales, no un placeholder—
- * para que el comprador vea de un vistazo TODO lo que el sistema sabe traducir, no solo lo editable.
+ * Nombre y norma son catálogos/equivalencias CERRADOS del cliente (§3, §8), hoy tablas en código.
+ * Se exponen en la vista única en solo lectura —con sus entradas reales, no un placeholder— para
+ * que el comprador vea de un vistazo TODO lo que el sistema sabe traducir, no solo lo editable.
+ * La calidad tiene dos capas (SPEC-017): §5 se lista como `client` y el vocabulario editable como
+ * `added`, mezclados en la misma tabla.
  */
 function nameEntries(): VocabEntry[] {
   const out: VocabEntry[] = [];
@@ -159,6 +163,25 @@ function qualityEntries(): VocabEntry[] {
       });
     }
   }
+  // Capa 2 (SPEC-017): lo que §5 no lista y compras ha declarado equivalente a un grupo.
+  for (const r of qualityDb.listEntries({ includeRetired: true })) {
+    const canonical = QUALITY_GROUPS.get(r.group)?.[0] ?? r.group;
+    out.push({
+      attribute: 'quality',
+      id: r.id,
+      match: r.alias,
+      matchLabel: `texto “${r.alias}”`,
+      value: `${r.group} · ${canonical}`,
+      kind: 'equivalence',
+      source: 'added',
+      rationale: r.rationale,
+      decidedBy: 'compras',
+      decidedAt: r.decidedAt,
+      evidence: r.evidence ?? null,
+      retiredAt: r.retiredAt,
+      retiredWhy: r.retiredWhy,
+    });
+  }
   return out;
 }
 
@@ -184,10 +207,38 @@ function normaEntries(): VocabEntry[] {
   return out;
 }
 
+function genericToEntry(r: genericDb.GenericAliasRow): VocabEntry {
+  return {
+    attribute: r.attribute === 'standard' ? 'norma' : r.attribute,
+    id: r.id,
+    match: r.alias,
+    matchLabel: `texto “${r.alias}”`,
+    value: r.value,
+    kind: 'alias',
+    source: 'added',
+    rationale: r.rationale,
+    decidedBy: r.decidedBy,
+    decidedAt: r.decidedAt,
+    evidence: r.evidence,
+    retiredAt: r.retiredAt,
+    retiredWhy: r.retiredWhy,
+  };
+}
+
 export function listAllVocab(): VocabEntry[] {
   const material = materialDb.listEntries({ includeRetired: true }).map(materialToEntry);
   const finish = finishDb.listEntries({ includeRetired: true }).map(finishToEntry);
-  return [...material, ...finish, ...nameEntries(), ...qualityEntries(), ...normaEntries()];
+  const generic = genericDb
+    .listGenericAliases({ includeRetired: true })
+    .map(genericToEntry);
+  return [
+    ...material,
+    ...finish,
+    ...nameEntries(),
+    ...qualityEntries(),
+    ...normaEntries(),
+    ...generic,
+  ];
 }
 
 export function listFinishCatalog(): string[] {
@@ -234,9 +285,11 @@ export function resolveVocab(attribute: VocabAttribute, text: string): VocabReso
   }
 
   if (attribute === 'quality') {
-    const q = normalizeQuality(t);
-    if (q.inCatalog) return { known: true, value: q.canonical, detail: `Grupo ${q.group}: equivale a ${q.canonical}.` };
-    return { known: false, value: null, detail: 'Fuera del catálogo §5: se conserva tal cual (solo lectura).' };
+    const q = qualityDb.resolveQuality(t);
+    if (q.source === 'catalog') return { known: true, value: q.canonical, detail: `Grupo ${q.group}: equivale a ${q.canonical} (§5).` };
+    if (q.source === 'vocab') return { known: true, value: q.group, detail: `Grupo ${q.group} por la entrada '${q.entryId}' (vocabulario).` };
+    if (q.source === 'ambiguous') return { known: false, value: null, detail: 'Ambigua: dos entradas del vocabulario la cubren con grupos distintos.' };
+    return { known: false, value: null, detail: 'Fuera de §5 y sin entrada — al guardar aplicará a todos los MTO.' };
   }
 
   if (attribute === 'norma') {
@@ -282,7 +335,7 @@ export function addVocab(input: VocabAddInput, opts: { force?: boolean } = {}): 
         undefined,
         { allowShortAlias: !!input.allowShortAlias, force: opts.force },
       );
-      return { ok: true, warnings };
+      return { ok: true, warnings, entryId: id };
     }
 
     if (input.attribute === 'material') {
@@ -310,7 +363,103 @@ export function addVocab(input: VocabAddInput, opts: { force?: boolean } = {}): 
         undefined,
         { force: opts.force },
       );
-      return { ok: true, warnings };
+      return { ok: true, warnings, entryId: id };
+    }
+
+    if (input.attribute === 'quality') {
+      const group = input.value?.trim() ?? '';
+      if (!QUALITY_GROUPS.has(group as never)) {
+        return {
+          ok: false,
+          warnings: [],
+          error: `El grupo '${group}' no es uno de los 14 de §5 (${[...QUALITY_GROUPS.keys()].join(', ')}).`,
+        };
+      }
+      const explicitId = input.id?.trim();
+      const id = allocateId(
+        explicitId || slugId('qual', `${group}-${match}`),
+        !!explicitId,
+        qualityDb.listEntries({ includeRetired: true }),
+      );
+      const { warnings } = qualityDb.addEntry(
+        {
+          id,
+          alias: match,
+          group: group as Parameters<typeof qualityDb.addEntry>[0]['group'],
+          rationale: input.rationale,
+          decidedBy: input.decidedBy,
+          evidence: input.evidence?.trim() || 'alta rápida desde la vista de vocabulario',
+        },
+        at,
+        undefined,
+        { force: opts.force },
+      );
+      return { ok: true, warnings, entryId: id };
+    }
+
+    if (input.attribute === 'name') {
+      const target = input.value?.trim() ?? '';
+      const allowed = new Set([
+        'TORNILLO',
+        'TUERCA',
+        'ARANDELA',
+        'VARILLA ROSCADA',
+        'ESPARRAGO',
+      ]);
+      if (!allowed.has(target)) {
+        return { ok: false, warnings: [], error: 'El nombre destino no pertenece al catálogo del cliente.' };
+      }
+      if (normalizeClientName(match)) {
+        return { ok: false, warnings: [], error: `'${match}' ya pertenece al catálogo de nombres (capa 1).` };
+      }
+      const explicitId = input.id?.trim();
+      const id = allocateId(
+        explicitId || slugId('name-added', `${match}-${target}`),
+        !!explicitId,
+        genericDb.listGenericAliases({ includeRetired: true }),
+      );
+      genericDb.addGenericAlias(
+        {
+          id,
+          attribute: 'name',
+          alias: match,
+          value: target,
+          rationale: input.rationale,
+          decidedBy: input.decidedBy,
+          evidence: input.evidence?.trim() || 'alta desde vocabulario',
+        },
+        at,
+      );
+      return { ok: true, warnings: [], entryId: id };
+    }
+
+    if (input.attribute === 'norma') {
+      const target = input.value?.trim() ?? '';
+      if (!target || !normalizeClientStandard(target)) {
+        return { ok: false, warnings: [], error: 'La norma destino no tiene un formato reconocido.' };
+      }
+      if (normalizeClientStandard(match)) {
+        return { ok: false, warnings: [], error: `'${match}' ya pertenece al catálogo de normas (capa 1).` };
+      }
+      const explicitId = input.id?.trim();
+      const id = allocateId(
+        explicitId || slugId('standard-added', `${match}-${target}`),
+        !!explicitId,
+        genericDb.listGenericAliases({ includeRetired: true }),
+      );
+      genericDb.addGenericAlias(
+        {
+          id,
+          attribute: 'standard',
+          alias: match,
+          value: normalizeClientStandard(target)!.normalized,
+          rationale: input.rationale,
+          decidedBy: input.decidedBy,
+          evidence: input.evidence?.trim() || 'alta desde vocabulario',
+        },
+        at,
+      );
+      return { ok: true, warnings: [], entryId: id };
     }
 
     return { ok: false, warnings: [], error: 'Este atributo todavía no es editable desde el vocabulario.' };
@@ -323,5 +472,9 @@ export function retireVocab(attribute: VocabAttribute, id: string, why: string, 
   const at = today();
   if (attribute === 'finish') return finishDb.retireEntry(id, why, by, at);
   if (attribute === 'material') return materialDb.retireEntry(id, why, by, at);
+  if (attribute === 'quality') return qualityDb.retireEntry(id, why, by, at);
+  if (attribute === 'name' || attribute === 'norma') {
+    return genericDb.retireGenericAlias(id, why, by, at);
+  }
   throw new Error('Este atributo todavía no es editable desde el vocabulario.');
 }

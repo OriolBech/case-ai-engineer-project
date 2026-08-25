@@ -1,0 +1,16 @@
+---
+description: Buyer UI — not an engineer console; Sapira design system
+globs: app/**/*.ts,app/**/*.tsx,app/**/*.css
+alwaysApply: false
+---
+
+# Buyer UI
+
+The user is a buyer, not an engineer. Read SPEC-008, 012, and 013 before redoing
+screens. Design system: `docs/design-system/DESIGN-SYSTEM.md`.
+
+- Square corners (`border-radius: 0`). One accent: `#c94d43`.
+- Figures, codes, and IDs in JetBrains Mono with `tnum`.
+- The eval history is **outside the nav**, on purpose (SPEC-010).
+- Vocabulary ≠ policies: do not share a screen. The vocabulary is signed by a buyer;
+  a policy is approved by the KPI delta (`docs/03-policies.md`).

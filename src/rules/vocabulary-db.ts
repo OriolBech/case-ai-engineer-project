@@ -25,7 +25,7 @@
  *
  * **AMPLIABLE.** `addEntry` y `retireEntry` escriben en el log y la base se pone al día. El cliente
  * no tiene que tocar código ni esperar un despliegue: es el bucle de aprendizaje de
- * `docs/12-system-behind-the-rules.md` §4, cerrado.
+ * `docs/11-system-behind-the-rules.md` §4, cerrado.
  *
  * Por qué SQLite y no seguir con el JSON: porque "ampliable" y "consultable" no son lo mismo que
  * "legible". Con la tabla en una base se puede preguntar *qué entrada resolvió esta línea*, *qué
@@ -37,7 +37,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { normalizeQuality } from './quality.ts';
+import { resolveQuality } from './quality-db.ts';
 
 export type Material = 'AC' | 'INOX';
 export type MatchKind = 'qualityGroup' | 'qualityPattern';
@@ -325,7 +325,9 @@ export type NoDerivation =
  * trece.
  */
 export function deriveMaterial(rawQuality: string): Derivation | NoDerivation {
-  const q = normalizeQuality(rawQuality);
+  // Dos capas (SPEC-017): una calidad que §5 no lista pero la capa 2 sí trae su grupo, y deriva
+  // igual que cualquier valor del catálogo.
+  const q = resolveQuality(rawQuality);
   const folded = rawQuality.toUpperCase().replace(/\s+/g, ' ').trim();
 
   const deliberate = listUncovered().find(

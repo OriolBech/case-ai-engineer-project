@@ -29,15 +29,16 @@ export type VocabAttribute = 'name' | 'material' | 'quality' | 'norma' | 'finish
 export const VOCAB_ATTRIBUTES: { key: VocabAttribute; label: string; editable: boolean }[] = [
   { key: 'name',     label: 'Nombre',    editable: false },
   { key: 'material', label: 'Material',  editable: true  },
-  { key: 'quality',  label: 'Calidad',   editable: false },
+  { key: 'quality',  label: 'Calidad',   editable: true  },
   { key: 'norma',    label: 'Norma',     editable: false },
   { key: 'finish',   label: 'Acabado',   editable: true  },
 ];
 ```
 
-Today only **material** (P-3, derivation) and **finish** (SPEC-011) are editable. Name, quality,
-and standard are closed catalogs owned by the client (§3, §5, §8): they're listed read-only, with
-their real entries, so the buyer can see everything the system knows how to translate.
+Today **material** (P-3, derivation), **quality** (layer 2 of §5, SPEC-017), and **finish**
+(SPEC-011) are editable. Name and standard are closed catalogs owned by the client (§3, §8): they're
+listed read-only, with their real entries, so the buyer can see everything the system knows how to
+translate.
 
 ### HTTP
 
@@ -67,18 +68,19 @@ An addition from this route is indistinguishable from `pnpm run vocab` / `pnpm r
 
 ## Acceptance criteria
 
-- [x] `/vocabulario` shows all five attributes; material and finish can be extended; the rest are
-      read-only.
+- [x] `/vocabulario` shows all five attributes; material, quality, and finish can be extended; the
+      rest are read-only.
 - [x] `?attr=finish&alias=tropicalizado` opens the addition form pre-filled.
 - [x] `/vocabulario/acabado` and `/api/finish-vocabulary` no longer exist.
-- [x] A finish addition and a material addition from this view write to their respective logs.
-- [x] Name, quality, and standard are listed with the tables' real entries, not a placeholder.
+- [x] A finish addition, a material addition, and a quality addition from this view write to their
+      respective logs.
+- [x] Name and standard are listed with the tables' real entries, not a placeholder.
 
 ## Out of scope
 
 - Policy console (a different object: approved with the KPI delta, not with the ambiguity
   guard). See `docs/03-policies.md`.
-- Making name, quality, and standard editable. Same pattern, three more specs.
+- Making name and standard editable. Same pattern, two more specs.
 - Persisting session suggestions. That's `SPEC-013`.
 
 ## What happens to the KPI if removed

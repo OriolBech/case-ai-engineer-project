@@ -46,7 +46,7 @@ describe('políticas desde el entorno', () => {
       (e: Error) => {
         assert.match(e.message, /POLICY_MISSING_STANDARD="revisar"/);
         assert.match(e.message, /review \| resolve/);
-        assert.match(e.message, /03-politicas\.md/);
+        assert.match(e.message, /03-policies\.md/);
         return true;
       },
     );

@@ -30,6 +30,7 @@ import {
 import type { Provenance } from '../../src/pipeline/types.ts';
 import type { ATTRIBUTE_KEYS } from '../../src/pipeline/types.ts';
 import { FinishVocabAddPanel } from './FinishVocabAddPanel.tsx';
+import { QUALITY_GROUPS } from '../../src/rules/quality.ts';
 import { VOCAB_ACTOR } from '../lib/finish-vocab-ui.ts';
 import type { SuggestionPatch } from './App.tsx';
 
@@ -44,7 +45,7 @@ interface Props {
  *
  * El caso ya trae `candidate` con el id y el patrón sugeridos (`src/pipeline/coverage.ts`); lo único
  * que le falta a la decisión es el material y quién la toma. Nada de escribir JSON a mano: es
- * exactamente el bucle de aprendizaje de `docs/12-system-behind-the-rules.md` §4, con un
+ * exactamente el bucle de aprendizaje de `docs/11-system-behind-the-rules.md` §4, con un
  * formulario de tres campos en vez de una llamada a `pnpm run vocab add`.
  */
 function VocabQuickAdd({
@@ -124,6 +125,96 @@ function VocabQuickAdd({
       <select value={material} onChange={(e) => setMaterial(e.target.value as 'AC' | 'INOX')}>
         <option value="AC">AC (acero)</option>
         <option value="INOX">INOX (inoxidable)</option>
+      </select>
+      <input
+        value={rationale}
+        onChange={(e) => setRationale(e.target.value)}
+        placeholder="motivo (opcional)"
+      />
+      <button className="wf-btn primary small" type="submit" disabled={state === 'saving'}>
+        {state === 'saving' ? 'Guardando…' : 'Confirmar'}
+      </button>
+      {error && <span className="vocab-quickadd-error">{error}</span>}
+    </form>
+  );
+}
+
+/**
+ * Alta rápida en el vocabulario de calidad (capa 2 de §5, SPEC-017) desde un hueco del backlog.
+ *
+ * Igual de ágil que la de material, con una diferencia de fondo: aquí la decisión no es "¿AC o
+ * INOX?" sino "¿con qué grupo de §5 es intercambiable?". El hueco trae el token; el grupo NO se
+ * propone, porque proponerlo sería inventarse la equivalencia — se elige en el desplegable.
+ *
+ * No hay re-aplicación en caliente sobre el MTO abierto: el grupo mueve coherencia y material, y
+ * eso se recalcula en el servidor al reprocesar, no a mano en el cliente.
+ */
+function QualityQuickAdd({ value }: { value: string }) {
+  const [open, setOpen] = useState(false);
+  const [group, setGroup] = useState('G5');
+  const [rationale, setRationale] = useState('');
+  const [state, setState] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setState('saving');
+    setError(null);
+    setWarnings([]);
+    try {
+      const res = await fetch('/api/vocabulary', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          attribute: 'quality',
+          match: value,
+          value: group,
+          rationale,
+          decidedBy: VOCAB_ACTOR,
+          evidence: 'UI comprador (backlog)',
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setWarnings(body.warnings ?? []);
+      setState('done');
+    } catch (e2) {
+      setError(e2 instanceof Error ? e2.message : String(e2));
+      setState('error');
+    }
+  };
+
+  if (state === 'done') {
+    return (
+      <div className="vocab-quickadd-wrap">
+        <p className="kpi-help vocab-quickadd-done">
+          Añadida. Se aplicará igual a todos los MTO siguientes; reprocesa este para ver el efecto.
+        </p>
+        {warnings.length > 0 && (
+          <div className="vocab-warning">
+            <strong>Se ha guardado igual, pero ojo:</strong>
+            <ul>{warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+  if (!open) {
+    return (
+      <button className="wf-btn small" onClick={() => setOpen(true)}>
+        Añadir al vocabulario
+      </button>
+    );
+  }
+  return (
+    <form className="vocab-quickadd" onSubmit={submit}>
+      <select value={group} onChange={(e) => setGroup(e.target.value)}>
+        {[...QUALITY_GROUPS].map(([g, values]) => (
+          <option key={g} value={g}>
+            {g} · {values[0]}
+          </option>
+        ))}
       </select>
       <input
         value={rationale}
@@ -430,6 +521,11 @@ export function KpiPanel({ result, onSuggestionApplied, onClose }: Props) {
                     {b.kind === 'UNCOVERED_DERIVATION' && b.candidate && (
                       <div className="vocab-quickadd-wrap">
                         <VocabQuickAdd candidate={b.candidate} value={b.value} onApplied={onSuggestionApplied} />
+                      </div>
+                    )}
+                    {b.kind === 'UNKNOWN_VALUE' && b.attribute === 'quality' && b.candidate && (
+                      <div className="vocab-quickadd-wrap">
+                        <QualityQuickAdd value={b.value} />
                       </div>
                     )}
                     {b.kind === 'UNKNOWN_VALUE' && b.attribute === 'finish' && (

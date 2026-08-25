@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ProcessEvent, ProcessSummary } from '../lib/api-types.ts';
 import type { OutputLine, Provenance } from '../../src/pipeline/types.ts';
-import { effectiveQueue, formatEur, formatSeconds } from '../lib/derive.ts';
-import { postCorrection } from '../lib/corrections-client.ts';
+import { effectiveQueue, formatEur, formatSeconds, queueOf } from '../lib/derive.ts';
+import { recordCorrectionKpiEvent } from '../lib/kpi-client.ts';
 import { UploadScreen, type UploadProgress } from './UploadScreen.tsx';
 import { QueueScreen } from './QueueScreen.tsx';
 import { TracePanel } from './TracePanel.tsx';
@@ -51,6 +51,9 @@ export function App() {
   // Guardar la decisión es darla por buena: esas líneas cuentan como resueltas en esta sesión.
   const [applied, setApplied] = useState<Map<string, AppliedPatch>>(new Map());
   const [processedMtoId, setProcessedMtoId] = useState<string | null>(null);
+  const [kpiSessionId] = useState(() =>
+    globalThis.crypto?.randomUUID?.() ?? `session-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
 
   const rowsSourceText = useMemo(() => {
     const m = new Map<string, string>();
@@ -73,6 +76,14 @@ export function App() {
       return { ...l, attributes: { ...l.attributes, [p.key]: patched } } as OutputLine;
     });
   }, [result, applied]);
+
+  const openTrace = useCallback((lineId: string) => {
+    setTraceLineId(lineId);
+    const line = displayLines.find((candidate) => candidate.id === lineId);
+    if (line && queueOf(line) === 'revision') {
+      recordCorrectionKpiEvent(kpiSessionId, lineId, 'started');
+    }
+  }, [displayLines, kpiSessionId]);
 
   // Reabre un MTO desde `/mto-history`: ?mto=<id> en la URL trae el mismo `ProcessSummary` que ya
   // se enseñó en su momento, guardado por `app/api/process/route.ts` en cada procesamiento. Cero UI
@@ -156,62 +167,9 @@ export function App() {
   // Validar = una persona da por buena la línea. Pasa a resuelta. También lo hace aceptar una
   // sugerencia de vocabulario: guardar es decidir, no hay un segundo paso.
   const validateLines = useCallback(async (ids: string[]) => {
-    const corrErrors: string[] = [];
-    if (result) {
-      for (const id of ids) {
-        const orig = result.lines.find((l) => l.id === id);
-        if (!orig) continue;
-        const sourceText = rowsSourceText.get(orig.rowRef);
-        if (!sourceText) continue;
-        const patch = applied.get(id);
-        if (patch) continue;
-        const display = displayLines.find((l) => l.id === id) ?? orig;
-        for (const key of ['finish', 'material'] as const) {
-          const prev = orig.attributes[key].normalized;
-          const next = display.attributes[key].normalized;
-          if (prev === next) continue;
-          const evidence = rawFor(orig, key) ?? orig.attributes[key].raw;
-          if (!evidence) continue;
-          try {
-            await postCorrection({
-              rowRef: orig.rowRef,
-              lineId: orig.id,
-              attribute: key,
-              previousValue: prev,
-              correctedValue: next,
-              evidence,
-              rationale: 'Corregido en cola',
-              rowSourceText: sourceText,
-            });
-          } catch (e) {
-            corrErrors.push(e instanceof Error ? e.message : String(e));
-          }
-        }
-      }
-    }
-    if (corrErrors.length) setError(corrErrors.join(' · '));
+    for (const id of ids) recordCorrectionKpiEvent(kpiSessionId, id, 'saved');
     setConfirmed((prev) => new Set([...prev, ...ids]));
-  }, [result, rowsSourceText, applied, displayLines]);
-
-  const recordPatchCorrection = useCallback(
-    async (line: OutputLine, patch: AppliedPatch, match: string) => {
-      const sourceText = rowsSourceText.get(line.rowRef);
-      if (!sourceText) throw new Error(`No hay texto de fila para ${line.rowRef}.`);
-      const evidence = rawFor(line, patch.key) ?? line.attributes[patch.key].raw ?? match;
-      if (!evidence) throw new Error(`Falta evidencia literal en la línea ${line.id}.`);
-      await postCorrection({
-        rowRef: line.rowRef,
-        lineId: line.id,
-        attribute: patch.key,
-        previousValue: line.attributes[patch.key].normalized,
-        correctedValue: patch.value,
-        evidence,
-        rationale: 'Corregido en cola',
-        rowSourceText: sourceText,
-      });
-    },
-    [rowsSourceText],
-  );
+  }, [kpiSessionId]);
 
   // Aceptar una sugerencia: re-aplica el vocabulario en caliente a las líneas del MTO abierto cuyo
   // texto coincide, y las da por resueltas en esta sesión.
@@ -223,36 +181,23 @@ export function App() {
       p.attribute === 'material' ? 'derived' : value === null ? 'absent' : 'table_normalized';
     const needle = norm(p.match);
     const ids: string[] = [];
-    const lines: OutputLine[] = [];
     for (const l of result.lines) {
       if (l.attributes[p.attribute].normalized !== null) continue;
       const raw = rawFor(l, p.attribute);
       if (raw && norm(raw) === needle) {
         ids.push(l.id);
-        lines.push(l);
       }
     }
     if (ids.length === 0) return;
     const patch: AppliedPatch = { key: p.attribute, value, provenance };
-    const corrErrors: string[] = [];
-    for (const l of lines) {
-      try {
-        await recordPatchCorrection(l, patch, p.match);
-      } catch (e) {
-        corrErrors.push(e instanceof Error ? e.message : String(e));
-      }
-    }
-    if (corrErrors.length) {
-      setError(corrErrors.join(' · '));
-      return;
-    }
+    for (const id of ids) recordCorrectionKpiEvent(kpiSessionId, id, 'saved');
     setApplied((prev) => {
       const n = new Map(prev);
       for (const id of ids) n.set(id, patch);
       return n;
     });
     setConfirmed((prev) => new Set([...prev, ...ids]));
-  }, [result, recordPatchCorrection]);
+  }, [result, kpiSessionId]);
 
   if (phase !== 'ready' || !result) {
     return (
@@ -307,7 +252,7 @@ export function App() {
         rowsSourceText={rowsSourceText}
         confirmed={confirmed}
         onValidate={validateLines}
-        onOpenTrace={setTraceLineId}
+        onOpenTrace={openTrace}
         processedMtoId={processedMtoId}
       />
 

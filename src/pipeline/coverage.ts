@@ -11,7 +11,7 @@
  * resolving it by default, and that the gap becomes a traceable decision rather than a purchase.
  *
  * A gap is NOT a data problem, so it does not go to the buyer's queue. It goes to the policy
- * backlog: decisions the project owes. See docs/12-system-behind-the-rules.md.
+ * backlog: decisions the project owes. See docs/11-system-behind-the-rules.md.
  */
 
 import type { MtoRow, OutputLine } from './types.ts';
@@ -21,7 +21,7 @@ import { findStandards } from '../rules/standards.ts';
 import { findFinishes } from '../rules/finish.ts';
 import { resolveFinish } from '../rules/finish-db.ts';
 import { suggestFinishEntryId } from '../rules/finish-vocab-id.ts';
-import { normalizeQuality } from '../rules/quality.ts';
+import { resolveQuality } from '../rules/quality-db.ts';
 import { deriveMaterial, isDerived } from '../rules/vocabulary-db.ts';
 
 export type GapKind =
@@ -128,17 +128,42 @@ export function detectGaps(row: MtoRow, lines: OutputLine[]): PolicyGap[] {
     }
   }
 
-  // --- qualities outside the catalogue that do not look like a grade -------
+  // --- qualities outside BOTH catalogues ---------------------------------
+  //
+  // La calidad tiene dos capas (SPEC-017): §5 y el vocabulario editable. Cubierta por cualquiera de
+  // las dos, no hay hueco. Ambigua (dos entradas de capa 2 en conflicto) tampoco es un hueco nuevo:
+  // es una desambiguación que la tabla debe, y se dice con ese motivo.
   for (const line of lines) {
     const q = line.attributes.quality;
     if (!q.raw) continue;
-    const norm = normalizeQuality(q.raw);
-    if (norm.inCatalog) continue;
+    const norm = resolveQuality(q.raw);
+    if (norm.source === 'catalog' || norm.source === 'vocab') continue;
+    if (norm.source === 'ambiguous') {
+      gaps.push({
+        kind: 'UNKNOWN_VALUE', rowRef: row.itemRef, attribute: 'quality', value: q.raw,
+        detail: `La calidad "${q.raw}" la cubren dos entradas del vocabulario con grupos distintos ` +
+          `(${norm.candidates?.map((c) => `${c.entryId} → ${c.group}`).join(', ')}). ` +
+          'Retira una con su motivo: mientras tanto no se puede saber con qué es intercambiable.',
+      });
+      continue;
+    }
     if (KNOWN_GRADE.test(q.raw.trim())) continue;
     gaps.push({
       kind: 'UNKNOWN_VALUE', rowRef: row.itemRef, attribute: 'quality', value: q.raw,
       detail: `La calidad "${q.raw}" no está en el catálogo ni encaja con un grado conocido. ` +
         'Se resolvería tal cual por §5, que está escrita pensando en grados ASTM; este valor necesita una decisión.',
+      candidate: {
+        id: `qual-${q.raw.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}-pendiente`,
+        alias: q.raw,
+        kind: 'alias',
+        // El grupo NO se propone: declarar con qué es intercambiable es la decisión, y proponerlo
+        // sería inventarla. El alta lo elige.
+        group: null,
+        rationale: '',
+        evidence: '',
+        decidedBy: '',
+        source: 'UI comprador (backlog)',
+      },
     });
   }
 

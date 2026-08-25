@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "attribute": "quality",
+  "note": "Capa 2 de §5 (SPEC-017): tokens de calidad que el catálogo del cliente no lista, declarados equivalentes a uno de sus 14 grupos. Vacía de semilla a propósito: nace sin entradas y crece solo por decisiones registradas en quality-alias.log.jsonl.",
+  "entries": []
+}

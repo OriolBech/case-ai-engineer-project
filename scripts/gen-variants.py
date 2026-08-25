@@ -51,10 +51,11 @@ save('v02-ingles-otro-orden','orden de columnas y detección de cantidad', [('Sh
  [['ITEM','QTY','UNIT','DESCRIPTION','MATERIAL SPEC','SIZE','WEIGHT KG']] +
  [[i,c,'pcs',d,m,me,round(c*0.12,2)] for i,d,m,me,c in BASE])])
 
-# V3 Q'TY (no encaja con mi regex) y sin columna ITEM
+# V3 Q'TY y sin columna ITEM. expectQuantity=True: el plegado de cabeceras quita la puntuación,
+# así que Q'TY sí se reconoce (hay test dedicado en variants.test.ts).
 save("v03-qty-apostrofo","regex de cantidad (Q'TY) y ausencia de ITEM", [('MTO',
  [['DESCRIPTION',"Q'TY",'UOM','MATL']] +
- [[d,c,'EA',m] for i,d,m,me,c in BASE])], expect_qty=False)
+ [[d,c,'EA',m] for i,d,m,me,c in BASE])])
 
 # V4 sin columna de cantidad en absoluto
 save('v04-sin-cantidad','ausencia total de cantidad', [('BOM',
@@ -89,10 +90,130 @@ save('v09-tipos-sucios','lectura de celdas con tipos inconsistentes', [('MTO',
  [['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.','UD']] +
  [[str(i),d,m,me,(f'{c}' if i%2 else f'{c},00'),'uds'] for i,d,m,me,c in BASE])])
 
-# V10 cabeceras en francés (estudio externo)
+# V10 cabeceras en francés (estudio externo). expectQuantity=True: QUANTITÉ se pliega a
+# QUANTITE, que sí es token de cantidad.
 save('v10-frances','cabeceras en otro idioma', [('Feuille1',
  [['REPÈRE','DÉSIGNATION','MATIÈRE','DIMENSION','QUANTITÉ','UNITÉ']] +
- [[i,d,m,me,c,'pcs'] for i,d,m,me,c in BASE])], expect_qty=False)
+ [[i,d,m,me,c,'pcs'] for i,d,m,me,c in BASE])])
+
+# V11 filas en blanco intercaladas: se descartan como EMPTY_ROW y se reportan, no se omiten en silencio
+rows=[]
+for k,(i,d,m,me,c) in enumerate(BASE):
+    rows.append([i,d,m,me,c,'uds'])
+    if k in (2,7,12): rows.append([''])
+save('v11-blancos-intercalados','filas en blanco intercaladas (EMPTY_ROW reportado)', [('MTO',
+ [['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.','UD']] + rows)])
+
+# V12 ITEM alfanumérico: la referencia no siempre es un número
+save('v12-item-alfanumerico','referencias de línea alfanuméricas (TOR-001)', [('MTO',
+ [['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.','UD']] +
+ [[f'TOR-{i:03d}',d,m,me,c,'uds'] for i,d,m,me,c in BASE])])
+
+# V13 tres hojas: portada + DOS hojas de datos; sólo la primera con cabeceras se procesa
+save('v13-tres-hojas','dos hojas con datos: la segunda se ignora y se reporta', [
+ ('PORTADA',[['MEMORIA DE MATERIALES'],['Rev 12']]),
+ ('TORNILLERIA_A',[['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.','UD']] +
+  [[i,d,m,me,c,'uds'] for i,d,m,me,c in BASE]),
+ ('TORNILLERIA_B',[['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.','UD']] +
+  [[i,d,m,me,c,'uds'] for i,d,m,me,c in BASE])])
+
+# V14 primera hoja completamente vacía; los datos están en la segunda
+save('v14-hoja-vacia','primera hoja vacía, datos en la segunda', [
+ ('VACIA',[]),
+ ('MTO',[['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.','UD']] +
+  [[i,d,m,me,c,'uds'] for i,d,m,me,c in BASE])])
+
+# V15 carátula de 24 filas: la cabecera cae en la fila 25, justo en el límite del escaneo
+save('v15-cabecera-en-el-limite','detección de cabeceras en el límite del escaneo (fila 25)', [('MTO',
+ [['PROYECTO: P-2291'],['CLIENTE: EPC ASTURIANA'],['DOC: 2291-MTO-TOR-012'],['REV: C'],
+  ['FECHA: 2026-08-01'],['ELABORADO: DEPT. MATERIALES'],['REVISADO:'],['APROBADO:'],
+  [],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],
+  ['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.','UD']] +
+ [[i,d,m,me,c,'uds'] for i,d,m,me,c in BASE])])
+
+# V16 cabecera con salto de línea: el plegado de cabeceras la reconoce
+save('v16-salto-linea-cabecera',"cabecera con salto de línea ('CANT.\\nTOTAL')", [('MTO',
+ [['ITEM','DESCRIPCIÓN','MATERIAL','MEDIDA','CANT.\nTOTAL','UD']] +
+ [[i,d,m,me,c,'uds'] for i,d,m,me,c in BASE])])
+
+# V17 cabeceras en minúsculas y con diacríticos
+save('v17-minusculas-diacriticos','cabeceras en minúsculas con diacríticos', [('MTO',
+ [['ítem','descripción','material','medida','cantidad','ud']] +
+ [[i,d,m,me,c,'uds'] for i,d,m,me,c in BASE])])
+
+# V18 cabeceras en alemán: MENGE no es un token de cantidad reconocido
+save('v18-aleman','cabeceras en alemán: MENGE no reconocida, se avisa con candidatas', [('Blatt1',
+ [['POS','BEZEICHNUNG','WERKSTOFF','ABMESSUNG','MENGE','EINHEIT']] +
+ [[i,d,m,me,c,'Stück'] for i,d,m,me,c in BASE])], expect_qty=False)
+
+# V19 cabeceras en portugués: QTDE tampoco es token reconocido
+save('v19-portugues','cabeceras en portugués: QTDE no reconocida, se avisa', [('Folha1',
+ [['ITEM','DESCRIÇÃO','MATERIAL','MEDIDA','QTDE','UD']] +
+ [[i,d,m,me,c,'pçs'] for i,d,m,me,c in BASE])], expect_qty=False)
+
+# V20 cantidad como fórmula sin valor cacheado: no se inventa, sale null
+save('v20-formulas-sin-cache','cantidad como fórmula sin valor cacheado (null, no inventada)', [('MTO',
+ [['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.','UD']] +
+ [[i,d,m,me,f'={c}','uds'] for i,d,m,me,c in BASE])], expect_qty=False)
+
+# V21 la única columna de cantidad se llama UDS: token de último recurso, y no hay unidad aparte
+save('v21-uds-como-cantidad',"cantidad en columna 'UDS' (token de último recurso)", [('MTO',
+ [['ITEM','DESCRIPCION','MATERIAL','MEDIDA','UDS']] +
+ [[i,d,m,me,c] for i,d,m,me,c in BASE])])
+
+# V22 NOS como cantidad y UOM como unidad (jerga americana)
+save('v22-nos-como-cantidad',"cantidad 'NOS' y unidad 'UOM'", [('MTO',
+ [['ITEM','DESCRIPTION','MATL','SIZE','NOS','UOM']] +
+ [[i,d,m,me,c,'EA'] for i,d,m,me,c in BASE])])
+
+# V23 QTY con pesos y CANT. con las cantidades: la prioridad de la tabla manda, no el orden
+save('v23-prioridad-cant-sobre-qty',"dos columnas candidatas: 'CANT.' gana a 'QTY' aunque vaya después", [('MTO',
+ [['ITEM','DESCRIPCION','QTY','MATERIAL','MEDIDA','CANT.','UD']] +
+ [[i,d,round(c*0.12,2),m,me,c,'uds'] for i,d,m,me,c in BASE])])
+
+# V24 dos columnas llamadas MATERIAL: la calidad está en la segunda, como en el MTO real
+save('v24-cabecera-duplicada',"cabecera duplicada ('MATERIAL' dos veces)", [('MTO',
+ [['ITEM','DESCRIPCION','MATERIAL','MATERIAL','MEDIDA','CANT.','UD']] +
+ [[i,d,'acero',m,me,c,'uds'] for i,d,m,me,c in BASE])])
+
+# V25 título con celdas combinadas sobre las cabeceras. El merge se limita a 2 columnas a
+# propósito: ExcelJS replica el valor maestro en todas las celdas del rango, así que un título
+# combinado sobre ≥3 columnas simula una fila de cabeceras y rompe la detección. Ese hueco
+# (banner combinado ancho) queda documentado en docs/10-benchmarks.md.
+wb=openpyxl.Workbook(); wb.remove(wb.active)
+ws=wb.create_sheet('MTO')
+ws.append(['MTO TORNILLERÍA — PLANTA DE TRATAMIENTO']); ws.merge_cells('A1:B1')
+ws.append([]); ws.append([])
+ws.append(['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.','UD'])
+for i,d,m,me,c in BASE: ws.append([i,d,m,me,c,'uds'])
+wb.save(f'{OUT}/v25-celdas-combinadas.xlsx')
+manifest.append({'file':'v25-celdas-combinadas.xlsx','ataca':'celdas combinadas sobre la cabecera','expectQuantity':True})
+
+# V26 columna de fechas reales (objetos Date, no texto)
+import datetime
+save('v26-fechas','celdas de fecha (Date) junto a los datos', [('MTO',
+ [['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.','UD','ENTREGA']] +
+ [[i,d,m,me,c,'uds',datetime.date(2026,9,(i%28)+1)] for i,d,m,me,c in BASE])])
+
+# V27 cantidades como texto con espacios duros (copia desde PDF)
+save('v27-espacios-duros','cantidades con espacios duros (NBSP) alrededor', [('MTO',
+ [['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.','UD']] +
+ [[i,d,m,me,f' {c} ','uds'] for i,d,m,me,c in BASE])])
+
+# V28 una celda extra sin cabecera al final de cada fila: la anchura la fija la cabecera
+save('v28-celda-huerfana','celdas más allá de la última cabecera se descartan', [('MTO',
+ [['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.','UD']] +
+ [[i,d,m,me,c,'uds','nota sin cabecera'] for i,d,m,me,c in BASE])])
+
+# V29 columnas en orden inverso: nada depende de la posición
+save('v29-orden-inverso','columnas en orden inverso', [('MTO',
+ [['UD','CANT.','MEDIDA','MATERIAL','DESCRIPCION','ITEM']] +
+ [['uds',c,me,m,d,i] for i,d,m,me,c in BASE])])
+
+# V30 unidad pegada a la cantidad en la misma celda
+save('v30-unidad-pegada',"unidad pegada a la cantidad ('40 uds')", [('MTO',
+ [['ITEM','DESCRIPCION','MATERIAL','MEDIDA','CANT.']] +
+ [[i,d,m,me,f'{c} uds'] for i,d,m,me,c in BASE])])
 
 json.dump(manifest, open(f'{OUT}/manifest.json','w'), indent=2, ensure_ascii=False)
 print(f'{len(manifest)} variantes en {OUT}/')

@@ -2,7 +2,7 @@
  * OpenRouter latency options: provider routing and reasoning effort.
  *
  * The same open model is served at ~50 tok/s by one provider and ~2.000 tok/s by another, which
- * is where the 9x latency variance in docs/11-benchmarks.md comes from. These options are how the
+ * is where the 9x latency variance in docs/10-benchmarks.md comes from. These options are how the
  * pipeline stops depending on OpenRouter's default route — and because they can change the output,
  * they are part of the disk-cache key.
  */

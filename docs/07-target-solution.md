@@ -70,7 +70,9 @@ part that matters.
 
 **Why material came first, and finish second.** Material is in a database because **deriving it
 is our own opinion** (P-3). Finish came next because it was the only closed catalog that **was
-failing silently** (P-12). Name, quality, and standard **already have a closed client catalog** and
+failing silently** (P-12). Quality came third (SPEC-017) when the client asked for the same agile
+flow: its contradiction guard against §5 is the central piece, because an entry there declares
+interchangeability. Name and standard **already have a closed client catalog** and
 an escape hatch for the unknown: they're listed in the view, but not yet editable. Putting the
 client's catalog and our own decisions in the same table without layers would mix *"what their
 document says"* with *"what we decided."*
@@ -92,7 +94,7 @@ attribute**, which is exactly the trace the challenge asks for.
 | **Name** | Yes, the first one | It's the gateway to everything else: out-of-family verdict, requirements, quality/type coherence. And it's **the one place where the model's guess still wins today** when the table misses (`normalize.ts:63`) — exactly where it's measured to get it wrong ("STUD BOLT" → VARILLA ROSCADA). Rows 60 and 61 of the synthetic set are French and Portuguese |
 | **Finish** | Yes — **layer 2 already in production** (SPEC-011) | 7 values, and the aliases are workshop and supplier jargon. An unrecognized alias **changes the part being purchased**. P-12 sends it to review |
 | **Standard** | Yes, partially | Its rule already covers the gap (an out-of-table DIN is kept as-is), so there's no bleeding here. What layer 2 buys are **new** equivalences |
-| **Quality** | Yes, the last one, and with a signature | Adding a quality grade here isn't normalizing: it's **declaring two things interchangeable**. `A2-80` is not `A2` — that's why G2 is isolated. It's decided by someone who can answer for a substitution, not a buyer with a three-field form |
+| **Quality** | Yes — **layer 2 already in production** (SPEC-017) | Adding a quality grade here isn't normalizing: it's **declaring two things interchangeable**. `A2-80` is not `A2` — that's why G2 is isolated. The contradiction guard against §5 has existed from day one; the mandatory signature (someone accountable for the substitution) is still out of scope — that's an approval console |
 | **Size** and **Length** | **No** | It's not vocabulary, it's a grammar. P-10 is the proof: it needed a **shape** rule (§6: `M` or inches marks), not a table of values. A list of aliases here would be infinite and wouldn't fix anything |
 
 That last row is the one I'd defend in the session: four yes, two no, with the reason. Putting a

@@ -11,7 +11,8 @@
 
 import type { AnalyzedElement } from './analyze.ts';
 import { normalizeName, findNames } from '../rules/names.ts';
-import { normalizeQuality, type QualityResult } from '../rules/quality.ts';
+import { type QualityResult } from '../rules/quality.ts';
+import { resolveQuality, type QualityResolution } from '../rules/quality-db.ts';
 import { normalizeStandard } from '../rules/standards.ts';
 import { resolveFinish } from '../rules/finish-db.ts';
 import { normalizeMaterial, findMaterials } from '../rules/material.ts';
@@ -71,18 +72,23 @@ export function normalizeElement(el: AnalyzedElement): NormalizedElement {
         provenance: 'table_normalized',
         span: el.span,
         // The rule records WHO decided, so the trace panel can show it in the challenge.
-        rule: tableHit
-          ? `name:table:${nameHit.alias}->${nameHit.value}`
-          : `name:model:${el.normalizedName}->${nameHit.value}`,
+        rule: nameHit.aliasEntryId
+          ? `name:alias:${nameHit.aliasEntryId}->${nameHit.value}`
+          : tableHit
+            ? `name:table:${nameHit.alias}->${nameHit.value}`
+            : `name:model:${el.normalizedName}->${nameHit.value}`,
       }
     : { ...absent<ItemName>(), raw: el.detectedName };
 
   // --- quality ------------------------------------------------------------
   const rawQuality = el.attributes.quality.value;
   let quality = absent<string>();
-  let qualityResult: QualityResult | null = null;
+  let qualityResult: QualityResolution | null = null;
   if (rawQuality) {
-    qualityResult = normalizeQuality(rawQuality);
+    // Dos capas (SPEC-017): primero §5, después el vocabulario editable. El grupo resultante —de la
+    // capa que sea— es el que alimenta la coherencia tipo/calidad y la derivación de material.
+    qualityResult = resolveQuality(rawQuality);
+    const known = qualityResult.source === 'catalog' || qualityResult.source === 'vocab';
     quality = {
       raw: rawQuality,
       // The value AS WRITTEN, never the group's representative.
@@ -91,11 +97,20 @@ export function normalizeElement(el: AnalyzedElement): NormalizedElement {
       // first value. That loses specificity: `A4-70` and `A4` are the same group, but `A4-70` is a
       // tighter spec than `A4`, and rewriting what engineering asked for is a spec change made by
       // the system. The group travels alongside (rule: `quality:G3`) and is what the RFQ grouping
-      // and the equivalence checks use.
+      // and the equivalence checks use. Lo mismo aplica a la capa 2: la entrada declara el grupo,
+      // la línea sigue emitiendo lo que ingeniería escribió.
       normalized: rawQuality.trim(),
-      provenance: qualityResult.inCatalog ? 'table_normalized' : 'extracted_uncatalogued',
+      provenance: known ? 'table_normalized' : 'extracted_uncatalogued',
       span: el.attributes.quality.span,
-      rule: qualityResult.group ? `quality:${qualityResult.group}` : 'quality:out_of_catalog',
+      rule: qualityResult.aliasEntryId
+        ? `quality:alias:${qualityResult.aliasEntryId}->${qualityResult.resolved}`
+        : qualityResult.source === 'vocab'
+          ? `quality:vocab:${qualityResult.entryId}:${qualityResult.group}`
+          : qualityResult.source === 'ambiguous'
+            ? 'quality:vocab:ambiguous'
+            : qualityResult.group
+              ? `quality:${qualityResult.group}`
+              : 'quality:out_of_catalog',
     };
   }
 

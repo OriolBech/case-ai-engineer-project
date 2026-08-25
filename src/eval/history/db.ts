@@ -2,7 +2,8 @@
  * Histórico de evaluación, en SQLite. Ver specs/SPEC-010-evaluation-history.md.
  *
  * Cuatro entidades: ejecución, métrica, resultado de línea y corrección humana. Append-only para
- * resultados: guardar una ejecución nunca reescribe ni borra una anterior (ver `store.ts`).
+ * resultados y para eventos de corrección: el estado actual es una proyección materializada del
+ * histórico `correction_events`, no un sustituto de ese histórico.
  *
  * Los JSON persistidos llevan versión de esquema (`toJson`/`fromJson`), y la base entera lleva la
  * suya en `schema_meta`. Abrir una base escrita con un esquema distinto revienta en vez de
@@ -13,14 +14,16 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 const DB_PATH = join('data', 'eval', 'history.sqlite');
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
-const SCHEMA = `
+const META_SCHEMA = `
 CREATE TABLE IF NOT EXISTS schema_meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+`;
 
+const SCHEMA = `
 CREATE TABLE IF NOT EXISTS evaluation_runs (
   id TEXT PRIMARY KEY,
   created_at TEXT NOT NULL,
@@ -81,11 +84,29 @@ CREATE TABLE IF NOT EXISTS human_corrections (
   author TEXT NOT NULL DEFAULT '',
   rationale TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'PROMOTED')),
-  promoted_entry_id TEXT
+  promoted_entry_id TEXT,
+  approved_at TEXT,
+  approved_by TEXT,
+  rejected_at TEXT,
+  rejected_by TEXT,
+  promoted_at TEXT,
+  promoted_by TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_corrections_status ON human_corrections(status);
 CREATE INDEX IF NOT EXISTS idx_corrections_row ON human_corrections(row_ref, attribute);
+
+CREATE TABLE IF NOT EXISTS correction_events (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  correction_id TEXT NOT NULL REFERENCES human_corrections(id),
+  action TEXT NOT NULL CHECK (action IN ('PROPOSED', 'APPROVED', 'REJECTED', 'PROMOTED')),
+  at TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  detail TEXT NOT NULL DEFAULT '',
+  promoted_entry_id TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_correction_events_id ON correction_events(correction_id, seq);
 
 -- Sugerencias de vocabulario. Espeja el contrato del front (app/components/App.tsx 'SuggestionPatch'
 -- = { attribute, match, value }) para que enchufar front <-> persistencia sea trivial, y añade el
@@ -127,6 +148,50 @@ CREATE INDEX IF NOT EXISTS idx_suggestions_attr ON vocab_suggestions(attribute);
 
 let db: DatabaseSync | null = null;
 
+function migrateV1ToV2(conn: DatabaseSync): void {
+  conn.exec('BEGIN IMMEDIATE');
+  try {
+    conn.exec(`
+      ALTER TABLE human_corrections ADD COLUMN approved_at TEXT;
+      ALTER TABLE human_corrections ADD COLUMN approved_by TEXT;
+      ALTER TABLE human_corrections ADD COLUMN rejected_at TEXT;
+      ALTER TABLE human_corrections ADD COLUMN rejected_by TEXT;
+      ALTER TABLE human_corrections ADD COLUMN promoted_at TEXT;
+      ALTER TABLE human_corrections ADD COLUMN promoted_by TEXT;
+
+      CREATE TABLE correction_events (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        correction_id TEXT NOT NULL REFERENCES human_corrections(id),
+        action TEXT NOT NULL CHECK (action IN ('PROPOSED', 'APPROVED', 'REJECTED', 'PROMOTED')),
+        at TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        detail TEXT NOT NULL DEFAULT '',
+        promoted_entry_id TEXT
+      );
+      CREATE INDEX idx_correction_events_id ON correction_events(correction_id, seq);
+    `);
+    conn.exec(`
+      INSERT INTO correction_events (correction_id, action, at, actor, detail)
+      SELECT id, 'PROPOSED', created_at, author, 'Migrado desde esquema v1'
+      FROM human_corrections;
+
+      INSERT INTO correction_events (correction_id, action, at, actor, detail, promoted_entry_id)
+      SELECT id, status, created_at, author,
+             'Migrado desde esquema v1; fecha y actor de transición originales no disponibles',
+             promoted_entry_id
+      FROM human_corrections
+      WHERE status != 'PENDING';
+    `);
+    conn.prepare(`UPDATE schema_meta SET value = ? WHERE key = 'version'`).run(
+      String(SCHEMA_VERSION),
+    );
+    conn.exec('COMMIT');
+  } catch (error) {
+    conn.exec('ROLLBACK');
+    throw error;
+  }
+}
+
 export function openHistoryDb(opts: { dbPath?: string } = {}): DatabaseSync {
   if (db) return db;
   const dbPath = opts.dbPath ?? process.env.EVAL_HISTORY_DB ?? DB_PATH;
@@ -136,14 +201,21 @@ export function openHistoryDb(opts: { dbPath?: string } = {}): DatabaseSync {
   // eval -- --save` y una consulta de `pnpm run eval:history`), y WAL deja leer mientras otro escribe.
   if (dbPath !== ':memory:') db.exec('PRAGMA journal_mode = WAL');
   db.exec('PRAGMA busy_timeout = 5000');
-  db.exec(SCHEMA);
+  db.exec('PRAGMA foreign_keys = ON');
+  db.exec(META_SCHEMA);
 
   const meta = db.prepare(`SELECT value FROM schema_meta WHERE key = 'version'`).get() as
     | { value: string }
     | undefined;
   if (!meta) {
+    db.exec(SCHEMA);
     db.prepare(`INSERT INTO schema_meta (key, value) VALUES ('version', ?)`).run(String(SCHEMA_VERSION));
-  } else if (Number(meta.value) !== SCHEMA_VERSION) {
+  } else if (Number(meta.value) === 1) {
+    migrateV1ToV2(db);
+    db.exec(SCHEMA);
+  } else if (Number(meta.value) === SCHEMA_VERSION) {
+    db.exec(SCHEMA);
+  } else {
     throw new Error(
       `${dbPath} fue escrita con el esquema v${meta.value}, y este código espera v${SCHEMA_VERSION}. ` +
         'Falta una migración explícita: no se reinterpreta en silencio.',
