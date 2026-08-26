@@ -141,7 +141,15 @@ Implemented in `src/eval/harness.ts` (`outOfScope`) and visible in `pnpm run eva
 `pnpm run cost` (cache forced off: measuring against the cache would measure the cache).
 
 **Model delivered:** `openai/gpt-oss-120b` via OpenRouter. Tokens measured on the real MTO:
-**1,730 input / 652 output per row** · **€0.000095/row**.
+**2,536 input / 1,422 output per row** · **€0.00024/row** (measured 2026-08-26, `pnpm run cost`,
+`LLM_CACHE=off`).
+
+> **Re-measured, and it went up 2.5×.** The figure here used to be `1,730 / 652` and
+> **€0.000095/row**, and that number no longer reproduces. Same model, same provider, same prompt
+> family — what moved is **output**: 652 → 1,422 tokens per row, ×2.2. Since ~96% of the cost at
+> scale is output, that is the whole delta. The likeliest cause is `LLM_REASONING_EFFORT=medium`:
+> OpenRouter bills reasoning tokens as output, and the old figure predates fixing that level. Not
+> diagnosed further on purpose — the number is what it is, and it is quoted as measured.
 
 **Denominator: rows read, not fastener-hardware rows.** 20,000 × 25 = **500,000 reads per site**.
 The figures with 4,000 × 25 = 100,000 and with prompt caching (€69/revision, €1,726/site on
@@ -150,7 +158,7 @@ The figures with 4,000 × 25 = 100,000 and with prompt caching (€69/revision, 
 | | €/row | € per site (500,000 reads) | vs. €87,500 manual |
 |---|---|---|---|
 | `gpt-5.5` | 0.0175 | **8,750** | 10.0% |
-| **`gpt-oss-120b` (delivered)** | **0.000095** | **48** | **0.05%** |
+| **`gpt-oss-120b` (delivered)** | **0.00024** | **121** | **0.14%** |
 
 **Latency for 1,000 lines:** not promised. The 24.8 s/row from a single `gpt-5.5` pass was
 invalidated (range 6.9–64.5; see §3-bis). The delivered model varies with OpenRouter routing (~50 to
@@ -162,8 +170,8 @@ invalidated (range 6.9–64.5; see §3-bis). The delivered model varies with Ope
 anything, and the system prompt — which looked like the expense — is irrelevant. The two real
 levers are making the output more compact and choosing the model.
 
-**The open model comes out 182× cheaper per site** (€48 versus €8,750) **while matching quality on
-the gold.** With the costly error at 3–8 weeks, €8,700 saved per site doesn't buy back a single
+**The open model comes out 73× cheaper per site** (€121 versus €8,750) **while matching quality on
+the gold.** With the costly error at 3–8 weeks, €8,600 saved per site doesn't buy back a single
 failure. Cost isn't what needs optimizing; getting it right is.
 
 ## 3. What I commit to
@@ -211,7 +219,7 @@ things right: it's to **not resolve what can't be justified**.
 | 2 | **Every uncovered case comes out flagged, not resolved.** A value no table recognizes is a policy gap, not a silent default | 0 gaps on the given MTO (the policies were written against it) · 17 on the synthetic set, none false | `pnpm run gaps`, deterministic and over 100% of rows |
 | 3 | **Every reviewable line can be fixed in ≤90 s**, from opening it to saving the decision | Inline flow built; **timed test pending** | Time representative corrections without opening Excel |
 | 4 | **Every accepted suggestion stays in the shared vocabulary** and is reused without repeating the review | Material/finish are saved from the UI, fix the same cases in the open MTO, and remain active for subsequent ones | Repeat the same alias in the open MTO and in a later MTO |
-| 5 | **Cost ≤ €0.0001 per row read**, i.e., **≤ €50 per site** of 500,000 reads | €0.000095/row → **€48/site** | `pnpm run cost` with `LLM_CACHE=off` |
+| 5 | **Cost ≤ €0.0001 per row read**, i.e., **≤ €50 per site** of 500,000 reads | ❌ **NOT MET as of 2026-08-26**: €0.00024/row → **€121/site**. Was €0.000095 → €48; output tokens went ×2.2 | `pnpm run cost` with `LLM_CACHE=off` |
 | 6 | **Throughput, not latency.** See §3-bis | — | — |
 
 **What commitment 1 doesn't say, and needs saying.** It's measured on 30 lines I labeled myself, and

@@ -80,6 +80,11 @@ the blind set from the session day, which is the real proof.
 | `deepseek/deepseek-v3.2` | 0.40 | 0% | 40.0% | 93% | 13% | 0.00031 |
 | `deepseek/deepseek-v4-pro-0813` | 3.56 | 0% | 23.3% | 60% | 14% | 0.0014 |
 | `z-ai/glm-5.2` | 3.04 | 33% (2) | 13.3% | 53% | 17% | 0.0019 |
+
+> **The absolute €/row here is from the sweep that produced this table** and predates fixing
+> `LLM_REASONING_EFFORT`. The delivered model now measures **€0.00024/row → €121/site**
+> (`docs/02-kpi.md`, 2026-08-26). The **comparison between models still holds** — they were all
+> measured under the same conditions — which is why no cell is edited here.
 | `qwen/qwen3.8-max` | 6.00 | 0% | **0.0%** | 40% | 67% | — |
 
 ### 0. `kimi-k3` matches `gpt-5.5` exactly
@@ -164,6 +169,11 @@ per-attribute breakdown instead of the aggregate.
 | `kimi-k3` | perfect on the gold, **1 of 4** on the synthetic | 0.0169 | ~8,450 | Same quality, no vendor lock-in |
 | **`gpt-oss-120b`** | **perfect** · 211/211 certain cells | **0.000095** | **48** | **The choice.** 176× cheaper on output |
 
+> **The absolute €/row here is from the sweep that produced this table** and predates fixing
+> `LLM_REASONING_EFFORT`. The delivered model now measures **€0.00024/row → €121/site**
+> (`docs/02-kpi.md`, 2026-08-26). The **comparison between models still holds** — they were all
+> measured under the same conditions — which is why no cell is edited here.
+
 **Decided: `gpt-oss-120b`.** The condition that had been left written here — "if the preference for
 the table on the name attribute takes it to 0%" — was met: the 13% silent error it had was **two
 cells** (`STUD BOLT` classified as `VARILLA ROSCADA`), the model returned the correct literal term
@@ -191,6 +201,9 @@ Real denominator: **20,000 × 25 = 500,000 calls per project, not 100,000.**
 | As written | 0.000095 | 100,000 | €9 |
 | **Honest, no pre-filter** | 0.000095 | **500,000** | **€48** |
 | `gpt-5.5`, honest | 0.0175 | 500,000 | **€8,750** (was €1,749) |
+
+> The lesson of this table is the **denominator**, not the absolute cost, so its cells are left as
+> measured. Today's delivered figure is €0.00024/row → €121/site (`docs/02-kpi.md`, 2026-08-26).
 
 With the chosen model the error is irrelevant in euros — €48 against the €87,500 baseline is still
 0.05% — but with `gpt-5.5` the difference is €1,749 versus €8,750, and that's a figure that does

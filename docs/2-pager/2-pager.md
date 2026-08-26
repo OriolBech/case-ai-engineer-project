@@ -68,7 +68,7 @@ tabla, no con memoria del modelo.**
 | **Reutilización del vocabulario** | Aceptar una sugerencia de material/acabado la aplica al resto del MTO y la deja activa para los siguientes |
 | Separación de sets / ruido en cola | **100% / 0%** |
 | Desglose | Los 7 atributos y la cantidad: **211/211 celdas ciertas correctas** |
-| Coste | **0,000095 €/fila → 48 €/obra** con 500.000 lecturas |
+| Coste | **0,00024 €/fila → 121 €/obra** con 500.000 lecturas · el **0,14 %** del baseline manual |
 | Tiempo para 1.000 filas | Una pasada extrapola a **~62 min serial; ~5 min con concurrencia 12 ideal** (`.env` y valor por defecto). No es SLA: faltan repeticiones |
 
 El **50% no es la promesa ni un límite del modelo**: el 87% de la cola son calidades de tuercas y

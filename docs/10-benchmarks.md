@@ -215,7 +215,9 @@ real response.** The gold set caught it.
 
 ## 4. Cost and latency
 
-Tokens measured on the real MTO: **1,730 input / 652 output per row**.
+Tokens measured on the real MTO: **1,730 input / 652 output per row** at the time of this sweep.
+Re-measured 2026-08-26: **2,536 in / 1,422 out** — output ×2.2, almost certainly the reasoning
+effort. See `docs/02-kpi.md`.
 
 | Configuration | €/row | € per project (4,000 rows × 25 rev.) | vs manual |
 |---|---|---|---|
@@ -223,6 +225,13 @@ Tokens measured on the real MTO: **1,730 input / 652 output per row**.
 | `gpt-5.5` | 0.0175 | 1,749 | 2.0% |
 | `kimi-k3` | 0.0169 | ~1,240 | 1.4% |
 | **`gpt-oss-120b`** | **0.000095** | **9** | **0.01%** |
+
+> **The absolute €/row here is from the sweep that produced this table** and predates fixing
+> `LLM_REASONING_EFFORT`. The delivered model now measures **€0.00024/row → €121/site**
+> (`docs/02-kpi.md`, 2026-08-26). The **comparison between models still holds** — they were all
+> measured under the same conditions — which is why no cell is edited here.
+> Note also that this table's project column uses the **old denominator** (4,000 × 25 = 100,000).
+> The corrected one is 20,000 × 25 = 500,000 reads; see `docs/02-kpi.md`.
 
 **96% of the cost at scale is output tokens.** Caching more input buys almost nothing; the levers
 are output verbosity and model choice.

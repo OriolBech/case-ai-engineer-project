@@ -48,7 +48,7 @@ in `07-target-solution.md` with its cost.
 A 5× cost reduction, measured at **0 false negatives and 0 false positives on 79 rows**, not
 implemented. It changes the semantics of P-9 —the out-of-family verdict would move from the model
 to a table in 80% of cases— and that's a product decision with its own measurement, not a
-last-minute patch. The cost of not doing it is bounded and stated: 48 € per site instead of ~10 €.
+last-minute patch. The cost of not doing it is bounded and stated: 121 € per site instead of ~25 €.
 
 ### The third question to the client
 

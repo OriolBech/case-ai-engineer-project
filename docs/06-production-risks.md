@@ -5,7 +5,7 @@
 > **what detects it**, and **what I'd do**. A risk with no detector is just a nice sentence.
 
 Of the five day-0 candidates, two drop out, and here's why: **cost** stopped being a risk once
-measured (€48 per project vs. €87,500 baseline; see `05-results.md`), and the **dirty materials
+measured (€121 per project vs. €87,500 baseline; see `02-kpi.md`), and the **dirty materials
 master** is a real client problem but it's out of scope for this system — it shows up as line 7 of
 `07-target-solution.md`, not as a pipeline failure mode. 2-pager §6.3 names it alongside two
 buyers and the unmeasured human rate: they're criterion 4 of the case (*problems that aren't
@@ -138,7 +138,7 @@ they're kept as separate versions.
 
 ## What's deliberately NOT on this list
 
-- **Cost.** It stopped being a risk once measured: €48 per project vs. €87,500 baseline. And the
+- **Cost.** It stopped being a risk once measured: €121 per project vs. €87,500 baseline. And the
   honest denominator (500,000 reads, not 100,000) is already in `05-results.md`, done before the
   CFO does it.
 - **Latency.** It's not a risk, it's something that **isn't promised**: it varies by a factor of 9

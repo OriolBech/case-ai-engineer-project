@@ -20,7 +20,7 @@ rows with no text get short-circuited, so a flange pays for its call and comes b
 | | Value |
 |---|---|
 | Measured on the 79 rows we have | **0 false negatives · 0 false positives** |
-| Cost delta | €48 → ~€10 per project with the chosen model; **€8,750 → €1,750** with `gpt-5.5` |
+| Cost delta | €121 → ~€25 per project with the chosen model; **€8,750 → €1,750** with `gpt-5.5` |
 | Cost to build | Low. It's `findNames` plus a guard |
 
 **Why it isn't already done**, which is the interesting part: it moves the out-of-family verdict
