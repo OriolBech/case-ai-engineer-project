@@ -55,8 +55,10 @@ const STAGES = [
     spec: 'SPEC-012',
     summary: 'Una sola vista: material y acabado editables; nombre, calidad y norma en solo lectura.',
     detail:
-      'El MTO casi nunca escribe el material explícitamente. La tabla de material decide "A4-70 → INOX", ' +
-      '"8.8 → AC". La de acabado (SPEC-011) traduce alias al catálogo de §9. Las dos son dato ' +
+      'El MTO casi nunca escribe el material explícitamente —una vez en treinta líneas—, así que las ' +
+      'otras veintinueve hay que deducirlas. La tabla de material decide "A4-70 → INOX", ' +
+      '"8.8 → AC"; quien la aplica es la validación (P-3), no la normalización. ' +
+      'La de acabado (SPEC-011) traduce alias al catálogo de §9. Las dos son dato ' +
       '(SQLite + log en git), trazables y ampliables desde /vocabulario sin desplegar. Un acabado ' +
       'que la tabla no conoce no se resuelve como "sin acabado": P-12 lo manda a revisión. Nombre, ' +
       'calidad y norma se listan igual, todavía solo lectura: son el catálogo cerrado del cliente.',
@@ -66,12 +68,19 @@ const STAGES = [
     title: 'Normalización',
     llm: false,
     spec: 'SPEC-004',
-    summary: 'Cuatro tablas cerradas y exhaustivas: normas, acabados, calidades, nombres.',
+    summary: 'Cuatro tablas cerradas — normas, acabados, calidades, nombres — más el material escrito.',
     detail:
       'Equivalencias verbatim de las reglas del cliente (p. ej. DIN 934 → ISO 4032, 25 normas DIN ' +
       'con su equivalente ISO/EN). Deliberadamente sin modelo: son tablas cerradas y exhaustivas, ' +
       'así que meter un LLM aquí sería pagar por token algo que ya resuelve una tabla — el error de ' +
-      'criterio que este proyecto evita a propósito.',
+      'criterio que este proyecto evita a propósito. ' +
+      'El material también se normaliza aquí, pero sólo cuando la fila lo escribe: "acero" → AC, que ' +
+      'es la normalización semántica que pide §4. En el MTO de referencia eso ocurre UNA vez de ' +
+      'treinta —la fila 14, "Arandela plana DIN 125 M10, acero, zincada"—, porque el MTO casi nunca ' +
+      'escribe el material. Las otras veintinueve lo obtienen derivándolo de la calidad, y eso pasa ' +
+      'en la validación y no aquí: necesita el vocabulario y una política que se pueda apagar. Por ' +
+      'eso la fila 14 sale con procedencia "extraído" y las demás con "derivado" — no es un matiz de ' +
+      'etiqueta, es lo que separa un dato que pone el MTO de uno que decidimos nosotros.',
   },
   {
     n: 6,
@@ -83,7 +92,14 @@ const STAGES = [
       'Comprueba coherencia calidad/tipo, norma y calidad presentes, plausibilidad de unidades, y ' +
       'aplica el resto de políticas de negocio (ver más abajo). Sin modelo, a propósito: son reglas ' +
       'booleanas, y meter un LLM aquí haría el resultado no reproducible entre ejecuciones del ' +
-      'mismo fichero — y el challenge exige poder dar traza y repetir el resultado.',
+      'mismo fichero — y el challenge exige poder dar traza y repetir el resultado. ' +
+      'Es la primera etapa que ve la FILA ENTERA, y por eso resuelve lo que un elemento aislado no ' +
+      'puede: propagar la medida dentro de un set (§2, la única extrapolación que las reglas ' +
+      'permiten), decidir a qué elementos alcanza un acabado escrito una sola vez (P-1), y derivar ' +
+      'el material de la calidad (P-3): A4-70 → INOX, 8.8 → AC. Esa derivación vive aquí y no en la ' +
+      'normalización porque las reglas del cliente no la contienen: es decisión nuestra, consulta el ' +
+      'vocabulario y tiene que poder apagarse. Con ella apagada, 29 de las 30 líneas se quedan sin ' +
+      'material.',
   },
   {
     n: 7,
